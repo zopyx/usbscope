@@ -7,7 +7,7 @@ from dataclasses import replace
 from rich.console import Console
 
 from usbscope.models import Snapshot, UsbDevice
-from usbscope.render import render
+from usbscope.render import build_view, render
 
 
 def _console(width: int = 150) -> Console:
@@ -136,6 +136,29 @@ def test_watch_refresh_counter_is_shown(snapshot: Snapshot) -> None:
     console = _console()
     render(snapshot, console, refresh=7)
     assert "refresh 7" in _text(console)
+
+
+def test_build_view_returns_a_renderable(snapshot: Snapshot) -> None:
+    """Live mode renders build_view() directly, so it must be a renderable, not prints."""
+    console = _console()
+    view = build_view(snapshot, console, view="ports", refresh=3)
+    assert view is not None  # renderable object, nothing printed yet
+    assert console.export_text() == ""
+
+    console.print(view)
+    out = _text(console)
+    assert "Ports & cables" in out
+    assert "refresh 3" in out
+
+
+def test_build_view_respects_console_width(snapshot: Snapshot) -> None:
+    narrow = _console(width=80)
+    narrow.print(build_view(snapshot, narrow))
+    assert "Transports" not in _text(narrow)
+
+    wide = _console(width=150)
+    wide.print(build_view(snapshot, wide))
+    assert "Transports" in _text(wide)
 
 
 def test_unknown_device_gets_default_icon(snapshot: Snapshot) -> None:

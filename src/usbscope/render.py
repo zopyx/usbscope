@@ -407,7 +407,8 @@ def _summary_panel(snapshot: Snapshot, refresh: int | None) -> Panel:
     )
 
 
-def _footer(console: Console, snapshot: Snapshot, verbose: bool) -> None:
+def _footer(console: Console, snapshot: Snapshot, verbose: bool) -> RenderableType:
+    lines: list[RenderableType] = []
     legend = Text()
     legend.append("●", style="green")
     legend.append(" active   ", style="dim")
@@ -415,38 +416,74 @@ def _footer(console: Console, snapshot: Snapshot, verbose: bool) -> None:
     legend.append(" idle   ", style="dim")
     legend.append("–", style="dim")
     legend.append(" not present / unknown", style="dim")
-    console.print(legend)
+    lines.append(legend)
     modes = sorted({port.mode for port in snapshot.ports if port.mode != UsbMode.UNKNOWN})
     if modes and console.width < WIDE_WIDTH:
-        console.print(
-            "[dim]modes:[/] "
-            + " · ".join(f"[{_mode_style(mode)}]{mode.short}[/]" for mode in modes)
-            + "[dim] ("
-            + ", ".join(mode.label for mode in modes)
-            + ")[/]"
+        lines.append(
+            Text.from_markup(
+                "[dim]modes:[/] "
+                + " · ".join(f"[{_mode_style(mode)}]{mode.short}[/]" for mode in modes)
+                + "[dim] ("
+                + ", ".join(mode.label for mode in modes)
+                + ")[/]"
+            )
         )
     if not verbose:
-        console.print(
-            "[dim]hint:[/] [cyan]usbscope --watch 2[/] [dim]live refresh ·[/] "
-            "[cyan]usbscope -v[/] [dim]more detail ·[/] [cyan]usbscope --json[/] "
-            "[dim]machine readable[/]"
+        lines.append(
+            Text.from_markup(
+                "[dim]hint:[/] [cyan]usbscope --watch 2[/] [dim]live refresh ·[/] "
+                "[cyan]usbscope -v[/] [dim]more detail ·[/] [cyan]usbscope --json[/] "
+                "[dim]machine readable[/]"
+            )
         )
+    return Group(*lines)
 
 
-def _warnings(console: Console, snapshot: Snapshot) -> None:
+def _warnings(snapshot: Snapshot) -> RenderableType | None:
     if not snapshot.warnings:
-        return
+        return None
     body = Group(*[Text(f"• {warning}", style="yellow") for warning in snapshot.warnings])
-    console.print(Panel(body, title="[yellow]notes[/]", border_style="yellow", box=box.ROUNDED))
+    return Panel(body, title="[yellow]notes[/]", border_style="yellow", box=box.ROUNDED)
 
 
-def _empty_devices_hint(console: Console, snapshot: Snapshot) -> None:
+def _empty_devices_hint(snapshot: Snapshot) -> RenderableType | None:
     if snapshot.devices:
-        return
-    console.print(
+        return None
+    return Text.from_markup(
         "[dim]No USB device is attached right now — plug one in and use "
         "[cyan]usbscope --watch 2[/] to watch the ports negotiate.[/]"
     )
+
+
+def build_view(
+    snapshot: Snapshot,
+    console: Console,
+    *,
+    view: str = "overview",
+    verbose: bool = False,
+    refresh: int | None = None,
+) -> RenderableType:
+    """Assemble the requested view as a single renderable.
+
+    Returning (instead of printing) keeps one-shot output and the flicker free
+    live mode of ``--watch`` on the same code path.
+    """
+    parts: list[RenderableType] = [_summary_panel(snapshot, refresh)]
+    if (warnings := _warnings(snapshot)) is not None:
+        parts.append(warnings)
+    if view in {"overview", "ports"} and snapshot.ports:
+        parts.append(_ports_table(snapshot, verbose, console.width))
+    if view == "cables":
+        parts.append(_cables_panel(snapshot, verbose))
+    if view in {"overview", "ports"} and (hint := _empty_devices_hint(snapshot)) is not None:
+        parts.append(hint)
+    if view in {"overview", "devices"}:
+        parts.append(_devices_tree(snapshot, verbose))
+    if view in {"overview", "thunderbolt"} and snapshot.thunderbolt:
+        parts.append(_thunderbolt_table(snapshot, verbose))
+    if view in {"overview", "ports", "cables"}:
+        parts.append(_footer(console, snapshot, verbose))
+    return Group(*parts)
 
 
 def render(
@@ -458,22 +495,4 @@ def render(
     refresh: int | None = None,
 ) -> None:
     """Print the requested view of ``snapshot`` to ``console``."""
-    console.print(_summary_panel(snapshot, refresh))
-    _warnings(console, snapshot)
-
-    if view in {"overview", "ports"} and snapshot.ports:
-        console.print(_ports_table(snapshot, verbose, console.width))
-
-    if view == "cables":
-        console.print(_cables_panel(snapshot, verbose))
-
-    if view in {"overview", "ports"}:
-        _empty_devices_hint(console, snapshot)
-    if view in {"overview", "devices"}:
-        console.print(_devices_tree(snapshot, verbose))
-
-    if view in {"overview", "thunderbolt"} and snapshot.thunderbolt:
-        console.print(_thunderbolt_table(snapshot, verbose))
-
-    if view in {"overview", "ports", "cables"}:
-        _footer(console, snapshot, verbose)
+    console.print(build_view(snapshot, console, view=view, verbose=verbose, refresh=refresh))

@@ -19,6 +19,16 @@ uv run usbscope --json        # JSON snapshot (schema below)
 
 Exit codes: `0` success, `1` unexpected failure, `130`/`0` on Ctrl-C.
 
+## Live mode (`--watch`)
+
+`usbscope --watch 2` refreshes in place on the terminal's alternate screen
+(`rich.live.Live`), so only the changed lines are repainted — no clear/redraw
+flicker. The refresh counter sits in the header, tall content is cropped to the
+window, and the previous screen is restored on Ctrl-C (and on `SIGTERM`, so the
+terminal is never left in the alternate buffer). The sleep is shortened by the
+collection time to keep the cadence even. `--watch` combined with `--json`/`json`
+prints one snapshot instead, because JSON in a live loop makes no sense.
+
 ## What each view shows
 
 | View | Content |
