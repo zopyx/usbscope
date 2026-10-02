@@ -25,7 +25,8 @@ def test_overview_wide(snapshot: Snapshot) -> None:
     render(snapshot, console)
     out = _text(console)
     assert "usbscope" in out
-    assert "MacBook Pro · Apple M3 Pro · macOS 27.0.1" in out
+    # derived from the snapshot, not from the machine running the suite
+    assert f"{snapshot.model} · {snapshot.chip} · macOS {snapshot.os_version}" in out
     assert "6 total · 2 connected" in out
     assert "Ports & cables" in out
     assert "USB-C@3" in out

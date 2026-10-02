@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import platform
 from typing import cast
+
+import pytest
 
 from usbscope.models import Snapshot
 from usbscope.snapshot import collect
@@ -69,3 +72,29 @@ def test_clock_is_injectable(ioreg: IoregSource, profiler: SystemProfiler) -> No
     fixed = datetime(2026, 10, 2, 12, 0, 0)
     snapshot = collect(profiler=profiler, ioreg=ioreg, clock=lambda: fixed)
     assert snapshot.seen_at == fixed
+
+
+def test_host_identity_is_injectable(
+    profiler: SystemProfiler, ioreg: IoregSource, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The captured fixtures must describe one machine, whoever runs the suite.
+
+    Without the injection the macOS version came from the host, so the suite passed
+    on the capture machine and failed on a runner (macOS 14 vs 27) for assertions
+    that only looked like fixture data.
+    """
+    from .conftest import FIXTURE_HOST, FIXTURE_OS_VERSION
+
+    monkeypatch.setattr(platform, "mac_ver", lambda: ("14.8.9", (), ""))
+
+    pinned = collect(
+        profiler=profiler,
+        ioreg=ioreg,
+        host=FIXTURE_HOST,
+        os_version=FIXTURE_OS_VERSION,
+    )
+    assert pinned.os_version == FIXTURE_OS_VERSION
+    assert pinned.host == FIXTURE_HOST
+
+    live = collect(profiler=profiler, ioreg=ioreg)
+    assert live.os_version == "14.8.9"  # the host is the default, not the fixture

@@ -16,6 +16,11 @@ from usbscope.sources.shell import CommandResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
+# The fixtures were captured on one machine: pin its identity so the suite does not
+# depend on the host it runs on (the macOS version would otherwise come from CI).
+FIXTURE_HOST = "mac"
+FIXTURE_OS_VERSION = "27.0.1"
+
 _PROFILER_FILES = {
     "SPUSBHostDataType": "usbhost.json",
     "SPUSBDataType": "usb_legacy_empty.json",
@@ -74,4 +79,9 @@ def ioreg() -> IoregSource:
 @pytest.fixture
 def snapshot(profiler: SystemProfiler, ioreg: IoregSource) -> Snapshot:
     """A full snapshot built from the captured payloads."""
-    return collect(profiler=profiler, ioreg=ioreg)
+    return collect(
+        profiler=profiler,
+        ioreg=ioreg,
+        host=FIXTURE_HOST,
+        os_version=FIXTURE_OS_VERSION,
+    )

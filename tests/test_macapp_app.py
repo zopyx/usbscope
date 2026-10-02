@@ -89,9 +89,12 @@ class _Store:
         self.values[key] = value
 
 
-def test_window_has_a_native_toolbar_with_all_controls(delegate: AppDelegate) -> None:
+def test_window_has_a_native_toolbar_with_all_controls(
+    delegate: AppDelegate, snapshot: Snapshot
+) -> None:
     assert delegate.window is not None
-    assert delegate.window.title() == "usbscope — MacBook Pro · Apple M3 Pro · macOS 27.0.1"
+    expected = f"usbscope — {snapshot.model} · {snapshot.chip} · macOS {snapshot.os_version}"
+    assert delegate.window.title() == expected
 
     toolbar = delegate.window.toolbar()
     assert toolbar is not None

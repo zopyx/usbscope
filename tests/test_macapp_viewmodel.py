@@ -101,7 +101,9 @@ def test_thunderbolt_model(snapshot: Snapshot) -> None:
 
 
 def test_headers_and_status(snapshot: Snapshot) -> None:
-    assert header_text(snapshot) == "usbscope — MacBook Pro · Apple M3 Pro · macOS 27.0.1"
+    # the expectation comes from the snapshot, so the test does not depend on the host
+    expected = f"usbscope — {snapshot.model} · {snapshot.chip} · macOS {snapshot.os_version}"
+    assert header_text(snapshot) == expected
     summary = summary_text(snapshot)
     assert summary.startswith("6 ports · 2 connected · 1 device(s)")
     assert "3 USB4 receptacle(s)" in summary

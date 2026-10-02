@@ -52,16 +52,21 @@ def collect(
     profiler: SystemProfiler | None = None,
     ioreg: IoregSource | None = None,
     clock: Clock = datetime.now,
+    os_version: str | None = None,
+    host: str | None = None,
 ) -> Snapshot:
     """Read every source and merge the results into a single snapshot.
 
     Broken or missing sources never abort the collection: their message is kept
     in ``Snapshot.warnings`` so the UI can show it instead of a traceback.
+
+    ``os_version`` and ``host`` default to this machine. Tests inject them together
+    with the captured fixtures, otherwise the snapshot of a *captured* machine would
+    carry the macOS version of whatever host the suite happens to run on.
     """
     profiler = profiler or SystemProfiler()
     ioreg = ioreg or IoregSource()
     warnings: list[str] = []
-
     ports, port_warnings = ioreg.ports()
     warnings.extend(port_warnings)
     buses, bus_warnings = profiler.usb_buses()
@@ -97,8 +102,8 @@ def collect(
         merged_buses.append(Bus(name=_ORPHAN_BUS, driver="ioreg", devices=orphans))
 
     return Snapshot(
-        host=platform.node() or "this Mac",
-        os_version=platform.mac_ver()[0] or platform.platform(),
+        host=host or platform.node() or "this Mac",
+        os_version=os_version or platform.mac_ver()[0] or platform.platform(),
         seen_at=clock(),
         model=hardware.get("model"),
         chip=hardware.get("chip"),
