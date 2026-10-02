@@ -36,6 +36,20 @@ $ uv run python scripts/build_app.py     # build usbscope.app + DMG into dist/
 $ open dist/usbscope.app                 # or drag it into /Applications
 ```
 
+## Build & verify
+
+```console
+$ make                # list the tasks (self documenting)
+$ make doctor         # uv, PyObjC, librsvg, codesign, hdiutil available?
+$ make check          # gates: ruff format --check, ruff check, ty, pytest
+$ make binary         # standalone CLI binary        → dist/
+$ make app-bundle     # usbscope.app + DMG (arm64)   → dist/
+$ make artifacts      # gates + both builds (release build)
+$ make checksums      # verify the SHA-256 files in dist/
+```
+
+Details, artifacts and the signing caveats: [docs/index.md](docs/index.md).
+
 ## Usage
 
 ```console

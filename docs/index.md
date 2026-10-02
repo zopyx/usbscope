@@ -124,6 +124,35 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
 }
 ```
 
+## Makefile
+
+`make` (or `make help`) lists every task grouped by section; the `##` comment next
+to a target is its description. Everything runs through `uv`, so the pinned Python
+3.14 and the locked dependencies are always used.
+
+| Target | Does |
+| --- | --- |
+| `make doctor` | checks the tools this repo needs (uv, PyObjC, librsvg, codesign, hdiutil) |
+| `make sync` | environment incl. the `macapp` extra (PyObjC) |
+| `make format` / `make lint` | `ruff format` + `--fix` resp. `ruff format --check`, `ruff check`, `ty check` |
+| `make test` / `make coverage` | `pytest` resp. pytest with a coverage report (`pytest-cov` is fetched on demand) |
+| `make check` | all gates, i.e. lint + test — the CI equivalent |
+| `make run` / `make watch` / `make run-app` | CLI overview, CLI with live refresh, native app |
+| `make snapshot` | app window → `docs/screenshots/app-<view>.png` (offscreen, no permissions needed) |
+| `make refresh-screenshots` | CLI screenshots (SVG + PNG, host name masked) |
+| `make screenshots` | both of the above |
+| `make binary` | standalone CLI binary → `dist/` |
+| `make app-bundle` (alias `make app`) | `usbscope.app` + DMG → `dist/` |
+| `make artifacts` | gates + CLI binary + app: the full release build |
+| `make checksums` | verifies `dist/SHA256SUMS` and `dist/SHA256SUMS-app` |
+| `make install` | `uv tool install '.[macapp]'` (CLI + `usbscope-app` on the PATH) |
+| `make clean` / `make distclean` | build output / plus the virtualenv |
+
+Variables: `SHOT_HOST=<name> make refresh-screenshots` sets the host name shown in
+the captures (default `mac`). On macOS two details matter: `make` is the old GNU
+make 3.81 (no modern functions in the file), and the shell already exports a `HOST`
+variable — which is why the screenshot variable is called `SHOT_HOST`.
+
 ## The macOS app
 
 The same data as a native Cocoa app (`usbscope-app`) — a real `NSWindow` with a
@@ -146,27 +175,59 @@ cadence and the first warning of a failing source.
 
 ```console
 $ uv run --extra macapp usbscope-app          # run from the checkout
-$ uv run python scripts/build_app.py          # build + verify + DMG into dist/
+$ make run-app                                # same, via make
+$ make app-bundle                             # build + verify + DMG into dist/
 ```
 
-`scripts/build_app.py` runs PyInstaller (`--windowed`), fills the Info.plist
-(bundle id, version, minimum macOS), signs the bundle ad hoc, then **launches the
-bundled app** in `--snapshot` mode to prove the bundle works before packaging it
-into a DMG. `usbscope-app --snapshot out.png [--view cables]` renders the window
-offscreen, which is also how the screenshots above were made.
+### Building the bundle
 
-Two known limitations around the offscreen capture (the interactive app is not
-affected):
+`make app-bundle` (or `uv run python scripts/build_app.py`) runs four steps and
+fails loudly at each one instead of leaving a broken artifact:
+
+1. **PyInstaller** (`--windowed --target-architecture arm64`) collects Python, Rich
+   and PyObjC plus a generated entry point into `dist/usbscope.app`. Only `uv` is
+   required — PyInstaller and PyObjC are fetched on demand; `codesign` and
+   `hdiutil` ship with macOS.
+2. **Info.plist** is rewritten with `CFBundleIdentifier com.zopyx.usbscope`, the
+   package version, `LSMinimumSystemVersion 13.0` and `NSHighResolutionCapable`, so
+   Finder shows a proper name and macOS knows the minimum system.
+3. **Signing**: `codesign --deep --force --sign - --identifier com.zopyx.usbscope`
+   (ad hoc), followed by `codesign --verify`.
+4. **Self test**: the *bundled* app is executed —
+   `dist/usbscope.app/Contents/MacOS/usbscope --snapshot … --view ports` — and the
+   resulting PNG is checked. A windowed app still takes argv, which is how the build
+   proves the artifact works before packaging. Then `hdiutil create … UDZO` writes
+   the DMG and `SHA256SUMS-app`.
+
+| Artifact | Content |
+| --- | --- |
+| `dist/usbscope.app` | the bundle (drag into `/Applications`) |
+| `dist/usbscope-0.2.0-macos-arm64.dmg` | compressed disk image (~11 MiB) |
+| `dist/SHA256SUMS-app` | SHA-256 of the DMG |
+| `dist/usbscope-<version>-macos-arm64[.tar.gz]` | standalone CLI binary (12.7 MiB) |
+| `dist/SHA256SUMS` | SHA-256 of both CLI artifacts |
+
+Install and check the built artifacts:
+
+```console
+make checksums                                            # both checksum files
+open dist/usbscope-0.2.0-macos-arm64.dmg                  # then drag the app over
+/Volumes/usbscope/usbscope.app/Contents/MacOS/usbscope --version
+```
+
+`usbscope-app --snapshot out.png [--view cables]` renders the window offscreen
+(`make snapshot` regenerates `docs/screenshots/app-*.png`). Two known limitations of
+that capture path — the interactive app is not affected:
 
 * AppKit's control cells (segment titles, popup items, button bezels) do not
-  serialise into an offscreen bitmap. In `--snapshot` mode the toolbar is
-  therefore drawn as plain text labels at the same place; the real window uses the
-  native controls.
-* Forcing an appearance (`NSAppearance`) for a capture makes the layer backed
-  labels come out blank, so the flag was dropped: captures follow the system
+  serialise into an offscreen bitmap. In `--snapshot` mode the toolbar is therefore
+  drawn as plain text labels at the same place; the real window uses the native
+  controls.
+* Forcing an appearance (`NSAppearance`) for a capture makes the layer backed labels
+  come out blank, so that flag does not exist: captures follow the system
   appearance, which is what the window shows anyway.
 
-## Prebuilt binary
+## Prebuilt binary (CLI)
 
 Each release ships a standalone macOS binary (arm64) that bundles Python and Rich
 — no Python, no uv, no virtualenv required:
@@ -188,6 +249,7 @@ packages it into `dist/`):
 
 ```console
 uv run python scripts/build_binary.py                 # arm64, Python 3.14 + PyInstaller
+make binary                                           # same, via make
 uv run python scripts/build_binary.py --arch x86_64   # needs an x86_64/universal2 Python
 ```
 
@@ -209,8 +271,9 @@ Two honest caveats:
 live snapshot of the machine this tool was written on:
 
 ```console
-uv run python scripts/screenshots.py --png                      # 140 cols, monokai, 1.5x
-uv run python scripts/screenshots.py --png --host mac           # mask the host name
+make refresh-screenshots                                        # 140 cols, monokai, 1.5x
+SHOT_HOST=macbook make refresh-screenshots                      # mask the host name
+uv run python scripts/screenshots.py --png                      # the underlying script
 ```
 
 Rich exports the recorded console as SVG (colours and box drawing included), so
@@ -223,6 +286,18 @@ The device inventory and the model/chip line are left as they are — they are
 generic hardware facts, not identifiers.
 
 ## Development
+
+```console
+make sync          # uv sync --extra macapp (dev tools + PyObjC)
+make format        # ruff format + ruff check --fix
+make lint          # ruff format --check, ruff check, ty check
+make test          # pytest
+make coverage      # pytest with a coverage report (currently ~90% of src/usbscope)
+make check         # lint + test, the CI equivalent
+make artifacts     # check + CLI binary + app bundle
+```
+
+The same commands, spelled out:
 
 ```console
 uv run ruff format && uv run ruff check --fix
