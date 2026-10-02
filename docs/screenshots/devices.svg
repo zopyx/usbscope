@@ -1,0 +1,123 @@
+<svg class="rich-terminal" viewBox="0 0 1726 416.0" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .terminal-4253434775-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-4253434775-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-4253434775-r1 { fill: #58d1eb }
+.terminal-4253434775-r2 { fill: #58d1eb;font-weight: bold }
+.terminal-4253434775-r3 { fill: #398291 }
+.terminal-4253434775-r4 { fill: #d9d9d9 }
+.terminal-4253434775-r5 { fill: #878787 }
+.terminal-4253434775-r6 { fill: #c4c5b5;font-weight: bold }
+.terminal-4253434775-r7 { fill: #d9d9d9;font-weight: bold }
+.terminal-4253434775-r8 { fill: #5f5f5f }
+.terminal-4253434775-r9 { fill: #7a7b71;font-weight: bold }
+.terminal-4253434775-r10 { fill: #fd971f }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-4253434775-clip-terminal">
+      <rect x="0" y="0" width="1707.0" height="365.0" />
+    </clipPath>
+    <clipPath id="terminal-4253434775-line-0">
+    <rect x="0" y="1.5" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-1">
+    <rect x="0" y="25.9" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-2">
+    <rect x="0" y="50.3" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-3">
+    <rect x="0" y="74.7" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-4">
+    <rect x="0" y="99.1" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-5">
+    <rect x="0" y="123.5" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-6">
+    <rect x="0" y="147.9" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-7">
+    <rect x="0" y="172.3" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-8">
+    <rect x="0" y="196.7" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-9">
+    <rect x="0" y="221.1" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-10">
+    <rect x="0" y="245.5" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-11">
+    <rect x="0" y="269.9" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-12">
+    <rect x="0" y="294.3" width="1708" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-4253434775-line-13">
+    <rect x="0" y="318.7" width="1708" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#0c0c0c" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1724" height="414" rx="8"/><text class="terminal-4253434775-title" fill="#d9d9d9" text-anchor="middle" x="862" y="27">usbscope&#160;devices</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-4253434775-clip-terminal)">
+    
+    <g class="terminal-4253434775-matrix">
+    <text class="terminal-4253434775-r1" x="0" y="20" textLength="24.4" clip-path="url(#terminal-4253434775-line-0)">╭─</text><text class="terminal-4253434775-r1" x="24.4" y="20" textLength="634.4" clip-path="url(#terminal-4253434775-line-0)">────────────────────────────────────────────────────</text><text class="terminal-4253434775-r2" x="671" y="20" textLength="97.6" clip-path="url(#terminal-4253434775-line-0)">usbscope</text><text class="terminal-4253434775-r3" x="780.8" y="20" textLength="256.2" clip-path="url(#terminal-4253434775-line-0)">—&#160;macOS&#160;USB&#160;inspector</text><text class="terminal-4253434775-r1" x="1049.2" y="20" textLength="634.4" clip-path="url(#terminal-4253434775-line-0)">────────────────────────────────────────────────────</text><text class="terminal-4253434775-r1" x="1683.6" y="20" textLength="24.4" clip-path="url(#terminal-4253434775-line-0)">─╮</text><text class="terminal-4253434775-r4" x="1708" y="20" textLength="12.2" clip-path="url(#terminal-4253434775-line-0)">
+</text><text class="terminal-4253434775-r1" x="0" y="44.4" textLength="12.2" clip-path="url(#terminal-4253434775-line-1)">│</text><text class="terminal-4253434775-r5" x="24.4" y="44.4" textLength="85.4" clip-path="url(#terminal-4253434775-line-1)">Machine</text><text class="terminal-4253434775-r6" x="134.2" y="44.4" textLength="524.6" clip-path="url(#terminal-4253434775-line-1)">MacBook&#160;Pro&#160;·&#160;Apple&#160;M3&#160;Pro&#160;·&#160;macOS&#160;27.0.1&#160;&#160;</text><text class="terminal-4253434775-r1" x="1695.8" y="44.4" textLength="12.2" clip-path="url(#terminal-4253434775-line-1)">│</text><text class="terminal-4253434775-r4" x="1708" y="44.4" textLength="12.2" clip-path="url(#terminal-4253434775-line-1)">
+</text><text class="terminal-4253434775-r1" x="0" y="68.8" textLength="12.2" clip-path="url(#terminal-4253434775-line-2)">│</text><text class="terminal-4253434775-r5" x="24.4" y="68.8" textLength="85.4" clip-path="url(#terminal-4253434775-line-2)">&#160;&#160;&#160;Host</text><text class="terminal-4253434775-r4" x="134.2" y="68.8" textLength="524.6" clip-path="url(#terminal-4253434775-line-2)">geekmagicclockbuerook.fritz.box&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-4253434775-r1" x="1695.8" y="68.8" textLength="12.2" clip-path="url(#terminal-4253434775-line-2)">│</text><text class="terminal-4253434775-r4" x="1708" y="68.8" textLength="12.2" clip-path="url(#terminal-4253434775-line-2)">
+</text><text class="terminal-4253434775-r1" x="0" y="93.2" textLength="12.2" clip-path="url(#terminal-4253434775-line-3)">│</text><text class="terminal-4253434775-r5" x="24.4" y="93.2" textLength="85.4" clip-path="url(#terminal-4253434775-line-3)">&#160;&#160;Ports</text><text class="terminal-4253434775-r4" x="134.2" y="93.2" textLength="524.6" clip-path="url(#terminal-4253434775-line-3)">6&#160;total&#160;·&#160;2&#160;connected&#160;·&#160;0&#160;e-marked&#160;cable(s)</text><text class="terminal-4253434775-r1" x="1695.8" y="93.2" textLength="12.2" clip-path="url(#terminal-4253434775-line-3)">│</text><text class="terminal-4253434775-r4" x="1708" y="93.2" textLength="12.2" clip-path="url(#terminal-4253434775-line-3)">
+</text><text class="terminal-4253434775-r1" x="0" y="117.6" textLength="12.2" clip-path="url(#terminal-4253434775-line-4)">│</text><text class="terminal-4253434775-r5" x="24.4" y="117.6" textLength="85.4" clip-path="url(#terminal-4253434775-line-4)">Devices</text><text class="terminal-4253434775-r4" x="134.2" y="117.6" textLength="524.6" clip-path="url(#terminal-4253434775-line-4)">1&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-4253434775-r1" x="1695.8" y="117.6" textLength="12.2" clip-path="url(#terminal-4253434775-line-4)">│</text><text class="terminal-4253434775-r4" x="1708" y="117.6" textLength="12.2" clip-path="url(#terminal-4253434775-line-4)">
+</text><text class="terminal-4253434775-r1" x="0" y="142" textLength="12.2" clip-path="url(#terminal-4253434775-line-5)">│</text><text class="terminal-4253434775-r5" x="24.4" y="142" textLength="85.4" clip-path="url(#terminal-4253434775-line-5)">USB4/TB</text><text class="terminal-4253434775-r4" x="134.2" y="142" textLength="524.6" clip-path="url(#terminal-4253434775-line-5)">3&#160;receptacle(s)&#160;·&#160;0&#160;connected&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-4253434775-r1" x="1695.8" y="142" textLength="12.2" clip-path="url(#terminal-4253434775-line-5)">│</text><text class="terminal-4253434775-r4" x="1708" y="142" textLength="12.2" clip-path="url(#terminal-4253434775-line-5)">
+</text><text class="terminal-4253434775-r1" x="0" y="166.4" textLength="12.2" clip-path="url(#terminal-4253434775-line-6)">│</text><text class="terminal-4253434775-r5" x="24.4" y="166.4" textLength="85.4" clip-path="url(#terminal-4253434775-line-6)">Read&#160;at</text><text class="terminal-4253434775-r5" x="134.2" y="166.4" textLength="524.6" clip-path="url(#terminal-4253434775-line-6)">2026-10-02&#160;20:26:24&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-4253434775-r1" x="1695.8" y="166.4" textLength="12.2" clip-path="url(#terminal-4253434775-line-6)">│</text><text class="terminal-4253434775-r4" x="1708" y="166.4" textLength="12.2" clip-path="url(#terminal-4253434775-line-6)">
+</text><text class="terminal-4253434775-r1" x="0" y="190.8" textLength="1708" clip-path="url(#terminal-4253434775-line-7)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-4253434775-r4" x="1708" y="190.8" textLength="12.2" clip-path="url(#terminal-4253434775-line-7)">
+</text><text class="terminal-4253434775-r7" x="0" y="215.2" textLength="134.2" clip-path="url(#terminal-4253434775-line-8)">Devices&#160;(1)</text><text class="terminal-4253434775-r4" x="1708" y="215.2" textLength="12.2" clip-path="url(#terminal-4253434775-line-8)">
+</text><text class="terminal-4253434775-r8" x="0" y="239.6" textLength="48.8" clip-path="url(#terminal-4253434775-line-9)">├──&#160;</text><text class="terminal-4253434775-r6" x="48.8" y="239.6" textLength="134.2" clip-path="url(#terminal-4253434775-line-9)">USB&#160;3.1&#160;Bus</text><text class="terminal-4253434775-r9" x="183" y="239.6" textLength="244" clip-path="url(#terminal-4253434775-line-9)">&#160;·&#160;AppleT8122USBXHCI</text><text class="terminal-4253434775-r9" x="427" y="239.6" textLength="170.8" clip-path="url(#terminal-4253434775-line-9)">&#160;·&#160;@0x02000000</text><text class="terminal-4253434775-r4" x="1708" y="239.6" textLength="12.2" clip-path="url(#terminal-4253434775-line-9)">
+</text><text class="terminal-4253434775-r8" x="0" y="264" textLength="48.8" clip-path="url(#terminal-4253434775-line-10)">│&#160;&#160;&#160;</text><text class="terminal-4253434775-r8" x="48.8" y="264" textLength="48.8" clip-path="url(#terminal-4253434775-line-10)">└──&#160;</text><text class="terminal-4253434775-r5" x="97.6" y="264" textLength="122" clip-path="url(#terminal-4253434775-line-10)">no&#160;devices</text><text class="terminal-4253434775-r4" x="1708" y="264" textLength="12.2" clip-path="url(#terminal-4253434775-line-10)">
+</text><text class="terminal-4253434775-r8" x="0" y="288.4" textLength="48.8" clip-path="url(#terminal-4253434775-line-11)">├──&#160;</text><text class="terminal-4253434775-r6" x="48.8" y="288.4" textLength="134.2" clip-path="url(#terminal-4253434775-line-11)">USB&#160;3.1&#160;Bus</text><text class="terminal-4253434775-r9" x="183" y="288.4" textLength="244" clip-path="url(#terminal-4253434775-line-11)">&#160;·&#160;AppleT8122USBXHCI</text><text class="terminal-4253434775-r9" x="427" y="288.4" textLength="170.8" clip-path="url(#terminal-4253434775-line-11)">&#160;·&#160;@0x00000000</text><text class="terminal-4253434775-r4" x="1708" y="288.4" textLength="12.2" clip-path="url(#terminal-4253434775-line-11)">
+</text><text class="terminal-4253434775-r8" x="0" y="312.8" textLength="48.8" clip-path="url(#terminal-4253434775-line-12)">│&#160;&#160;&#160;</text><text class="terminal-4253434775-r8" x="48.8" y="312.8" textLength="48.8" clip-path="url(#terminal-4253434775-line-12)">└──&#160;</text><text class="terminal-4253434775-r5" x="97.6" y="312.8" textLength="122" clip-path="url(#terminal-4253434775-line-12)">no&#160;devices</text><text class="terminal-4253434775-r4" x="1708" y="312.8" textLength="12.2" clip-path="url(#terminal-4253434775-line-12)">
+</text><text class="terminal-4253434775-r8" x="0" y="337.2" textLength="48.8" clip-path="url(#terminal-4253434775-line-13)">└──&#160;</text><text class="terminal-4253434775-r6" x="48.8" y="337.2" textLength="134.2" clip-path="url(#terminal-4253434775-line-13)">USB&#160;3.1&#160;Bus</text><text class="terminal-4253434775-r9" x="183" y="337.2" textLength="244" clip-path="url(#terminal-4253434775-line-13)">&#160;·&#160;AppleT8122USBXHCI</text><text class="terminal-4253434775-r9" x="427" y="337.2" textLength="170.8" clip-path="url(#terminal-4253434775-line-13)">&#160;·&#160;@0x01000000</text><text class="terminal-4253434775-r4" x="1708" y="337.2" textLength="12.2" clip-path="url(#terminal-4253434775-line-13)">
+</text><text class="terminal-4253434775-r8" x="48.8" y="361.6" textLength="48.8" clip-path="url(#terminal-4253434775-line-14)">└──&#160;</text><text class="terminal-4253434775-r4" x="97.6" y="361.6" textLength="24.4" clip-path="url(#terminal-4253434775-line-14)">🔐&#160;</text><text class="terminal-4253434775-r6" x="134.2" y="361.6" textLength="341.6" clip-path="url(#terminal-4253434775-line-14)">Yubico&#160;YubiKey&#160;OTP+FIDO+CCID</text><text class="terminal-4253434775-r5" x="475.8" y="361.6" textLength="195.2" clip-path="url(#terminal-4253434775-line-14)">&#160;·&#160;0x1050:0x0407</text><text class="terminal-4253434775-r4" x="671" y="361.6" textLength="36.6" clip-path="url(#terminal-4253434775-line-14)">&#160;·&#160;</text><text class="terminal-4253434775-r10" x="707.6" y="361.6" textLength="366" clip-path="url(#terminal-4253434775-line-14)">USB&#160;1.1&#160;Full-Speed&#160;·&#160;12&#160;Mbit/s</text><text class="terminal-4253434775-r5" x="1073.6" y="361.6" textLength="146.4" clip-path="url(#terminal-4253434775-line-14)">&#160;·&#160;hw&#160;0x0543</text><text class="terminal-4253434775-r1" x="1220" y="361.6" textLength="146.4" clip-path="url(#terminal-4253434775-line-14)">&#160;·&#160;→&#160;USB-C@3</text><text class="terminal-4253434775-r1" x="1366.4" y="361.6" textLength="109.8" clip-path="url(#terminal-4253434775-line-14)">&#160;via&#160;USB2</text><text class="terminal-4253434775-r4" x="1708" y="361.6" textLength="12.2" clip-path="url(#terminal-4253434775-line-14)">
+</text>
+    </g>
+    </g>
+</svg>

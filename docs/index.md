@@ -124,6 +124,23 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
 }
 ```
 
+## Screenshots
+
+`docs/screenshots/` holds SVG + PNG renderings of the four views, generated from a
+live snapshot of the machine this tool was written on:
+
+```console
+uv run python scripts/screenshots.py --png            # 140 cols, monokai, 1.5x PNG
+uv run python scripts/screenshots.py --theme night-owlish --scale 2 --png
+```
+
+Rich exports the recorded console as SVG (colours and box drawing included), so
+the gallery can be regenerated on any Mac without a terminal emulator, window
+server or screenshot tool; only `rsvg-convert` (librsvg) is needed for the PNG
+step. The SVGs are kept next to the PNGs so a future edit can be re-rasterised
+without re-collecting. Note that the captures show the real host name and the
+device inventory of that machine — regenerating on another Mac changes both.
+
 ## Development
 
 ```console

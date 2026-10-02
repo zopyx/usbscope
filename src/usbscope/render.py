@@ -49,6 +49,13 @@ _MODE_STYLES: tuple[tuple[int, str], ...] = (
 
 _NON_USB_KINDS = {"HDMI", "SD Card"}
 
+# Explicit separator between styled text runs: Rich writes each style run as its
+# own SVG <text>/<tspan> with a fixed textLength, and a run that *starts* with
+# spaces loses them when the SVG is rasterised (the bus name would glue to its
+# driver). A visible separator renders identically in the terminal and in the
+# exported screenshots.
+_SEP = " · "
+
 
 def _icon(device: UsbDevice) -> str:
     haystack = f"{device.name} {device.vendor or ''}".lower()
@@ -105,13 +112,16 @@ def _transports_text(port: Port, verbose: bool) -> Text:
     text = Text()
     for index, transport in enumerate(port.transports):
         if index:
-            text.append(" · ", style="dim")
+            text.append("· ", style="dim")
         style = "green" if transport.active else "dim"
         text.append(
             f"{_short_kind(transport.kind)} {'●' if transport.active else '○'}", style=style
         )
+        # trailing space instead of a leading one: Rich's SVG export drops the
+        # leading spaces of a new style run, which would glue the items together
+        text.append(" ", style=style)
         if verbose and transport.active and (detail := _transport_detail(transport)):
-            text.append(f" ({detail})", style="dim")
+            text.append(f"({detail}) ", style="dim")
     return text
 
 
@@ -230,19 +240,19 @@ def _device_line(device: UsbDevice, verbose: bool) -> Text:
     text = Text()
     text.append(f"{_icon(device)} ")
     text.append(device.label, style="bold white")
-    text.append(f"  {device.id_string}", style="dim")
-    text.append("  ")
+    text.append(f"{_SEP}{device.id_string}", style="dim")
+    text.append(_SEP)
     text.append(device.mode.label, style=_mode_style(device.mode))
     if device.serial:
-        text.append(f"  serial {device.serial}", style="dim")
+        text.append(f"{_SEP}serial {device.serial}", style="dim")
     if device.version:
-        text.append(f"  hw {device.version}", style="dim")
+        text.append(f"{_SEP}hw {device.version}", style="dim")
     if device.port:
-        text.append(f"  → {device.port}", style="cyan")
+        text.append(f"{_SEP}→ {device.port}", style="cyan")
         if device.transport:
             text.append(f" via {device.transport}", style="cyan")
     if device.restricted:
-        text.append("  restricted by macOS", style="yellow")
+        text.append(f"{_SEP}restricted by macOS", style="yellow")
     if verbose:
         for key, value in (
             ("location", f"0x{device.location_id:08x}" if device.location_id else None),
@@ -251,7 +261,7 @@ def _device_line(device: UsbDevice, verbose: bool) -> Text:
             ("source", device.source),
         ):
             if value:
-                text.append(f"  {key}={value}", style="dim")
+                text.append(f"{_SEP}{key}={value}", style="dim")
     return text
 
 
@@ -260,9 +270,9 @@ def _devices_tree(snapshot: Snapshot, verbose: bool) -> Tree:
     for bus in snapshot.buses:
         heading = Text(bus.name, style="bold white")
         if bus.driver:
-            heading.append(f"  {bus.driver}", style="dim")
+            heading.append(f"{_SEP}{bus.driver}", style="dim")
         if bus.location_id is not None:
-            heading.append(f"  @0x{bus.location_id:08x}", style="dim")
+            heading.append(f"{_SEP}@0x{bus.location_id:08x}", style="dim")
         node = tree.add(heading)
         if not bus.devices:
             node.add(Text("no devices", style="dim"))
@@ -410,12 +420,12 @@ def _summary_panel(snapshot: Snapshot, refresh: int | None) -> Panel:
 def _footer(console: Console, snapshot: Snapshot, verbose: bool) -> RenderableType:
     lines: list[RenderableType] = []
     legend = Text()
-    legend.append("●", style="green")
-    legend.append(" active   ", style="dim")
-    legend.append("○", style="dim")
-    legend.append(" idle   ", style="dim")
-    legend.append("–", style="dim")
-    legend.append(" not present / unknown", style="dim")
+    legend.append("● ", style="green")
+    legend.append("active   ", style="dim")
+    legend.append("○ ", style="dim")
+    legend.append("idle   ", style="dim")
+    legend.append("– ", style="dim")
+    legend.append("not present / unknown", style="dim")
     lines.append(legend)
     modes = sorted({port.mode for port in snapshot.ports if port.mode != UsbMode.UNKNOWN})
     if modes and console.width < WIDE_WIDTH:
