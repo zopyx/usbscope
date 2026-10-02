@@ -16,9 +16,9 @@ PY ?= $(UV) run python
 SHOT_HOST ?= mac
 VERSION := $(shell $(PY) -c "import usbscope; print(usbscope.__version__)" 2>/dev/null || echo unknown)
 
-.PHONY: help doctor sync test lint format check coverage run watch run-app app \
-        refresh-screenshots screenshots snapshot binary app-bundle artifacts \
-        checksums install clean distclean env version
+.PHONY: help doctor sync test lint format check coverage run watch run-app \
+        refresh-screenshots screenshots snapshot icon binary app-bundle app dmg artifacts \
+        checksums ci install clean distclean env version
 
 ## ---------------------------------------------------------------------------
 ## Setup & quality
@@ -103,12 +103,21 @@ screenshots: refresh-screenshots snapshot ## regenerate every screenshot in the 
 binary: ## build the standalone CLI binary (dist/usbscope-<version>-macos-<arch>)
 	$(UV) run python scripts/build_binary.py
 
-app-bundle: ## build usbscope.app and the DMG (dist/)
+icon: ## regenerate the app icon (assets/icon/usbscope.icns) from the SVG
+	$(UV) run python scripts/make_icon.py
+
+app-bundle: icon ## build usbscope.app (with icon) and the styled DMG into dist/
 	$(UV) run python scripts/build_app.py
 
 app: app-bundle ## alias for app-bundle
 
+dmg: ## rebuild only the DMG for an existing dist/usbscope.app
+	$(UV) run python scripts/make_dmg.py dist/usbscope.app \
+		"dist/usbscope-$(VERSION)-macos-$$(uname -m).dmg" --volume-name usbscope
+
 artifacts: check binary app-bundle ## full release build: gates, CLI binary, app + DMG
+
+ci: check ## what the GitHub Actions workflow runs (alias for check)
 
 checksums: ## verify the checksums of everything in dist/
 	@cd dist && for f in SHA256SUMS SHA256SUMS-app; do \

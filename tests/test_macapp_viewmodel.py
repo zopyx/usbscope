@@ -5,10 +5,19 @@ from __future__ import annotations
 import pytest
 
 from usbscope.macapp.viewmodel import (
+    ADDED,
+    CHANGED,
+    REMOVED,
     VIEWS,
+    ChangeSet,
     Style,
+    apply_changes,
+    detail_pairs,
+    device_key,
     device_tooltip,
     header_text,
+    port_key,
+    row_tooltip,
     status_text,
     summary_text,
     table_model,
@@ -126,3 +135,75 @@ def test_device_tooltip_lists_the_facts(snapshot: Snapshot) -> None:
     assert "0x1050:0x0407" in tooltip
     assert "USB-C@3" in tooltip
     assert "Location ID: 0x01100000" in tooltip
+
+
+def test_every_row_has_a_key(snapshot: Snapshot) -> None:
+    for view in VIEWS:
+        model = table_model(snapshot, view)
+        assert len(model.row_keys) == model.row_count, view
+        assert len(set(model.row_keys)) == model.row_count, view
+        assert all(key for key in model.row_keys), view
+
+
+def test_apply_changes_colours_the_affected_rows(snapshot: Snapshot) -> None:
+    devices = table_model(snapshot, "devices")
+    added = apply_changes(devices, ChangeSet(added=snapshot.devices))
+    assert added.row_highlights == (Style.GREEN,)
+    assert added.highlight(0) is Style.GREEN
+
+    removed = apply_changes(devices, ChangeSet(removed=snapshot.devices))
+    assert removed.highlight(0) is Style.RED
+
+    ports = table_model(snapshot, "ports")
+    changed = apply_changes(ports, ChangeSet(changed_ports=(port_key(snapshot.ports[0]),)))
+    assert changed.highlight(0) is Style.YELLOW
+    assert changed.highlight(1) is None
+
+    plain = apply_changes(ports, None)
+    assert plain.row_highlights == ()
+    assert plain.highlight(0) is None
+
+
+def test_apply_changes_tags_match_the_constants(snapshot: Snapshot) -> None:
+    assert (ADDED, REMOVED, CHANGED) == ("added", "removed", "changed")
+
+
+def test_detail_pairs_cover_ports_cables_devices_and_thunderbolt(snapshot: Snapshot) -> None:
+    port_key_name = port_key(snapshot.ports[0])
+    port_pairs = dict(detail_pairs(snapshot, "ports", port_key_name))
+    assert port_pairs["Port"] == snapshot.ports[0].name
+    assert "Connected" in port_pairs
+
+    cabled = next(port for port in snapshot.ports if port.cable.attached)
+    cable_pairs = dict(detail_pairs(snapshot, "cables", port_key(cabled)))
+    assert "CC authentication" in cable_pairs
+    assert "PD specification" in cable_pairs
+
+    device_pairs = dict(detail_pairs(snapshot, "devices", device_key(snapshot.devices[0])))
+    assert device_pairs["VID:PID"] == "0x1050:0x0407"
+    assert device_pairs["Restricted by macOS"] == "no"
+
+    tb_key_text = table_model(snapshot, "thunderbolt").row_keys[0]
+    tb_pairs = dict(detail_pairs(snapshot, "thunderbolt", tb_key_text))
+    assert tb_pairs["Receptacle"]
+
+
+def test_details_ignore_unknown_keys(snapshot: Snapshot) -> None:
+    assert detail_pairs(snapshot, "ports", "port:USB-C@99") == ()
+    assert row_tooltip(snapshot, "devices", "device:serial:nope") == ""
+
+
+def test_row_tooltip_works_for_port_rows_too(snapshot: Snapshot) -> None:
+    tooltip = row_tooltip(snapshot, "ports", port_key(snapshot.ports[1]))
+    assert f"Port: {snapshot.ports[1].name}" in tooltip
+
+
+def test_status_text_reports_changes_and_filter(snapshot: Snapshot) -> None:
+    quiet = status_text(snapshot, interval=2.0, reads=4, changes=ChangeSet())
+    assert "changed:" not in quiet
+
+    noisy = status_text(snapshot, interval=2.0, reads=4, changes=ChangeSet(added=snapshot.devices))
+    assert "changed: 1 added" in noisy
+
+    filtered = status_text(snapshot, interval=None, reads=1, filter_query="yubikey")
+    assert "filter: 'yubikey'" in filtered

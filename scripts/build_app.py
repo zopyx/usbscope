@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 """Build ``usbscope.app`` — the native macOS app as a double clickable bundle.
 
-PyInstaller collects Python, Rich and PyObjC into a ``.app`` with an Info.plist,
-the script then fills in the bundle metadata, signs it ad hoc, launches the
-bundled binary once (in ``--snapshot`` mode, so nothing appears on screen) to
-prove the bundle really works, and writes a DMG plus SHA-256 sums:
+PyInstaller collects Python, Rich and PyObjC into a ``.app`` with an Info.plist and
+the app icon, the script then fills in the bundle metadata, signs it ad hoc,
+launches the bundled binary once (in ``--snapshot`` mode, so nothing appears on
+screen) to prove the bundle works, and writes a styled DMG plus SHA-256 sums:
 
-    dist/usbscope.app
+    dist/usbscope.app                     (icon: assets/icon/usbscope.icns)
     dist/usbscope-<version>-macos-<arch>.dmg
     dist/SHA256SUMS-app
 
@@ -15,9 +15,12 @@ Usage
     uv run python scripts/build_app.py              # build + verify + DMG
     uv run python scripts/build_app.py --no-dmg     # .app only
     uv run python scripts/build_app.py --no-sign    # skip codesign
+    uv run python scripts/build_app.py --no-icon    # without the app icon
 
-Like the CLI binary this is an ad-hoc signature, not a Developer ID one, so a
-browser download is still quarantined by Gatekeeper (see docs/index.md).
+The DMG step delegates to ``scripts/make_dmg.py`` (staging folder with an
+``/Applications`` symlink, Finder layout, mount verification). Like the CLI binary
+this is an ad-hoc signature, not a Developer ID one, so a browser download is still
+quarantined by Gatekeeper (see docs/distribution.md).
 """
 
 from __future__ import annotations
@@ -71,13 +74,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--no-sign", action="store_true", help="skip the ad-hoc codesign step")
     parser.add_argument("--no-dmg", action="store_true", help="skip the DMG")
+    parser.add_argument(
+        "--icon",
+        type=Path,
+        default=ROOT / "assets" / "icon" / "usbscope.icns",
+        help="app icon (.icns); regenerate it with `make icon`",
+    )
+    parser.add_argument("--no-icon", action="store_true", help="build without an app icon")
     return parser
 
 
-def run_pyinstaller(name: str, arch: str, python_version: str) -> Path:
+def run_pyinstaller(name: str, arch: str, python_version: str, icon: Path | None = None) -> Path:
     """Run PyInstaller and return the path of the produced .app bundle."""
     ENTRYPOINT.parent.mkdir(parents=True, exist_ok=True)
     ENTRYPOINT.write_text(ENTRYPOINT_SOURCE, encoding="utf-8")
+    if icon is not None and not icon.exists():
+        raise SystemExit(f"icon not found: {icon} (run: make icon)")
+    icon = icon if icon is not None and icon.exists() else None
+    if icon is not None:
+        print(f"icon: {icon.relative_to(ROOT)}", flush=True)
     print(f"building {name}.app ({arch}, Python {python_version}) …", flush=True)
     result = _run(
         [
@@ -107,6 +122,8 @@ def run_pyinstaller(name: str, arch: str, python_version: str) -> Path:
             BUNDLE_ID,
             "--target-architecture",
             arch,
+            "--icon",
+            str(icon),
             "--exclude-module",
             "pytest",
             "--exclude-module",
@@ -124,11 +141,13 @@ def run_pyinstaller(name: str, arch: str, python_version: str) -> Path:
     return bundle
 
 
-def patch_info_plist(bundle: Path, name: str) -> dict[str, object]:
+def patch_info_plist(bundle: Path, name: str, icon_name: str | None = None) -> dict[str, object]:
     """Fill in the bundle metadata macOS shows in the Finder."""
     plist_path = bundle / "Contents" / "Info.plist"
     with plist_path.open("rb") as handle:
         plist = plistlib.load(handle)
+    if icon_name:
+        plist["CFBundleIconFile"] = icon_name
     plist.update(
         {
             "CFBundleName": name,
@@ -205,24 +224,31 @@ def checksum(path: Path) -> str:
     return digest.hexdigest()
 
 
-def make_dmg(bundle: Path, arch: str) -> tuple[Path, Path]:
-    """Create a compressed DMG with the app inside, plus the sums file."""
+def make_dmg(bundle: Path, arch: str, *, volume_name: str) -> tuple[Path, Path]:
+    """Create the styled DMG (``scripts/make_dmg.py``) and the sums file.
+
+    ``make_dmg.py`` stages the app plus an ``/Applications`` symlink, applies the
+    Finder layout (icon view, positions, background) best effort and verifies the
+    mounted result; the checksum file keeps the release convention used here.
+    """
     dmg = DIST / f"{bundle.stem}-{_version()}-macos-{arch}.dmg"
     dmg.unlink(missing_ok=True)
-    _run(
+    result = _run(
         [
-            "hdiutil",
-            "create",
-            "-volname",
-            bundle.stem,
-            "-srcfolder",
+            sys.executable,
+            str(ROOT / "scripts" / "make_dmg.py"),
             str(bundle),
-            "-ov",
-            "-format",
-            "UDZO",
             str(dmg),
-        ]
+            "--volume-name",
+            volume_name,
+        ],
+        check=False,
     )
+    if result.returncode != 0 or not dmg.exists():
+        tail = (result.stderr or result.stdout).strip().splitlines()[-10:]
+        raise SystemExit("make_dmg.py failed:\n" + "\n".join(tail))
+    for line in (result.stdout or "").strip().splitlines():
+        print(f"  {line}")
     sums = DIST / "SHA256SUMS-app"
     sums.write_text(f"{checksum(dmg)}  {dmg.name}\n", encoding="utf-8")
     return dmg, sums
@@ -232,8 +258,9 @@ def main(argv: list[str] | None = None) -> int:
     """Build, sign, verify and package the app; returns the exit code."""
     args = build_parser().parse_args(argv)
     DIST.mkdir(exist_ok=True)
-    bundle = run_pyinstaller(args.name, args.arch, args.python)
-    plist = patch_info_plist(bundle, args.name)
+    icon = None if args.no_icon else args.icon
+    bundle = run_pyinstaller(args.name, args.arch, args.python, icon=icon)
+    plist = patch_info_plist(bundle, args.name, icon.name if icon is not None else None)
     signature = "skipped (--no-sign)" if args.no_sign else sign(bundle)
     checks = verify(bundle)
 
@@ -243,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     size = sum(f.stat().st_size for f in bundle.rglob("*") if f.is_file()) / 1024 / 1024
     print(f"\n{DIST.relative_to(ROOT)}/{bundle.name}  ({size:.1f} MiB, {plist['CFBundleName']})")
     if not args.no_dmg:
-        dmg, sums = make_dmg(bundle, args.arch)
+        dmg, sums = make_dmg(bundle, args.arch, volume_name=args.name)
         print(f"  {dmg.name}  ({dmg.stat().st_size / 1024 / 1024:.1f} MiB)")
         print(f"  {sums.name}")
     shutil.rmtree(SPEC, ignore_errors=True)

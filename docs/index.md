@@ -142,8 +142,11 @@ to a target is its description. Everything runs through `uv`, so the pinned Pyth
 | `make refresh-screenshots` | CLI screenshots (SVG + PNG, host name masked) |
 | `make screenshots` | both of the above |
 | `make binary` | standalone CLI binary → `dist/` |
-| `make app-bundle` (alias `make app`) | `usbscope.app` + DMG → `dist/` |
+| `make icon` | regenerates `assets/icon/usbscope.icns` from the SVG |
+| `make app-bundle` (alias `make app`) | icon + `usbscope.app` + styled DMG → `dist/` |
+| `make dmg` | rebuilds only the DMG for an existing `dist/usbscope.app` |
 | `make artifacts` | gates + CLI binary + app: the full release build |
+| `make ci` | alias for `check` — what `.github/workflows/ci.yml` runs |
 | `make checksums` | verifies `dist/SHA256SUMS` and `dist/SHA256SUMS-app` |
 | `make install` | `uv tool install '.[macapp]'` (CLI + `usbscope-app` on the PATH) |
 | `make clean` / `make distclean` | build output / plus the virtualenv |
@@ -153,56 +156,108 @@ the captures (default `mac`). On macOS two details matter: `make` is the old GNU
 make 3.81 (no modern functions in the file), and the shell already exports a `HOST`
 variable — which is why the screenshot variable is called `SHOT_HOST`.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and on every pull request,
+on an Apple-Silicon runner (`macos-14`), and mirrors what `make check` does:
+
+| Step | Command |
+| --- | --- |
+| Environment | `uv sync --extra macapp` (the UI tests need PyObjC) |
+| Gate 1–4 | `uv run ruff format --check`, `uv run ruff check`, `uv run ty check`, `uv run pytest -q` — one step each, so a failure names the gate |
+| Build (main only) | `scripts/build_binary.py` and `scripts/build_app.py --no-dmg`, uploaded as a 7-day artifact |
+
+The build steps are guarded by
+`if: github.event_name == 'push' && github.ref == 'refs/heads/main'`: PyInstaller
+downloads a toolchain and produces multi-megabyte artifacts that a pull request
+should not pay for. `concurrency` cancels a superseded run for the same ref.
+
+Signing for real distribution (Developer ID, `notarytool`, `stapler`, universal2,
+Homebrew cask) is documented — including what is still *not* done — in
+[distribution.md](distribution.md).
+
 ## The macOS app
 
-The same data as a native Cocoa app (`usbscope-app`) — a real `NSWindow` with a
-segmented view switcher, a view based `NSTableView`, `⌘R`, an auto-refresh timer
-and an Info.plist bundle you can drop into `/Applications`:
+The same data as a native Cocoa app (`usbscope-app`) — a real `NSWindow` with an
+`NSToolbar`, a view based `NSTableView`, `⌘R`, an auto-refresh timer, a menu bar
+extra and an Info.plist bundle you can drop into `/Applications`:
 
 ![usbscope app](docs/screenshots/app-ports.png)
 
 ```console
 $ usbscope-app                    # from a checkout (needs the macapp extra)
-$ open dist/usbscope.app          # or the built bundle / the release DMG
+$ open ~/src/usbscope/dist/usbscope.app   # or the built bundle / the release DMG
 ```
 
 Views: **Ports** (state, negotiated mode, transports, cable, notes), **Cables**
 (CC authentication, hash, PD spec revision, power in, liquid detection, controller
 firmware), **Devices** (flat table with bus, port, transport, serial, macOS
-restriction and per-row tooltips) and **Thunderbolt**. Auto-refresh runs every
-1/2/5/10 s and can be switched off; the status line shows the read counter, the
-cadence and the first warning of a failing source.
+restriction) and **Thunderbolt**.
+
+| Feature | Behaviour |
+| --- | --- |
+| Views | Segmented switcher in the toolbar, plus `⌘1`–`⌘4` and the status item menu |
+| Search | Toolbar search field (`⌘F`), live filter over every column; the filter survives a view switch |
+| Sorting | Click a column header to sort, click again to reverse. Sorting uses a hidden rank where the text would sort wrong (`USB 1.1` before `USB 3.2 Gen 2`, `@2` before `@10`) |
+| Refresh that does not disturb | Selection (tracked by row key) and scroll position survive every reload, sort and filter |
+| Change highlighting | Devices that appeared turn green, disappeared red, a changed port yellow — for 1.6 s after a read, plus a `changed: …` note in the status line |
+| Clipboard | `⌘C` copies the selected rows as TSV, `⇧⌘C` the whole table, `⌘D` the detail pairs, “Copy as JSON” the raw snapshot; right click has the same actions |
+| Detail popover | Double click a row for every field of that port/cable/device (including what the columns truncate) |
+| Export | `File ▸ Export JSON…` (`⌘S`) and `Export CSV…` (`⇧⌘S`) write the current view/snapshot |
+| Tooltips | Every row, not only devices, carries its full detail list |
+| Status item | Menu bar extra with `connected/ports` (plus `⚠` when a source warns), the full summary as tooltip, view switching, “Refresh now”, a notifications switch and quit |
+| Notifications | One banner per device that appeared or disappeared — only from the bundled app (see below) |
+| Remembered | View, cadence, sort state, column widths, window frame and the notification switch, in `~/Library/Preferences/com.zopyx.usbscope.plist` |
+| Feinschliff | Alternating row colours, right aligned monospaced digits, self explaining empty states, About panel, Help ▸ Documentation |
+
+**Notifications need the bundle.** macOS refuses — and in fact *aborts* — a
+`UNUserNotificationCenter` call from a non-bundled process, and terminals export
+their own `__CFBundleIdentifier`, so the app checks for *its own* bundle identifier
+before touching the notification centre. A check-out run (`uv run usbscope-app`)
+therefore keeps the status item but stays silent by design; install
+`usbscope.app` to get the banners.
 
 ```console
 $ uv run --extra macapp usbscope-app          # run from the checkout
 $ make run-app                                # same, via make
-$ make app-bundle                             # build + verify + DMG into dist/
+$ make icon                                   # regenerate assets/icon/usbscope.icns
+$ make app-bundle                             # build + verify + styled DMG into dist/
 ```
 
 ### Building the bundle
 
-`make app-bundle` (or `uv run python scripts/build_app.py`) runs four steps and
+`make app-bundle` (or `uv run python scripts/build_app.py`) runs five steps and
 fails loudly at each one instead of leaving a broken artifact:
 
-1. **PyInstaller** (`--windowed --target-architecture arm64`) collects Python, Rich
+1. **Icon**: the `icon` target renders `assets/icon/usbscope.svg` through
+   `rsvg-convert` into an `.iconset` and builds `assets/icon/usbscope.icns`
+   (`iconutil`), which PyInstaller embeds (`--icon`, `--no-icon` to skip).
+2. **PyInstaller** (`--windowed --target-architecture arm64`) collects Python, Rich
    and PyObjC plus a generated entry point into `dist/usbscope.app`. Only `uv` is
    required — PyInstaller and PyObjC are fetched on demand; `codesign` and
    `hdiutil` ship with macOS.
-2. **Info.plist** is rewritten with `CFBundleIdentifier com.zopyx.usbscope`, the
-   package version, `LSMinimumSystemVersion 13.0` and `NSHighResolutionCapable`, so
-   Finder shows a proper name and macOS knows the minimum system.
-3. **Signing**: `codesign --deep --force --sign - --identifier com.zopyx.usbscope`
+3. **Info.plist** is rewritten with `CFBundleIdentifier com.zopyx.usbscope`, the
+   package version, `CFBundleIconFile`, `LSMinimumSystemVersion 13.0` and
+   `NSHighResolutionCapable`.
+4. **Signing**: `codesign --deep --force --sign - --identifier com.zopyx.usbscope`
    (ad hoc), followed by `codesign --verify`.
-4. **Self test**: the *bundled* app is executed —
+5. **Self test**: the *bundled* app is executed —
    `dist/usbscope.app/Contents/MacOS/usbscope --snapshot … --view ports` — and the
    resulting PNG is checked. A windowed app still takes argv, which is how the build
-   proves the artifact works before packaging. Then `hdiutil create … UDZO` writes
-   the DMG and `SHA256SUMS-app`.
+   proves the artifact works before packaging it.
+
+The DMG then comes from `scripts/make_dmg.py`: it stages the app next to an
+`/Applications` symlink, generates/uses `assets/dmg/background.png`, applies the
+Finder layout (icon view, window 600×400, icon size 128, icon positions,
+background picture) through `osascript`, converts to `UDZO` and **mounts the result
+read-only to verify** (app present, symlink resolves, bundled binary runs,
+signature valid, background in place). A Finder/automation failure is reported as
+`layout: skipped (…)` and does not fail the build.
 
 | Artifact | Content |
 | --- | --- |
-| `dist/usbscope.app` | the bundle (drag into `/Applications`) |
-| `dist/usbscope-0.2.0-macos-arm64.dmg` | compressed disk image (~11 MiB) |
+| `dist/usbscope.app` | the bundle with `usbscope.icns` (drag into `/Applications`) |
+| `dist/usbscope-0.2.0-macos-arm64.dmg` | styled disk image (~10.5 MiB) with Applications symlink |
 | `dist/SHA256SUMS-app` | SHA-256 of the DMG |
 | `dist/usbscope-<version>-macos-arm64[.tar.gz]` | standalone CLI binary (12.7 MiB) |
 | `dist/SHA256SUMS` | SHA-256 of both CLI artifacts |
@@ -211,13 +266,15 @@ Install and check the built artifacts:
 
 ```console
 make checksums                                            # both checksum files
-open dist/usbscope-0.2.0-macos-arm64.dmg                  # then drag the app over
+open dist/usbscope-0.2.0-macos-arm64.dmg                   # drag the app onto Applications
+hdiutil attach -nobrowse -readonly dist/usbscope-0.2.0-macos-arm64.dmg   # inspect it
 /Volumes/usbscope/usbscope.app/Contents/MacOS/usbscope --version
 ```
 
 `usbscope-app --snapshot out.png [--view cables]` renders the window offscreen
-(`make snapshot` regenerates `docs/screenshots/app-*.png`). Two known limitations of
-that capture path — the interactive app is not affected:
+(`make snapshot` regenerates `docs/screenshots/app-*.png`); `--no-preferences`
+keeps a capture from reading or writing stored preferences. Two known limitations
+of that capture path — the interactive app is not affected:
 
 * AppKit's control cells (segment titles, popup items, button bezels) do not
   serialise into an offscreen bitmap. In `--snapshot` mode the toolbar is therefore

@@ -1,0 +1,92 @@
+# usbscope CI — Apple Silicon macOS only
+#
+# What runs: on every push to `main` and on every pull request, on an arm64
+# macOS runner (`macos-14`, Apple Silicon — the platform this tool targets),
+# the four repository gates run. They are split into one step each on purpose,
+# so a failure names the gate that broke instead of one anonymous "check"
+# step: `ruff format --check`, `ruff check`, `ty check`, `pytest -q`. The
+# environment is synced with the `macapp` extra because PyObjC/AppKit is needed
+# by the UI code and its tests.
+#
+# Why the build steps are main-only: `scripts/build_binary.py` and
+# `scripts/build_app.py` invoke PyInstaller, which downloads a toolchain and
+# produces multi-megabyte artifacts (the .app plus the CLI binary/tarball).
+# That is slow and only useful for a revision of `main`; a pull request should
+# not pay for a DMG on every commit. The two build steps and the artifact
+# upload are therefore guarded by
+# `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`.
+#
+# Action versions are pinned to the exact released tags that were verified with
+# `gh api repos/<owner>/<repo>/releases/latest --jq .tag_name`:
+#   astral-sh/setup-uv        v10.2.0
+#   actions/checkout          v7.0.1
+#   actions/upload-artifact   v7.0.1
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same ref cancels the in-flight run for that ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: gates + build
+    # arm64 macOS; the repo requires macOS 13+ and is macOS-only anyway.
+    runs-on: macos-14
+    # The four gates are quick; the main-only PyInstaller build is the slow part.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+
+      - name: Sync environment (dev tools + macapp extra)
+        # uv reads .python-version (3.14) and honours the lockfile; the dev
+        # dependency group is installed by default, so ruff/ty/pytest are here.
+        run: uv sync --extra macapp
+
+      - name: Gate — ruff format --check
+        run: uv run ruff format --check
+
+      - name: Gate — ruff check
+        run: uv run ruff check
+
+      - name: Gate — ty check
+        run: uv run ty check
+
+      - name: Gate — pytest
+        run: uv run pytest -q
+
+      - name: Build standalone CLI binary (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: uv run python scripts/build_binary.py
+
+      - name: Build usbscope.app, no DMG (main only)
+        # --no-dmg keeps the runner fast; the DMG is a release-time concern.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: uv run python scripts/build_app.py --no-dmg
+
+      - name: Upload build artifacts (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: usbscope-${{ github.sha }}
+          path: |
+            dist/usbscope-*-macos-*
+            dist/SHA256SUMS
+            dist/usbscope.app
+          if-no-files-found: error
+          retention-days: 7

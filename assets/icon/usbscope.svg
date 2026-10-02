@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"
+     role="img" aria-label="usbscope">
+  <title>usbscope</title>
+  <desc>A white USB-C connector with a trailing cable on a blue rounded-square app tile.</desc>
+
+  <defs>
+    <!-- two-colour vertical gradient; together with the white artwork the icon uses three colours -->
+    <linearGradient id="tile" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3590F0"/>
+      <stop offset="1" stop-color="#0B4AC0"/>
+    </linearGradient>
+
+    <!-- macOS app tiles are squircles: a rounded square with a ~22% corner radius -->
+    <clipPath id="tile-clip">
+      <rect x="0" y="0" width="1024" height="1024" rx="229" ry="229"/>
+    </clipPath>
+  </defs>
+
+  <!-- the rounded-square tile -->
+  <rect x="0" y="0" width="1024" height="1024" rx="229" ry="229" fill="url(#tile)"/>
+
+  <g clip-path="url(#tile-clip)">
+    <!-- cable trailing off the connector, clipped by the tile so it runs out of frame -->
+    <path d="M 236 452 C 150 480 118 612 132 748 C 142 850 186 936 250 1032"
+          fill="none" stroke="#FFFFFF" stroke-width="76" stroke-linecap="round"/>
+
+    <!-- USB-C connector body: a rounded rectangle, both ends rounded -->
+    <rect x="202" y="306" width="620" height="268" rx="96" ry="96" fill="#FFFFFF"/>
+
+    <!-- the port slot, punched out of the body in the tile's dark blue -->
+    <rect x="332" y="384" width="360" height="112" rx="56" ry="56" fill="#0B4AC0"/>
+  </g>
+</svg>

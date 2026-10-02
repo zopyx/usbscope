@@ -8,14 +8,23 @@ dependencies = ["rich>=13.9"]
 
 [project.optional-dependencies]
 # native macOS UI (usbscope-app); the CLI does not need it
-macapp = ["pyobjc-framework-Cocoa>=12.2"]
+macapp = [
+    "pyobjc-framework-Cocoa>=12.2",
+    "pyobjc-framework-UserNotifications>=12.2",  # banner on device connect/disconnect
+]
 
 [project.scripts]
 usbscope = "usbscope.cli:main"
 usbscope-app = "usbscope.macapp.launch:main"
 
 [dependency-groups]
-dev = ["pytest>=8.3", "ty>=0.0.21", "ruff>=0.14.5", "pyobjc-framework-Cocoa>=12.2"]
+dev = [
+    "pytest>=8.3",
+    "ty>=0.0.21",
+    "ruff>=0.14.5",
+    "pyobjc-framework-Cocoa>=12.2",
+    "pyobjc-framework-UserNotifications>=12.2",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -46,7 +55,13 @@ addopts = "-q"
 # the checker; the UI module is excluded from those two rules instead of being
 # littered with casts. Everything else (including its own signatures) is checked.
 [[tool.ty.overrides]]
-include = ["src/usbscope/macapp/app.py", "tests/test_macapp_app.py"]
+include = [
+  "src/usbscope/macapp/app.py",
+  "src/usbscope/macapp/menubar.py",
+  "src/usbscope/macapp/preferences.py",
+  "tests/test_macapp_app.py",
+  "tests/test_macapp_menubar.py",
+]
 
 [tool.ty.overrides.rules]
 unresolved-import = "ignore"

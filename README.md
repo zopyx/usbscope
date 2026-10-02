@@ -25,16 +25,25 @@ restrictions.
 
 ## A native macOS app
 
-The same data in a real Cocoa window (`usbscope-app`): segmented view switcher,
-`NSTableView` with monospaced values, `⌘R`, auto-refresh 1–10 s, per-row tooltips.
+The same data in a real Cocoa window (`usbscope-app`): unified toolbar with a view
+switcher and a live search field, sortable column headers, `⌘1`–`⌘4`, `⌘C`/`⇧⌘C`
+for TSV, double click for a detail popover, JSON/CSV export, a refresh that keeps
+your selection and scroll position, green/red row marks when a device appears or
+disappears, a menu bar extra (`2/6` with connect/disconnect banners) and everything
+remembered across launches.
 
 ![usbscope app](docs/screenshots/app-ports.png)
 
 ```console
-$ uv run --extra macapp usbscope-app     # run from the checkout
-$ uv run python scripts/build_app.py     # build usbscope.app + DMG into dist/
-$ open dist/usbscope.app                 # or drag it into /Applications
+$ uv run --extra macapp usbscope-app      # run from the checkout
+$ make icon                               # regenerate the app icon
+$ make app-bundle                         # usbscope.app + styled DMG into dist/
+$ open ~/src/usbscope/dist/usbscope.app   # or drag it out of the DMG into /Applications
 ```
+
+Connect/disconnect banners only appear from the installed bundle — macOS aborts a
+notification request from a plain interpreter run (see
+[docs/index.md](docs/index.md)).
 
 ## Build & verify
 
@@ -43,12 +52,15 @@ $ make                # list the tasks (self documenting)
 $ make doctor         # uv, PyObjC, librsvg, codesign, hdiutil available?
 $ make check          # gates: ruff format --check, ruff check, ty, pytest
 $ make binary         # standalone CLI binary        → dist/
-$ make app-bundle     # usbscope.app + DMG (arm64)   → dist/
+$ make app-bundle     # usbscope.app + styled DMG    → dist/
 $ make artifacts      # gates + both builds (release build)
 $ make checksums      # verify the SHA-256 files in dist/
 ```
 
-Details, artifacts and the signing caveats: [docs/index.md](docs/index.md).
+CI (`.github/workflows/ci.yml`) runs the same four gates on every push and pull
+request on an arm64 macOS runner, plus the two builds on `main`. Signing,
+notarisation and the Homebrew cask — and what is still missing there — are in
+[docs/distribution.md](docs/distribution.md).
 
 ## Usage
 
