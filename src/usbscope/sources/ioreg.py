@@ -15,11 +15,13 @@ from dataclasses import replace
 from typing import Any
 
 from ..models import Cable, Port, Transport, UsbDevice
-from .shell import CommandResult, run_command
+from .shell import CommandResult, run_command, system_binary
 
 __all__ = ["IoregSource", "parse_ports"]
 
 Runner = Callable[[list[str]], CommandResult]
+
+IOREG = system_binary("ioreg", "/usr/sbin/ioreg", "/usr/bin/ioreg")
 
 _DEVICE_MARKERS = ("UsbLinkSpeed", "idVendor", "USB Product Name", "UsbDeviceSignature")
 _TRANSPORT_KINDS = ("CC", "USB2", "USB3", "USB4", "DisplayPort", "SD")
@@ -263,7 +265,7 @@ class IoregSource:
 
     def ioport_tree(self) -> tuple[dict[str, Any] | None, str | None]:
         """Return the parsed ``IOPort`` plane and an optional warning."""
-        result = self._run(["ioreg", "-a", "-l", "-w0", "-p", "IOPort"])
+        result = self._run([IOREG, "-a", "-l", "-w0", "-p", "IOPort"])
         if not result.ok:
             return None, result.error or "ioreg failed"
         try:

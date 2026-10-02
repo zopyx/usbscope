@@ -8,11 +8,15 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 from ..models import Bus, ThunderboltPort, UsbDevice
-from .shell import CommandResult, run_command
+from .shell import CommandResult, run_command, system_binary
 
 __all__ = ["SystemProfiler"]
 
 Runner = Callable[[list[str]], CommandResult]
+
+SYSTEM_PROFILER = system_binary(
+    "system_profiler", "/usr/sbin/system_profiler", "/usr/bin/system_profiler"
+)
 
 # Keys used by the modern "SPUSBHostDataType" JSON output.
 _HOST_KEYS = {
@@ -111,7 +115,7 @@ class SystemProfiler:
         self._run = runner or run_command
 
     def _json(self, data_type: str) -> tuple[list[dict[str, Any]], str | None]:
-        result = self._run(["system_profiler", data_type, "-json"])
+        result = self._run([SYSTEM_PROFILER, data_type, "-json"])
         if not result.ok:
             return [], result.error or f"system_profiler {data_type} failed"
         try:

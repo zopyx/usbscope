@@ -124,6 +124,43 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
 }
 ```
 
+## Prebuilt binary
+
+Each release ships a standalone macOS binary (arm64) that bundles Python and Rich
+— no Python, no uv, no virtualenv required:
+
+```console
+gh release download --repo zopyx/usbscope --pattern 'usbscope-*-macos-arm64.tar.gz'
+tar xzf usbscope-*-macos-arm64.tar.gz
+./usbscope            # or move it to /usr/local/bin
+```
+
+`SHA256SUMS` in the release covers both the bare binary and the tarball:
+
+```console
+shasum -a 256 -c SHA256SUMS
+```
+
+Build it yourself (the script builds, ad-hoc signs, runs the binary once and
+packages it into `dist/`):
+
+```console
+uv run python scripts/build_binary.py                 # arm64, Python 3.14 + PyInstaller
+uv run python scripts/build_binary.py --arch x86_64   # needs an x86_64/universal2 Python
+```
+
+Two honest caveats:
+
+* The binary is signed **ad hoc** (`codesign -s -`), not with a Developer ID and
+  not notarised. If the download carries the quarantine flag (browsers set it),
+  macOS blocks the first start with "cannot be opened because the developer
+  cannot be verified". `gh`/`curl` do not set the flag; otherwise remove it with
+  `xattr -d com.apple.quarantine ./usbscope`. Notarisation needs a paid Apple
+  Developer ID — the build script's `sign()`/`package()` split is where that step
+  would go.
+* Only the architecture that was built is uploaded (arm64 here). A universal2
+  binary requires a universal2 Python to build against.
+
 ## Screenshots
 
 `docs/screenshots/` holds SVG + PNG renderings of the four views, generated from a

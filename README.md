@@ -34,8 +34,18 @@ $ usbscope cables                # e-marker, CC authentication, liquid detection
 $ usbscope --json                # machine readable
 ```
 
+Or take the prebuilt binary from the
+[latest release](https://github.com/zopyx/usbscope/releases) (macOS arm64, no
+Python needed):
+
+```console
+gh release download --repo zopyx/usbscope --pattern 'usbscope-*-macos-arm64.tar.gz'
+tar xzf usbscope-*-macos-arm64.tar.gz && ./usbscope
+```
+
 macOS only. No sudo, no private frameworks, no entitlements — `system_profiler`
 and `ioreg -p IOPort` are the only data sources.
 
 Documentation: [docs/index.md](docs/index.md). The screenshots above are
-generated with `uv run python scripts/screenshots.py --png`.
+generated with `uv run python scripts/screenshots.py --png`, the standalone
+binary with `uv run python scripts/build_binary.py`.
