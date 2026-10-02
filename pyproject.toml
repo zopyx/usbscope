@@ -1,6 +1,6 @@
 [project]
 name = "usbscope"
-version = "0.2.0"
+version = "0.3.0"
 description = "Pretty macOS CLI and native app to inspect USB buses, USB-C ports, cables and link modes."
 readme = "README.md"
 requires-python = ">=3.14"
