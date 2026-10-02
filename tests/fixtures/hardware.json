@@ -1,0 +1,13 @@
+{
+  "SPHardwareDataType": [
+    {
+      "machine_name": "MacBook Pro",
+      "model_name": null,
+      "model_identifier": null,
+      "chip_type": "Apple M3 Pro",
+      "machine_model": "Mac15,6",
+      "number_processors": "proc 11:0:5:6",
+      "physical_memory": "36 GB"
+    }
+  ]
+}

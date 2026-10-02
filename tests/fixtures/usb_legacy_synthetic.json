@@ -1,0 +1,31 @@
+{
+  "SPUSBDataType": [
+    {
+      "_name": "USB31Bus",
+      "pci_device": "8086:9d2f",
+      "location_id": "0x140000000",
+      "_items": [
+        {
+          "_name": "USB 3.1 Bus",
+          "device_speed": "Up to 480 Mb/s",
+          "location_id": "0x141000000",
+          "vendor_id": "0x05ac (Apple Inc.)",
+          "product_id": "0x0250",
+          "manufacturer": "Apple Inc.",
+          "bcd_device": "1.00",
+          "_items": [
+            {
+              "_name": "USB Keyboard",
+              "vendor_id": "0x046d",
+              "product_id": "0xc31c",
+              "device_speed": "1.5 Mb/s",
+              "manufacturer": "Logitech",
+              "serial_num": "ABC123",
+              "location_id": "0x141100000"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "SPUSBHostDataType" : [
+    {
+      "_name" : "USB 3.1 Bus",
+      "Driver" : "AppleT8122USBXHCI",
+      "USBKeyHardwareType" : "Built-in",
+      "USBKeyLocationID" : "0x02000000"
+    },
+    {
+      "_name" : "USB 3.1 Bus",
+      "Driver" : "AppleT8122USBXHCI",
+      "USBKeyHardwareType" : "Built-in",
+      "USBKeyLocationID" : "0x00000000"
+    },
+    {
+      "_items" : [
+        {
+          "_name" : "YubiKey OTP+FIDO+CCID",
+          "USBDeviceKeyLinkSpeed" : "12 Mb/s",
+          "USBDeviceKeyProductID" : "0x0407",
+          "USBDeviceKeyProductVersion" : "0x0543",
+          "USBDeviceKeySerialNumber" : "Not Provided",
+          "USBDeviceKeyVendorID" : "0x1050",
+          "USBDeviceKeyVendorName" : "Yubico",
+          "USBKeyHardwareType" : "Removable",
+          "USBKeyLocationID" : "0x01100000"
+        }
+      ],
+      "_name" : "USB 3.1 Bus",
+      "Driver" : "AppleT8122USBXHCI",
+      "USBKeyHardwareType" : "Built-in",
+      "USBKeyLocationID" : "0x01000000"
+    }
+  ]
+}
