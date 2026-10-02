@@ -9,10 +9,13 @@ Usage
 -----
     uv run python scripts/screenshots.py --png          # write SVG + PNG
     uv run python scripts/screenshots.py                # SVG only
+    uv run python scripts/screenshots.py --png --host mac   # mask the host name
     rsvg-convert -z 2 -o docs/screenshots/overview.png docs/screenshots/overview.svg
 
 The SVGs are the source of truth and stay in the repository, so the gallery can be
-regenerated on any Mac without a terminal emulator or a window server.
+regenerated on any Mac without a terminal emulator or a window server. Use
+``--host`` before publishing captures: the header shows the real machine name
+otherwise.
 """
 
 from __future__ import annotations
@@ -21,7 +24,7 @@ import argparse
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from rich import terminal_theme
@@ -73,6 +76,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="rich terminal theme name (monokai, dimmed-monokai, night-owlish, svg-export)",
     )
     parser.add_argument("--png", action="store_true", help="also rasterise with rsvg-convert")
+    parser.add_argument(
+        "--host",
+        metavar="NAME",
+        help="replace the reported host name in the captures (use when publishing them)",
+    )
     return parser
 
 
@@ -90,9 +98,13 @@ def _theme(name: str) -> TerminalTheme:
         raise SystemExit(f"unknown theme {name!r}; available: {available}") from None
 
 
-def render_svg(shot: Shot, out_dir: Path, *, width: int, theme: TerminalTheme) -> Path:
+def render_svg(
+    shot: Shot, out_dir: Path, *, width: int, theme: TerminalTheme, host: str | None = None
+) -> Path:
     """Render one view into an SVG file and return its path."""
     snapshot = collect()
+    if host:
+        snapshot = replace(snapshot, host=host)
     console = Console(
         record=True,
         width=width,
@@ -130,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     theme = _theme(args.theme)
     args.out.mkdir(parents=True, exist_ok=True)
     for shot in SHOTS:
-        svg = render_svg(shot, args.out, width=args.width, theme=theme)
+        svg = render_svg(shot, args.out, width=args.width, theme=theme, host=args.host)
         message = f"{svg.relative_to(Path.cwd()) if svg.is_relative_to(Path.cwd()) else svg}"
         if args.png:
             png = rasterise(svg, scale=args.scale)

@@ -47,5 +47,5 @@ macOS only. No sudo, no private frameworks, no entitlements — `system_profiler
 and `ioreg -p IOPort` are the only data sources.
 
 Documentation: [docs/index.md](docs/index.md). The screenshots above are
-generated with `uv run python scripts/screenshots.py --png`, the standalone
-binary with `uv run python scripts/build_binary.py`.
+generated with `uv run python scripts/screenshots.py --png --host mac`, the
+standalone binary with `uv run python scripts/build_binary.py`.

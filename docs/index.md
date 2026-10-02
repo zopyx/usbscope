@@ -167,16 +167,18 @@ Two honest caveats:
 live snapshot of the machine this tool was written on:
 
 ```console
-uv run python scripts/screenshots.py --png            # 140 cols, monokai, 1.5x PNG
-uv run python scripts/screenshots.py --theme night-owlish --scale 2 --png
+uv run python scripts/screenshots.py --png                      # 140 cols, monokai, 1.5x
+uv run python scripts/screenshots.py --png --host mac           # mask the host name
 ```
 
 Rich exports the recorded console as SVG (colours and box drawing included), so
 the gallery can be regenerated on any Mac without a terminal emulator, window
 server or screenshot tool; only `rsvg-convert` (librsvg) is needed for the PNG
 step. The SVGs are kept next to the PNGs so a future edit can be re-rasterised
-without re-collecting. Note that the captures show the real host name and the
-device inventory of that machine — regenerating on another Mac changes both.
+without re-collecting. The committed captures use `--host mac`: the header would
+otherwise show the real machine name, which does not belong in a public image.
+The device inventory and the model/chip line are left as they are — they are
+generic hardware facts, not identifiers.
 
 ## Development
 
