@@ -23,6 +23,19 @@ restrictions.
 
 ![usbscope devices](docs/screenshots/devices.png)
 
+## A native macOS app
+
+The same data in a real Cocoa window (`usbscope-app`): segmented view switcher,
+`NSTableView` with monospaced values, `⌘R`, auto-refresh 1–10 s, per-row tooltips.
+
+![usbscope app](docs/screenshots/app-ports.png)
+
+```console
+$ uv run --extra macapp usbscope-app     # run from the checkout
+$ uv run python scripts/build_app.py     # build usbscope.app + DMG into dist/
+$ open dist/usbscope.app                 # or drag it into /Applications
+```
+
 ## Usage
 
 ```console

@@ -1,16 +1,21 @@
 [project]
 name = "usbscope"
-version = "0.1.0"
-description = "Pretty macOS CLI to inspect USB buses, USB-C ports, cables and negotiated link modes."
+version = "0.2.0"
+description = "Pretty macOS CLI and native app to inspect USB buses, USB-C ports, cables and link modes."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = ["rich>=13.9"]
 
+[project.optional-dependencies]
+# native macOS UI (usbscope-app); the CLI does not need it
+macapp = ["pyobjc-framework-Cocoa>=12.2"]
+
 [project.scripts]
 usbscope = "usbscope.cli:main"
+usbscope-app = "usbscope.macapp.launch:main"
 
 [dependency-groups]
-dev = ["pytest>=8.3", "ty>=0.0.21", "ruff>=0.14.5"]
+dev = ["pytest>=8.3", "ty>=0.0.21", "ruff>=0.14.5", "pyobjc-framework-Cocoa>=12.2"]
 
 [build-system]
 requires = ["hatchling"]
@@ -36,6 +41,16 @@ allowed-confusables = ["–"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+# PyObjC ships no type stubs, so the AppKit/Foundation/objc symbols are unknown to
+# the checker; the UI module is excluded from those two rules instead of being
+# littered with casts. Everything else (including its own signatures) is checked.
+[[tool.ty.overrides]]
+include = ["src/usbscope/macapp/app.py", "tests/test_macapp_app.py"]
+
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"
+unresolved-attribute = "ignore"
 
 [tool.ty.environment]
 python-version = "3.14"

@@ -124,6 +124,48 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
 }
 ```
 
+## The macOS app
+
+The same data as a native Cocoa app (`usbscope-app`) — a real `NSWindow` with a
+segmented view switcher, a view based `NSTableView`, `⌘R`, an auto-refresh timer
+and an Info.plist bundle you can drop into `/Applications`:
+
+![usbscope app](docs/screenshots/app-ports.png)
+
+```console
+$ usbscope-app                    # from a checkout (needs the macapp extra)
+$ open dist/usbscope.app          # or the built bundle / the release DMG
+```
+
+Views: **Ports** (state, negotiated mode, transports, cable, notes), **Cables**
+(CC authentication, hash, PD spec revision, power in, liquid detection, controller
+firmware), **Devices** (flat table with bus, port, transport, serial, macOS
+restriction and per-row tooltips) and **Thunderbolt**. Auto-refresh runs every
+1/2/5/10 s and can be switched off; the status line shows the read counter, the
+cadence and the first warning of a failing source.
+
+```console
+$ uv run --extra macapp usbscope-app          # run from the checkout
+$ uv run python scripts/build_app.py          # build + verify + DMG into dist/
+```
+
+`scripts/build_app.py` runs PyInstaller (`--windowed`), fills the Info.plist
+(bundle id, version, minimum macOS), signs the bundle ad hoc, then **launches the
+bundled app** in `--snapshot` mode to prove the bundle works before packaging it
+into a DMG. `usbscope-app --snapshot out.png [--view cables]` renders the window
+offscreen, which is also how the screenshots above were made.
+
+Two known limitations around the offscreen capture (the interactive app is not
+affected):
+
+* AppKit's control cells (segment titles, popup items, button bezels) do not
+  serialise into an offscreen bitmap. In `--snapshot` mode the toolbar is
+  therefore drawn as plain text labels at the same place; the real window uses the
+  native controls.
+* Forcing an appearance (`NSAppearance`) for a capture makes the layer backed
+  labels come out blank, so the flag was dropped: captures follow the system
+  appearance, which is what the window shows anyway.
+
 ## Prebuilt binary
 
 Each release ships a standalone macOS binary (arm64) that bundles Python and Rich
