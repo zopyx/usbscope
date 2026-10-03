@@ -14,6 +14,8 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
+from .models_thunderbolt import ThunderboltFabric
+
 __all__ = [
     "Bus",
     "Cable",
@@ -535,6 +537,7 @@ class Snapshot:
     ports: tuple[Port, ...] = ()
     buses: tuple[Bus, ...] = ()
     thunderbolt: tuple[ThunderboltPort, ...] = ()
+    thunderbolt_fabric: ThunderboltFabric = field(default_factory=ThunderboltFabric)
     charging: Charging | None = None
     warnings: tuple[str, ...] = ()
 

@@ -22,7 +22,13 @@ from typing import Any
 
 from usbscope.serialize import snapshot_to_dict
 from usbscope.snapshot import collect
-from usbscope.sources import ChargingSource, IoregSource, SystemProfiler, USBRegistrySource
+from usbscope.sources import (
+    ChargingSource,
+    IoregSource,
+    SystemProfiler,
+    ThunderboltFabricSource,
+    USBRegistrySource,
+)
 from usbscope.sources.shell import CommandResult
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -47,6 +53,9 @@ CHARGING_FILES = {
 REGISTRY_FILES = {
     "IOUSB": "usbplane.plist",
 }
+FABRIC_FILES = {
+    "IOThunderboltSwitch": "tb_switch.plist",
+}
 
 
 def _runner(files: dict[str, str]) -> Callable[[Sequence[str]], CommandResult]:
@@ -69,6 +78,7 @@ def build() -> dict[str, Any]:
             ioreg=IoregSource(runner=_runner({"IOPort": "ioport.plist"})),
             charging=ChargingSource(runner=_runner(CHARGING_FILES)),
             usbregistry=USBRegistrySource(runner=_runner(REGISTRY_FILES)),
+            fabric=ThunderboltFabricSource(runner=_runner(FABRIC_FILES)),
             host=HOST,
             os_version=OS_VERSION,
             clock=lambda: SEEN_AT,

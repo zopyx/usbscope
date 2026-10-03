@@ -65,6 +65,11 @@ enum Fixtures {
         USBRegistrySource(runner: runner(["IOUSB": "usbplane.plist"]))
     }
 
+    /// The USB4/Thunderbolt fabric issues one command; served from the switch capture.
+    static var tbFabric: ThunderboltFabricSource {
+        ThunderboltFabricSource(runner: runner(["IOThunderboltSwitch": "tb_switch.plist"]))
+    }
+
     /// A parsed plist fixture (for the parsers that take a tree directly).
     static func plist(_ name: String) throws -> [String: Any] {
         let raw = try data(name)
@@ -75,6 +80,12 @@ enum Fixtures {
         )
     }
 
+    /// A parsed plist fixture of any shape (the Thunderbolt switch capture is an array).
+    static func plistValue(_ name: String) throws -> Any {
+        let raw = try data(name)
+        return try PropertyListSerialization.propertyList(from: raw, options: [], format: nil)
+    }
+
     /// A full snapshot built from the captured payloads, with a pinned clock.
     static func snapshot() -> Snapshot {
         SnapshotBuilder.collect(
@@ -82,6 +93,7 @@ enum Fixtures {
             ioreg: ioreg,
             charging: charging,
             usbregistry: usbregistry,
+            fabric: tbFabric,
             clock: { Date(timeIntervalSince1970: 1_790_000_000) },
             osVersion: osVersion,
             host: host

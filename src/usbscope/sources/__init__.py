@@ -4,6 +4,7 @@ from .charging import ChargingSource
 from .ioreg import IoregSource, parse_ports
 from .profiler import SystemProfiler
 from .shell import CommandResult, run_command
+from .thunderbolt import ThunderboltFabricSource, parse_fabric
 from .usbregistry import USBRegistrySource, parse_usb_devices
 
 __all__ = [
@@ -11,7 +12,9 @@ __all__ = [
     "CommandResult",
     "IoregSource",
     "SystemProfiler",
+    "ThunderboltFabricSource",
     "USBRegistrySource",
+    "parse_fabric",
     "parse_ports",
     "parse_usb_devices",
     "run_command",
