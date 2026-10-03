@@ -14,8 +14,18 @@ final class UserDefaultsBackend: PreferencesBackend {
 
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults? = UserDefaults(suiteName: UserDefaultsBackend.suiteName)) {
+    /// A bundled app already owns the `com.zopyx.usbscope` domain, and macOS
+    /// refuses to open a *suite* by the process's own bundle identifier
+    /// ("Using your own bundle identifier as an NSUserDefaults suite name does
+    /// not make sense and will not work") — so the bundle uses `standard` and
+    /// only a checkout run (which has no such identifier) opens the suite.
+    init(defaults: UserDefaults? = UserDefaultsBackend.resolve()) {
         self.defaults = defaults ?? .standard
+    }
+
+    private static func resolve() -> UserDefaults? {
+        if Bundle.main.bundleIdentifier == suiteName { return .standard }
+        return UserDefaults(suiteName: suiteName)
     }
 
     func data(forKey key: String) -> Data? { defaults.data(forKey: key) }

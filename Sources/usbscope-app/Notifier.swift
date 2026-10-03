@@ -30,8 +30,8 @@ final class DeviceNotifier {
     init() {
         supported = NotificationGuard.isBundledRun
         guard supported else { return }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            Task { @MainActor [weak self] in self?.authorized = granted }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
+            Task { @MainActor in self?.authorized = granted }
         }
     }
 

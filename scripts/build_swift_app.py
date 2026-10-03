@@ -41,7 +41,7 @@ BUNDLE_ID = "com.zopyx.usbscope"
 EXECUTABLE = "usbscope-app"
 PRODUCT = "usbscope-app"
 ICON_SOURCE = ROOT / "assets" / "icon" / "usbscope.icns"
-MIN_MACOS = "14.0"
+MIN_MACOS = "14.4"
 
 
 def package_version() -> str:

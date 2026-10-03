@@ -526,7 +526,7 @@ implementations are pinned to the *same* fixtures.
 
 | Part | Path |
 | --- | --- |
-| Package manifest | `Package.swift` (`swift-tools-version: 6.0`, macOS 14+) |
+| Package manifest | `Package.swift` (`swift-tools-version: 6.0`, macOS 14.4+ — the column chooser needs the conditional `TableColumn`/`ToolbarItem` result builders that arrived in 14.4) |
 | Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, `ioreg`, `system_profiler`, charging, snapshot, JSON serialiser, formatting |
 | Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, `Highlight`, detail pairs, TSV/CSV export (no SwiftUI, so it is unit-testable headless); the change **differ** (`deviceKey`/`diffSnapshots`) lives in `UsbScopeCore`, because the hotplug watcher and the history build on it too |
 | CLI executable `usbscope` | `Sources/usbscope/main.swift` |
