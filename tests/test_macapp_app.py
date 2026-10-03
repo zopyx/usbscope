@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import json
+import struct
 from collections.abc import Iterator
 from dataclasses import replace
 from datetime import datetime
@@ -21,15 +22,22 @@ pytest.importorskip("AppKit", reason="requires the macapp extra (PyObjC)")
 from AppKit import (
     NSApplication,
     NSApplicationActivationPolicyRegular,
+    NSButton,
     NSPasteboard,
     NSPasteboardTypeString,
+    NSPopUpButton,
     NSSortDescriptor,
     NSTextAlignmentRight,
 )
 from Foundation import NSIndexSet, NSMakeRect
 
 from usbscope.macapp import preferences as prefs
-from usbscope.macapp.app import AppDelegate, render_snapshot
+from usbscope.macapp.app import (
+    WINDOW_HEIGHT,
+    WINDOW_WIDTH,
+    AppDelegate,
+    render_snapshot,
+)
 from usbscope.macapp.viewmodel import VIEWS, device_key
 from usbscope.models import Bus, Snapshot, UsbDevice
 
@@ -70,6 +78,12 @@ def _select(delegate: AppDelegate, row: int) -> None:
     delegate.table.selectRowIndexes_byExtendingSelection_(NSIndexSet.indexSetWithIndex_(row), False)
 
 
+def png_size(path: Path) -> tuple[int, int]:
+    """Pixel size of a PNG, straight from the IHDR chunk (no image library needed)."""
+    width, height = struct.unpack(">II", path.read_bytes()[16:24])
+    return int(width), int(height)
+
+
 def _submenu(title: str) -> object:
     """The app menu's submenu with the given title (PyObjC objects are untyped)."""
     main_menu = NSApplication.sharedApplication().mainMenu()
@@ -98,24 +112,76 @@ def test_window_has_a_native_toolbar_with_all_controls(
 
     toolbar = delegate.window.toolbar()
     assert toolbar is not None
-    identifiers = set(delegate.toolbarDefaultItemIdentifiers_(toolbar))
-    assert {"usbscope.item.views", "usbscope.item.search", "usbscope.item.refresh"} <= identifiers
-    assert (
-        delegate.toolbar_itemForItemIdentifier_willBeInsertedIntoToolbar_(
-            toolbar, "usbscope.item.search", True
-        )
-        is not None
-    )
-    assert (
-        delegate.toolbar_itemForItemIdentifier_willBeInsertedIntoToolbar_(toolbar, "nope", True)
-        is None
-    )
+    declared = delegate.toolbarDefaultItemIdentifiers_(toolbar)
+    # the regression this test exists for: a toolbar that *declares* items while the
+    # delegate cannot produce their views renders as an empty bar above the table
+    assert [item.itemIdentifier() for item in toolbar.items()] == declared
+    # each item must wrap the very control the delegate holds (KVO subclasses the
+    # runtime class, so identity beats a class-name comparison)
+    views = {item.itemIdentifier(): item.view() for item in toolbar.items()}
+    assert views["usbscope.item.views"] is delegate.segments
+    assert views["usbscope.item.search"] is delegate.search_field
+    assert views["usbscope.item.copy"] is delegate.copy_popup
+    assert views["usbscope.item.export"] is delegate.export_popup
+    assert views["usbscope.item.refresh"] is delegate.refresh_button
+    assert views["usbscope.item.details"] is delegate.details_button
+    assert views["usbscope.item.toggle"] is delegate.auto_toggle
+    assert views["usbscope.item.interval"] is delegate.interval_popup
+    assert isinstance(delegate.copy_popup, NSPopUpButton)
+    assert isinstance(delegate.details_button, NSButton)
 
     assert delegate.segments.segmentCount() == len(VIEWS)
     assert delegate.search_field.placeholderString() == "Filter"
     assert delegate.interval_popup.numberOfItems() == 4
     assert delegate.auto_toggle.title() == "Auto-refresh"
     assert delegate.refresh_button.title() == "Refresh  ⌘R"
+    assert delegate.details_button.title() == "Details"
+
+
+def test_the_toolbar_buttons_carry_the_menu_actions(delegate: AppDelegate) -> None:
+    """Every visible button routes to the same selector as its menu entry."""
+    copy_entries = delegate.copy_popup.itemArray()
+    assert [item.title() for item in copy_entries] == [
+        "Copy",
+        "Selected Rows",
+        "Whole Table",
+        "Details",
+        "Snapshot as JSON",
+    ]
+    assert [item.action() for item in copy_entries][1:] == [
+        "copyRow:",
+        "copyTable:",
+        "copyDetails:",
+        "copyJSON:",
+    ]
+
+    export_entries = delegate.export_popup.itemArray()
+    assert [item.title() for item in export_entries] == [
+        "Export",
+        "Current View as CSV…",
+        "Snapshot as JSON…",
+    ]
+    assert [item.action() for item in export_entries][1:] == ["exportCSV:", "exportJSON:"]
+
+    # the selector strings must name real methods on the delegate
+    for item in (*copy_entries[1:], *export_entries[1:]):
+        assert callable(getattr(delegate, str(item.action()).replace(":", "_")))
+        assert item.target() is delegate
+        assert item.toolTip()
+
+
+def test_details_button_opens_the_popover_for_the_selected_row(delegate: AppDelegate) -> None:
+    _select(delegate, 3)
+    delegate.showDetails_(delegate.details_button)
+    assert delegate.popover is not None
+    delegate.popover.close()
+
+    # without a selection it falls back to the first row instead of doing nothing
+    delegate.popover = None
+    delegate.table.deselectAll_(None)
+    delegate.showDetails_(delegate.details_button)
+    assert delegate.popover is not None
+    delegate.popover.close()
 
 
 def test_the_menus_offer_the_expected_actions(delegate: AppDelegate) -> None:
@@ -458,7 +524,10 @@ def test_snapshot_mode_never_reads_or_writes_preferences(
 
     assert instance.use_preferences is False
     assert calls == []
-    assert instance.window.toolbar() is None  # the capture draws plain labels instead
+    # the capture uses the real toolbar (no hand drawn stand-in), it just must not
+    # read or write the stored preferences
+    assert instance.window.toolbar() is not None
+    assert instance.window.toolbar().items()
 
 
 def test_refresh_keeps_the_selection_and_scroll_position(delegate: AppDelegate) -> None:
@@ -574,6 +643,23 @@ def test_snapshot_render_produces_an_image(snapshot: Snapshot, view: str, tmp_pa
     header = target.read_bytes()[:8]
     assert header == b"\x89PNG\r\n\x1a\n"
     assert target.stat().st_size > 10_000  # a real window, not an empty canvas
+
+
+def test_snapshot_captures_the_whole_window_including_the_toolbar(
+    snapshot: Snapshot, tmp_path: Path
+) -> None:
+    """The PNG is the frame (titlebar + toolbar + content), not just the content view.
+
+    Without the theme frame the capture would silently lose the toolbar — the exact
+    part a reader is supposed to see in the documentation.
+    """
+    target = tmp_path / "whole-window.png"
+    render_snapshot(target, snapshot=snapshot)
+    width, height = png_size(target)
+    assert width == int(WINDOW_WIDTH * 2)
+    # the frame is taller than the content area: that difference *is* the titlebar
+    # plus toolbar, which a content-view capture would silently drop
+    assert height >= int(WINDOW_HEIGHT * 2) + 60
 
 
 def test_snapshot_render_of_empty_machine(tmp_path: Path) -> None:

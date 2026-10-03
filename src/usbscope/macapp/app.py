@@ -64,7 +64,6 @@ from AppKit import (
     NSViewController,
     NSViewHeightSizable,
     NSViewMaxYMargin,
-    NSViewMinXMargin,
     NSViewMinYMargin,
     NSViewWidthSizable,
     NSWindow,
@@ -100,8 +99,8 @@ from .viewmodel import (
     table_model,
 )
 
-WINDOW_WIDTH = 1280.0
-WINDOW_HEIGHT = 680.0
+WINDOW_WIDTH = 1440.0
+WINDOW_HEIGHT = 700.0
 MIN_WIDTH = 900.0
 MIN_HEIGHT = 420.0
 ROW_HEIGHT = 22.0
@@ -114,7 +113,10 @@ DOCS_URL = "https://github.com/zopyx/usbscope#readme"
 TOOLBAR_IDENTIFIER = "com.zopyx.usbscope.toolbar"
 ITEM_VIEWS = "usbscope.item.views"
 ITEM_SEARCH = "usbscope.item.search"
+ITEM_COPY = "usbscope.item.copy"
+ITEM_EXPORT = "usbscope.item.export"
 ITEM_REFRESH = "usbscope.item.refresh"
+ITEM_DETAILS = "usbscope.item.details"
 ITEM_SPACER = "usbscope.item.spacer"
 ITEM_TOGGLE = "usbscope.item.toggle"
 ITEM_INTERVAL = "usbscope.item.interval"
@@ -212,9 +214,13 @@ class AppDelegate(NSObject):
         self.window: NSWindow | None = None
         self.segments: NSSegmentedControl | None = None
         self.search_field: NSSearchField | None = None
+        self.copy_popup: NSPopUpButton | None = None
+        self.export_popup: NSPopUpButton | None = None
         self.refresh_button: NSButton | None = None
+        self.details_button: NSButton | None = None
         self.auto_toggle: NSButton | None = None
         self.interval_popup: NSPopUpButton | None = None
+        self.toolbar: NSToolbar | None = None
         self.popover: NSPopover | None = None
         self.menubar: MenuBarController | None = None
         self._menubar_error: str | None = None
@@ -433,14 +439,12 @@ class AppDelegate(NSObject):
         root.setWantsLayer_(True)
         window.setContentView_(root)
 
-        if snapshot_mode:
-            self._add_toolbar_placeholders(root)
-        else:
-            self._install_toolbar(window)
+        self._install_toolbar(window)
 
         width = root.bounds().size.width
         height = root.bounds().size.height
-        top = height - MARGIN - (TOOLBAR_HEIGHT + 8.0 if snapshot_mode else 0.0)
+        # the toolbar lives in the frame, not in the content view: no extra offset
+        top = height - MARGIN
         self.summary_label = _label(
             "",
             NSMakeRect(MARGIN, top - 17.0, width - 2.0 * MARGIN, 17.0),
@@ -490,68 +494,38 @@ class AppDelegate(NSObject):
         self.window.setFrame_display_(NSMakeRect(*frame), True)
 
     def _install_toolbar(self, window: NSWindow) -> None:
-        """Put the controls into a real unified ``NSToolbar``."""
+        """Put the controls into a real unified ``NSToolbar``.
+
+        The controls must exist *before* ``setToolbar_``: AppKit asks the delegate
+        for every default item while that call runs, and a delegate that cannot
+        produce the item's view is silently skipped — which leaves an apparently
+        empty toolbar above the table.
+        """
+        self.segments = self._make_segments()
+        self.search_field = self._make_search_field()
+        self.copy_popup = self._make_copy_popup()
+        self.export_popup = self._make_export_popup()
+        self.refresh_button = self._make_refresh_button()
+        self.details_button = self._make_details_button()
+        self.auto_toggle = self._make_auto_toggle()
+        self.interval_popup = self._make_interval_popup()
+
         toolbar = NSToolbar.alloc().initWithIdentifier_(TOOLBAR_IDENTIFIER)
         toolbar.setDelegate_(self)
         toolbar.setAllowsUserCustomization_(False)
         toolbar.setAutosavesConfiguration_(False)
-        window.setToolbar_(toolbar)
         window.setToolbarStyle_(NSWindowToolbarStyleUnifiedCompact)
-        # the controls are created once here; the toolbar items wrap them
-        self.segments = self._make_segments()
-        self.search_field = self._make_search_field()
-        self.refresh_button = self._make_refresh_button()
-        self.auto_toggle = self._make_auto_toggle()
-        self.interval_popup = self._make_interval_popup()
+        window.setToolbar_(toolbar)  # populates the items right here
+        self.toolbar = toolbar
 
-    def _add_toolbar_placeholders(self, root: NSView) -> None:
-        """Draw the toolbar as plain labels (offscreen capture only).
-
-        AppKit's control cells (segment titles, popup items, button bezels) do not
-        serialise into an offscreen bitmap, so a capture would show empty boxes. The
-        labels carry the same text at the same position; the interactive app always
-        uses the real controls.
-        """
-        width = root.bounds().size.width
-        height = root.bounds().size.height
-        y = height - MARGIN - TOOLBAR_HEIGHT
-        root.addSubview_(
-            _label(
-                "   ".join(f"| {view.capitalize()}" for view in VIEWS).lstrip("| "),
-                NSMakeRect(MARGIN, y + 4.0, 460.0, 18.0),
-                size=12.0,
-                mono=False,
-                mask=NSViewMinYMargin,
-            )
-        )
-        root.addSubview_(
-            _label(
-                "Search",
-                NSMakeRect(width - 830.0, y + 4.0, 120.0, 18.0),
-                size=12.0,
-                mono=False,
-                mask=NSViewMinXMargin | NSViewMinYMargin,
-            )
-        )
-        root.addSubview_(
-            _label(
-                "Auto-refresh   2 s      Refresh  ⌘R",
-                NSMakeRect(width - 560.0, y + 4.0, 360.0, 18.0),
-                size=12.0,
-                mono=False,
-                mask=NSViewMinXMargin | NSViewMinYMargin,
-            )
-        )
-
-    # ----------------------------------------------------- toolbar plumbing
     def _make_segments(self) -> NSSegmentedControl:
         segments = NSSegmentedControl.alloc().initWithFrame_(
-            NSMakeRect(0.0, 0.0, 432.0, TOOLBAR_HEIGHT)
+            NSMakeRect(0.0, 0.0, 404.0, TOOLBAR_HEIGHT)
         )
         segments.setSegmentCount_(len(VIEWS))
         for index, view in enumerate(VIEWS):
             segments.setLabel_forSegment_(view.capitalize(), index)
-            segments.setWidth_forSegment_(104.0, index)
+            segments.setWidth_forSegment_(97.0, index)
         segments.setSegmentStyle_(NSSegmentStyleRounded)
         segments.setTrackingMode_(NSSegmentSwitchTrackingSelectOne)
         segments.setSelectedSegment_(VIEWS.index(self.state.view))
@@ -560,7 +534,7 @@ class AppDelegate(NSObject):
         return segments
 
     def _make_search_field(self) -> NSSearchField:
-        field = NSSearchField.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 200.0, TOOLBAR_HEIGHT))
+        field = NSSearchField.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 172.0, TOOLBAR_HEIGHT))
         field.setPlaceholderString_("Filter")
         field.setTarget_(self)
         field.setAction_("searchChanged:")
@@ -570,7 +544,7 @@ class AppDelegate(NSObject):
         return field
 
     def _make_refresh_button(self) -> NSButton:
-        button = NSButton.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 120.0, TOOLBAR_HEIGHT))
+        button = NSButton.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 112.0, TOOLBAR_HEIGHT))
         button.setTitle_("Refresh  ⌘R")
         button.setBezelStyle_(NSBezelStyleRounded)
         button.setTarget_(self)
@@ -578,8 +552,66 @@ class AppDelegate(NSObject):
         button.setToolTip_("Read the USB tree again (⌘R)")
         return button
 
+    def _make_copy_popup(self) -> NSPopUpButton:
+        """Pull-down button that exposes the clipboard actions (they were menu-only)."""
+        popup = NSPopUpButton.alloc().initWithFrame_pullsDown_(
+            NSMakeRect(0.0, 0.0, 116.0, TOOLBAR_HEIGHT), True
+        )
+        popup.addItemWithTitle_("Copy")
+        popup.setToolTip_("Copy rows, table, details or the snapshot as JSON")
+        self._add_popup_actions(
+            popup,
+            (
+                ("Selected Rows", "copyRow:", "Copy the selected rows as TSV (⌘C)"),
+                ("Whole Table", "copyTable:", "Copy the whole table as TSV (⇧⌘C)"),
+                ("Details", "copyDetails:", "Copy every known field of the selection (⌘D)"),
+                ("Snapshot as JSON", "copyJSON:", "Copy the raw snapshot as JSON"),
+            ),
+        )
+        return popup
+
+    def _make_export_popup(self) -> NSPopUpButton:
+        """Pull-down button for ``File ▸ Export`` (was menu-only)."""
+        popup = NSPopUpButton.alloc().initWithFrame_pullsDown_(
+            NSMakeRect(0.0, 0.0, 104.0, TOOLBAR_HEIGHT), True
+        )
+        popup.addItemWithTitle_("Export")
+        popup.setToolTip_("Write the current view or the snapshot to a file")
+        self._add_popup_actions(
+            popup,
+            (
+                ("Current View as CSV…", "exportCSV:", "Write the shown table as CSV (⇧⌘S)"),
+                ("Snapshot as JSON…", "exportJSON:", "Write the whole snapshot as JSON (⌘S)"),
+            ),
+        )
+        return popup
+
+    def _add_popup_actions(
+        self, popup: NSPopUpButton, entries: tuple[tuple[str, str, str], ...]
+    ) -> None:
+        """Give every pull-down entry its own target/action (item 0 is the title).
+
+        Each entry calls the same selector the menu uses, so both routes stay in
+        sync by construction.
+        """
+        for title, selector, tooltip in entries:
+            popup.addItemWithTitle_(title)
+            item = popup.lastItem()
+            item.setTarget_(self)
+            item.setAction_(selector)
+            item.setToolTip_(tooltip)
+
+    def _make_details_button(self) -> NSButton:
+        button = NSButton.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 84.0, TOOLBAR_HEIGHT))
+        button.setTitle_("Details")
+        button.setBezelStyle_(NSBezelStyleRounded)
+        button.setTarget_(self)
+        button.setAction_("showDetails:")
+        button.setToolTip_("Show every field of the selected row")
+        return button
+
     def _make_auto_toggle(self) -> NSButton:
-        toggle = NSButton.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 118.0, TOOLBAR_HEIGHT))
+        toggle = NSButton.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 114.0, TOOLBAR_HEIGHT))
         toggle.setButtonType_(NSButtonTypeSwitch)
         toggle.setTitle_("Auto-refresh")
         toggle.setState_(1 if self.state.interval else 0)
@@ -589,7 +621,7 @@ class AppDelegate(NSObject):
         return toggle
 
     def _make_interval_popup(self) -> NSPopUpButton:
-        popup = NSPopUpButton.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 88.0, TOOLBAR_HEIGHT))
+        popup = NSPopUpButton.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 78.0, TOOLBAR_HEIGHT))
         popup.addItemsWithTitles_([f"{value:g} s" for value in prefs.INTERVALS])
         popup.selectItemAtIndex_(
             prefs.INTERVALS.index(self.state.interval)
@@ -618,15 +650,21 @@ class AppDelegate(NSObject):
         self, _toolbar: NSToolbar, identifier: str, _flag: bool
     ) -> NSToolbarItem | None:
         if identifier == ITEM_VIEWS and self.segments is not None:
-            return self._make_toolbar_item(identifier, self.segments, "Views", 432.0)
+            return self._make_toolbar_item(identifier, self.segments, "Views", 404.0)
         if identifier == ITEM_SEARCH and self.search_field is not None:
-            return self._make_toolbar_item(identifier, self.search_field, "Filter", 200.0)
+            return self._make_toolbar_item(identifier, self.search_field, "Filter", 172.0)
+        if identifier == ITEM_COPY and self.copy_popup is not None:
+            return self._make_toolbar_item(identifier, self.copy_popup, "Copy", 116.0)
+        if identifier == ITEM_EXPORT and self.export_popup is not None:
+            return self._make_toolbar_item(identifier, self.export_popup, "Export", 108.0)
         if identifier == ITEM_REFRESH and self.refresh_button is not None:
-            return self._make_toolbar_item(identifier, self.refresh_button, "Refresh", 124.0)
+            return self._make_toolbar_item(identifier, self.refresh_button, "Refresh", 116.0)
+        if identifier == ITEM_DETAILS and self.details_button is not None:
+            return self._make_toolbar_item(identifier, self.details_button, "Details", 88.0)
         if identifier == ITEM_TOGGLE and self.auto_toggle is not None:
-            return self._make_toolbar_item(identifier, self.auto_toggle, "Auto-refresh", 122.0)
+            return self._make_toolbar_item(identifier, self.auto_toggle, "Auto-refresh", 118.0)
         if identifier == ITEM_INTERVAL and self.interval_popup is not None:
-            return self._make_toolbar_item(identifier, self.interval_popup, "Interval", 92.0)
+            return self._make_toolbar_item(identifier, self.interval_popup, "Interval", 82.0)
         if identifier == ITEM_SPACER:
             item = NSToolbarItem.alloc().initWithItemIdentifier_(NSToolbarSpaceItemIdentifier)
             return item
@@ -636,10 +674,13 @@ class AppDelegate(NSObject):
         return [
             ITEM_VIEWS,
             ITEM_SEARCH,
-            NSToolbarFlexibleSpaceItemIdentifier,
+            ITEM_COPY,
+            ITEM_EXPORT,
             ITEM_REFRESH,
+            ITEM_DETAILS,
             ITEM_TOGGLE,
             ITEM_INTERVAL,
+            NSToolbarFlexibleSpaceItemIdentifier,
             ITEM_SPACER,
         ]
 
@@ -648,7 +689,10 @@ class AppDelegate(NSObject):
             ITEM_VIEWS,
             NSToolbarFlexibleSpaceItemIdentifier,
             ITEM_SEARCH,
+            ITEM_COPY,
+            ITEM_EXPORT,
             ITEM_REFRESH,
+            ITEM_DETAILS,
             ITEM_TOGGLE,
             ITEM_INTERVAL,
         ]
@@ -686,6 +730,8 @@ class AppDelegate(NSObject):
             ("Copy Cell", "copyCell:"),
             ("Copy Table", "copyTable:"),
             ("Copy as JSON", "copyJSON:"),
+            ("Export View as CSV…", "exportCSV:"),
+            ("Export Snapshot as JSON…", "exportJSON:"),
         ):
             entry = menu.addItemWithTitle_action_keyEquivalent_(title, selector, "")
             entry.setTarget_(self)
@@ -1012,6 +1058,15 @@ class AppDelegate(NSObject):
     def tableViewColumnDidResize_(self, _notification: object) -> None:
         self._save_preferences()
 
+    def showDetails_(self, _sender: object) -> None:
+        """Toolbar button: the detail popover for the selected (or first) row."""
+        if self.model is None or self.model.row_count == 0:
+            return
+        row = self.table.selectedRow()
+        if row < 0:
+            row = 0
+        self._show_popover(row)
+
     def rowDoubleClicked_(self, _sender: object) -> None:
         """Double click (or ``Show Details``) opens the detail popover for the row."""
         if self.table is None:
@@ -1159,11 +1214,14 @@ def render_snapshot(
 ) -> int:
     """Build the window offscreen, render the current view to ``path`` and exit.
 
+    The window is rendered through its theme frame, so the PNG contains the real
+    titlebar and toolbar (the ``snapshot_mode`` build only means "do not touch the
+    stored preferences", which keeps a capture reproducible).
+
     The capture uses the current system appearance: forcing an appearance (app or
-    window level) invalidates the layer backed labels and they come out blank in
-    the offscreen bitmap, so the flag was dropped instead of shipping a broken one.
-    ``snapshot`` lets tests inject a fixture instead of reading the live machine,
-    and stored preferences are ignored so the image is reproducible.
+    window level) invalidates the layer backed labels and they come out blank in the
+    offscreen bitmap, so that flag does not exist. ``snapshot`` lets tests inject a
+    fixture instead of reading the live machine.
     """
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
@@ -1174,11 +1232,14 @@ def render_snapshot(
     delegate.state.snapshot = snapshot if snapshot is not None else collect()
     delegate.state.reads = 1
     delegate.reload_table()
-    delegate.window.contentView().layoutSubtreeIfNeeded()
+    # the theme frame, not the content view: this is what makes the capture show the
+    # real titlebar and toolbar instead of a hand drawn stand-in
+    frame_view = delegate.window.contentView().superview()
+    frame_view.layoutSubtreeIfNeeded()
     # a display pass is required for labels that were created empty and filled
     # afterwards; without it the offscreen render shows the old (empty) state
-    delegate.window.contentView().displayIfNeeded()
-    write_png(delegate.window.contentView(), path)
+    frame_view.displayIfNeeded()
+    write_png(frame_view, path)
     return 0
 
 

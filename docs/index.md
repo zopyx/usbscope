@@ -196,14 +196,15 @@ restriction) and **Thunderbolt**.
 
 | Feature | Behaviour |
 | --- | --- |
-| Views | Segmented switcher in the toolbar, plus `⌘1`–`⌘4` and the status item menu |
+| Views | Segmented switcher (Ports · Cables · Devices · Thunderbolt) in the toolbar, plus `⌘1`–`⌘4` and the status item menu |
 | Search | Toolbar search field (`⌘F`), live filter over every column; the filter survives a view switch |
 | Sorting | Click a column header to sort, click again to reverse. Sorting uses a hidden rank where the text would sort wrong (`USB 1.1` before `USB 3.2 Gen 2`, `@2` before `@10`) |
+| Toolbar buttons | **Copy ▾** (selected rows, whole table, details, snapshot as JSON), **Export ▾** (CSV, JSON), **Refresh**, **Details** (popover for the selection), **Auto-refresh** + interval — every one of them the same action as its menu entry |
 | Refresh that does not disturb | Selection (tracked by row key) and scroll position survive every reload, sort and filter |
 | Change highlighting | Devices that appeared turn green, disappeared red, a changed port yellow — for 1.6 s after a read, plus a `changed: …` note in the status line |
-| Clipboard | `⌘C` copies the selected rows as TSV, `⇧⌘C` the whole table, `⌘D` the detail pairs, “Copy as JSON” the raw snapshot; right click has the same actions |
-| Detail popover | Double click a row for every field of that port/cable/device (including what the columns truncate) |
-| Export | `File ▸ Export JSON…` (`⌘S`) and `Export CSV…` (`⇧⌘S`) write the current view/snapshot |
+| Clipboard | `⌘C` copies the selected rows as TSV, `⇧⌘C` the whole table, `⌘D` the detail pairs, “Copy as JSON” the raw snapshot; right click and the **Copy ▾** button have the same actions |
+| Detail popover | Double click a row (or the **Details** button) for every field of that port/cable/device, including what the columns truncate |
+| Export | `File ▸ Export JSON…` (`⌘S`) / `Export CSV…` (`⇧⌘S`), toolbar **Export ▾**, and the same entries in the table's context menu |
 | Tooltips | Every row, not only devices, carries its full detail list |
 | Status item | Menu bar extra with `connected/ports` (plus `⚠` when a source warns), the full summary as tooltip, view switching, “Refresh now”, a notifications switch and quit |
 | Notifications | One banner per device that appeared or disappeared — only from the bundled app (see below) |
@@ -271,18 +272,15 @@ hdiutil attach -nobrowse -readonly dist/usbscope-0.2.0-macos-arm64.dmg   # inspe
 /Volumes/usbscope/usbscope.app/Contents/MacOS/usbscope --version
 ```
 
-`usbscope-app --snapshot out.png [--view cables]` renders the window offscreen
-(`make snapshot` regenerates `docs/screenshots/app-*.png`); `--no-preferences`
-keeps a capture from reading or writing stored preferences. Two known limitations
-of that capture path — the interactive app is not affected:
+`usbscope-app --snapshot out.png [--view cables]` renders the **whole window** — the
+PNG is taken from the theme frame, so it contains the real titlebar and toolbar
+(`make snapshot` regenerates `docs/screenshots/app-*.png`). `--no-preferences` keeps
+a capture from reading or writing stored preferences, which is what makes the image
+reproducible. One limitation remains, and it only affects captures:
 
-* AppKit's control cells (segment titles, popup items, button bezels) do not
-  serialise into an offscreen bitmap. In `--snapshot` mode the toolbar is therefore
-  drawn as plain text labels at the same place; the real window uses the native
-  controls.
-* Forcing an appearance (`NSAppearance`) for a capture makes the layer backed labels
-  come out blank, so that flag does not exist: captures follow the system
-  appearance, which is what the window shows anyway.
+* Forcing an appearance (`NSAppearance`) makes the layer backed labels come out
+  blank, so that flag does not exist: captures follow the system appearance, which is
+  what the window shows anyway.
 
 ## Prebuilt binary (CLI)
 
