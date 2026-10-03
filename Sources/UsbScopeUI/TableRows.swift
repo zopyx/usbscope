@@ -89,6 +89,10 @@ public struct PortRow: Identifiable, Hashable, Sendable {
     public let transports: StyledText
     public let cable: StyledText
     public let notes: StyledText
+    /// Class of the first attached device (`classText`), empty when the port is
+    /// free. A port has no bus of its own, so the grouping layer uses the
+    /// connector family for "bus" and this for "class".
+    public let attachedClass: String
     public let highlight: Highlight?
 
     public let nameSort: Int
@@ -115,6 +119,7 @@ public func portRows(_ snapshot: Snapshot, changes: ChangeSet? = nil) -> [PortRo
             transports: transportsCell(port),
             cable: cable.0,
             notes: notes,
+            attachedClass: port.devices.first?.classText ?? "",
             highlight: changes.flatMap { highlight(for: $0.tag(portKey(port))) },
             nameSort: port.number ?? 999,
             kindSort: port.kind.lowercased(),
@@ -212,6 +217,8 @@ public struct DeviceRow: Identifiable, Hashable, Sendable {
     public let tier: StyledText
     public let port: StyledText
     public let transport: StyledText
+    /// The bus the device hangs off (`device.bus`), for the grouping toggle.
+    public let bus: StyledText
     public let serial: StyledText
     public let restricted: StyledText
     public let highlight: Highlight?
@@ -241,6 +248,7 @@ public func deviceRows(_ snapshot: Snapshot, changes: ChangeSet? = nil) -> [Devi
             tier: device.tier.map { StyledText(String($0), .dim) } ?? dash,
             port: device.port.map { StyledText($0, .cyan) } ?? dash,
             transport: device.transport.map { StyledText($0, .cyan) } ?? dash,
+            bus: device.bus.map { StyledText($0, .dim) } ?? dash,
             serial: device.serial.map { StyledText($0, .dim) } ?? dash,
             restricted: restricted ? StyledText("yes", .yellow) : StyledText("no", .dim),
             highlight: changes.flatMap { highlight(for: $0.tag(deviceKey(device))) },

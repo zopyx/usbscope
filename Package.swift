@@ -13,7 +13,7 @@ import PackageDescription
 //   usbscope-app   the SwiftUI app (five views, mirroring the Python app)
 let package = Package(
     name: "usbscope",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS("14.4")],
     products: [
         .library(name: "UsbScopeCore", targets: ["UsbScopeCore"]),
         .library(name: "UsbScopeUI", targets: ["UsbScopeUI"]),

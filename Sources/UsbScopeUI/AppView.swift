@@ -1,7 +1,7 @@
 import Foundation
 
 /// The five views of the app — the Swift twin of `usbscope.macapp.viewmodel.VIEWS`.
-public enum AppView: String, CaseIterable, Identifiable, Sendable {
+public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
     case ports
     case cables
     case devices
