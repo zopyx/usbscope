@@ -15,6 +15,15 @@ public enum Format {
         return text
     }
 
+    /// A byte count as `GB`/`MB`/`kB`/`B` (SI, not GiB), like Python's `format_bytes`.
+    public static func bytes(_ value: Int?) -> String? {
+        guard let value else { return nil }
+        if value >= 1_000_000_000 { return String(format: "%.1f GB", Double(value) / 1_000_000_000) }
+        if value >= 1_000_000 { return String(format: "%.0f MB", Double(value) / 1_000_000) }
+        if value >= 1_000 { return String(format: "%.0f kB", Double(value) / 1_000) }
+        return "\(value) B"
+    }
+
     /// Milliwatts as watt: `35.9 W`, or `36 W` when asked compactly.
     public static func watts(_ mw: Int?, compact: Bool = false) -> String? {
         guard let mw else { return nil }

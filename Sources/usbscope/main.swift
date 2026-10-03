@@ -23,6 +23,7 @@ func usage() -> String {
       devices      device tree with vendor/product IDs and link modes
       cables       cable, e-marker (SOP), CC authentication, power contract
       thunderbolt  Thunderbolt / USB4 receptacles
+      security     security findings per device/port plus USB mass storage
       json         machine readable snapshot (same as --json)
 
     options:
@@ -33,7 +34,7 @@ func usage() -> String {
     """
 }
 
-let views = ["overview", "ports", "devices", "cables", "thunderbolt", "json"]
+let views = ["overview", "ports", "devices", "cables", "thunderbolt", "security", "json"]
 
 func parse(_ argv: [String]) -> Options {
     var options = Options()
@@ -311,7 +312,50 @@ func chargingPanel(_ snapshot: Snapshot) -> String? {
     return "Charging & adapter — system wide, not per port\n" + body
 }
 
+func securityView(_ snapshot: Snapshot, report: SecurityReport, storage: [StorageDevice], verbose: Bool) -> String {
+    var parts: [String] = [summaryPanel(snapshot, verbose: verbose)]
+    if !snapshot.warnings.isEmpty {
+        parts.append("notes\n" + snapshot.warnings.map { "• \(paint($0, .yellow))" }.joined(separator: "\n"))
+    }
+    parts.append("Security posture — heuristic, not a verdict")
+    parts.append("  Warning    \(report.count(.warning))")
+    parts.append("  Attention  \(report.count(.attention))")
+    parts.append("  Info       \(report.count(.info))")
+    if report.isEmpty {
+        parts.append("  nothing stood out in what macOS reports")
+    } else {
+        let rows = report.findings.map { [$0.severity.rawValue, $0.rule, $0.subject, $0.detail] }
+        parts.append(table(["Severity", "Rule", "Subject", "Why"], rows))
+    }
+    if storage.isEmpty {
+        parts.append("no USB mass storage attached — a Mac without one is normal")
+    } else {
+        let rows = storage.map { device -> [String] in
+            let mode = device.readOnly == true ? "read-only" : (device.readOnly == false ? "read/write" : "–")
+            return [device.identifier, device.label, device.capacityText ?? "–", mode, device.mountPoint ?? "–"]
+        }
+        parts.append("USB mass storage\n" + table(["Device", "Name", "Capacity", "Mode", "Mount"], rows))
+    }
+    parts.append(
+        "honest limits: the class triple is device level, so the interfaces of a composite device "
+            + "(and therefore its HID/mass-storage mix) are not exposed without a user client; a missing "
+            + "serial is a missing report, not proof there is none; storage covers only whole disks "
+            + "whose diskutil BusProtocol is USB."
+    )
+    return parts.joined(separator: "\n")
+}
+
 func render(_ snapshot: Snapshot, options: Options) {
+    if options.view == "security" {
+        let report = Security.analyse(snapshot)
+        let (storage, _) = StorageSource().inventory()
+        if options.json {
+            print(Serialize.securityJSON(report, storage: storage, generatedAt: snapshot.seenAt))
+        } else {
+            print(securityView(snapshot, report: report, storage: storage, verbose: options.verbose))
+        }
+        return
+    }
     if options.json || options.view == "json" {
         print(Serialize.json(snapshot))
         return

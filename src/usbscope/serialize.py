@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import datetime
 from typing import Any
 
 from .models import (
@@ -24,10 +25,20 @@ from .models_thunderbolt import (
     ThunderboltRouter,
     ThunderboltTunnel,
 )
+from .security import Finding, SecurityReport
+from .sources.storage import StorageDevice
 
-__all__ = ["snapshot_to_dict", "snapshot_to_json"]
+__all__ = [
+    "SCHEMA_VERSION",
+    "SECURITY_SCHEMA_VERSION",
+    "security_to_dict",
+    "security_to_json",
+    "snapshot_to_dict",
+    "snapshot_to_json",
+]
 
 SCHEMA_VERSION = 1
+SECURITY_SCHEMA_VERSION = 1
 
 
 def _device(device: UsbDevice) -> dict[str, Any]:
@@ -271,3 +282,62 @@ def snapshot_to_dict(snapshot: Snapshot) -> dict[str, Any]:
 def snapshot_to_json(snapshot: Snapshot, *, indent: int | None = 2) -> str:
     """Serialise a snapshot as JSON text."""
     return json.dumps(snapshot_to_dict(snapshot), indent=indent, ensure_ascii=False)
+
+
+def _finding(finding: Finding) -> dict[str, Any]:
+    return {
+        "rule": finding.rule,
+        "severity": finding.severity.value,
+        "subject": finding.subject,
+        "detail": finding.detail,
+        "port": finding.port,
+        "device": finding.device,
+        "location_id": finding.location_id,
+    }
+
+
+def _storage_device(device: StorageDevice) -> dict[str, Any]:
+    return {
+        "identifier": device.identifier,
+        "name": device.name,
+        "bus_protocol": device.bus_protocol,
+        "capacity_bytes": device.capacity_bytes,
+        "read_only": device.read_only,
+        "removable": device.removable,
+        "mount_point": device.mount_point,
+        "content": device.content,
+    }
+
+
+def security_to_dict(
+    report: SecurityReport,
+    storage: tuple[StorageDevice, ...] = (),
+    *,
+    generated_at: datetime,
+) -> dict[str, Any]:
+    """Serialise a security report plus the storage inventory.
+
+    This is a document of its own (``kind: security``) — it never changes the
+    ``schema_version: 1`` snapshot document. ``generated_at`` is the snapshot's
+    read time, so a fixed clock makes the output reproducible.
+    """
+    return {
+        "schema_version": SECURITY_SCHEMA_VERSION,
+        "kind": "security",
+        "generated_at": generated_at.isoformat(timespec="seconds"),
+        "counts": report.counts,
+        "findings": [_finding(finding) for finding in report.findings],
+        "storage": [_storage_device(device) for device in storage],
+    }
+
+
+def security_to_json(
+    report: SecurityReport,
+    storage: tuple[StorageDevice, ...] = (),
+    *,
+    generated_at: datetime,
+    indent: int | None = 2,
+) -> str:
+    """Serialise the security report as JSON text (sorted keys for parity)."""
+    payload = security_to_dict(report, storage, generated_at=generated_at)
+    return json.dumps(payload, indent=indent, ensure_ascii=False, sort_keys=True)
