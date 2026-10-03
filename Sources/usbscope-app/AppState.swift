@@ -32,7 +32,58 @@ final class AppState: ObservableObject {
     private var previous: Snapshot?
     private var timer: Timer?
 
+    /// Snapshots with their deltas and the power timeline they form.
+    private let history = SnapshotHistory()
+
+    /// Append-only hotplug log (`~/Library/Application Support/usbscope/events.jsonl`).
+    /// A read-only home without application support is the only failure mode, so it
+    /// stays optional instead of taking the app down.
+    private let eventLog: EventLog? = try? EventLog()
+
+    /// The IOKit hotplug watcher started on launch.
+    private var watcher: UsbHotplugWatcher?
+
     var isIdle: Bool { snapshot == nil && !isLoading }
+
+    /// Whether the watcher got real IOKit notifications (vs. the polling fallback).
+    var isHotplugEventDriven: Bool { watcher?.isEventDriven ?? false }
+
+    /// The charging watts over time, as far as the app has seen them.
+    var powerTimeline: [PowerPoint] { history.powerTimeline() }
+
+    init() {
+        // Own the IOKit notifications for the lifetime of the app; the watcher
+        // collects its own baseline off the main thread, so launch is not blocked.
+        startMonitoring()
+    }
+
+    // MARK: - Hotplug monitoring
+
+    /// Start the hotplug watcher. Safe to call more than once.
+    func startMonitoring() {
+        guard watcher == nil else { return }
+        let watcher = UsbHotplugWatcher()
+        watcher.start { [weak self] update in
+            Task { @MainActor in self?.handleHotplug(update) }
+        }
+        self.watcher = watcher
+    }
+
+    func stopMonitoring() {
+        watcher?.stop()
+        watcher = nil
+    }
+
+    /// Record the hotplug events and show the fresh snapshot immediately.
+    private func handleHotplug(_ update: UsbHotplugWatcher.Update) {
+        if let eventLog, !update.events.isEmpty {
+            let events = update.events
+            // The log is I/O; keep it off the main thread.
+            Task.detached(priority: .utility) { try? eventLog.append(events) }
+        }
+        apply(update.snapshot)
+    }
+
 
     // MARK: - Refresh
 
@@ -54,6 +105,7 @@ final class AppState: ObservableObject {
         snapshot = fresh
         reads += 1
         isLoading = false
+        history.record(fresh)
         if fresh.warnings.isEmpty {
             errorMessage = nil
         } else {
