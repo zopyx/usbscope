@@ -33,8 +33,6 @@ from Foundation import NSIndexSet, NSMakeRect
 
 from usbscope.macapp import preferences as prefs
 from usbscope.macapp.app import (
-    WINDOW_HEIGHT,
-    WINDOW_WIDTH,
     AppDelegate,
     render_snapshot,
 )
@@ -646,20 +644,24 @@ def test_snapshot_render_produces_an_image(snapshot: Snapshot, view: str, tmp_pa
 
 
 def test_snapshot_captures_the_whole_window_including_the_toolbar(
-    snapshot: Snapshot, tmp_path: Path
+    snapshot: Snapshot, delegate: AppDelegate, tmp_path: Path
 ) -> None:
     """The PNG is the frame (titlebar + toolbar + content), not just the content view.
 
     Without the theme frame the capture would silently lose the toolbar — the exact
-    part a reader is supposed to see in the documentation.
+    part a reader is supposed to see in the documentation. The assertion compares
+    *ratios*: the pixel scale factor is 2 on a Retina Mac and 1 on a headless runner,
+    so an absolute pixel count would fail there.
     """
+    window = delegate.window
+    frame = window.frame()
+    content = window.contentView().bounds()
+    assert frame.size.height > content.size.height  # the titlebar/toolbar band
+
     target = tmp_path / "whole-window.png"
     render_snapshot(target, snapshot=snapshot)
     width, height = png_size(target)
-    assert width == int(WINDOW_WIDTH * 2)
-    # the frame is taller than the content area: that difference *is* the titlebar
-    # plus toolbar, which a content-view capture would silently drop
-    assert height >= int(WINDOW_HEIGHT * 2) + 60
+    assert height / width == pytest.approx(frame.size.height / frame.size.width, rel=1e-3)
 
 
 def test_snapshot_render_of_empty_machine(tmp_path: Path) -> None:
