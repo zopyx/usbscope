@@ -119,11 +119,27 @@ understands, with the `system_profiler` data reduced to what IOKit offers (or dr
 for the sandboxed build). Effort: roughly a day including tests; it also removes the
 two subprocess calls, which makes the app start faster.
 
+**Status of Plan B in this checkout.** The reader now exists for the Swift core:
+`Sources/UsbScopeCore/IORegistryReader.swift` walks the `IOPort` plane through
+IOKit (`IOServiceGetMatchingServices` → `IORegistryEntryCreateCFProperties` →
+`IORegistryEntryCreateCFProperty`, with the children assembled under
+`IORegistryEntryChildren`) and returns the exact dictionary shape the parser
+consumes, so `IOReg.parsePorts` is untouched.
+`IoregSource(runner: IORegistryReader.runner())` is a drop-in replacement for the
+subprocess source, and `SwiftTests/IORegistryReaderTests` checks it against the
+live registry. On the machine the fixtures were captured on it parses to
+byte-identical `Port` values. It is **not yet wired into the app's
+`SnapshotBuilder`** and has **not** been verified inside a real sandboxed bundle —
+that still needs the App Store signature from steps 1–4. The Python/AppKit app
+continues to spawn `ioreg`. See `docs/distribution.md` section (f).
+
 ## Not done yet
 
 - [ ] Developer Program membership, both certificates, App ID + provisioning profile
 - [ ] Verify the sandboxed build actually reads data (the question above)
-- [ ] In-process IOKit source if it does not (Plan B)
+- [ ] In-process IOKit source if it does not (Plan B) — *Swift core implemented*
+      (`Sources/UsbScopeCore/IORegistryReader.swift`); the Python/AppKit app and the
+      app build path are not wired to it yet
 - [ ] App Store Connect app record, metadata, screenshots, privacy answers
 - [ ] Upload a build, answer the review questions, submit
 - [ ] Known risk to check at review: PyInstaller bundles are accepted in the App

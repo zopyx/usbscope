@@ -19,7 +19,8 @@ VERSION := $(shell $(PY) -c "import usbscope; print(usbscope.__version__)" 2>/de
 .PHONY: help doctor sync test lint format check coverage run watch run-app \
         refresh-screenshots screenshots snapshot icon binary app-bundle app dmg artifacts \
         checksums ci mas-pkg mas-pkg-dry mas-screenshots install clean distclean env version \
-        swift swift-build swift-test swift-golden swift-run-app swift-app-check check-all
+        swift swift-build swift-test swift-golden swift-run-app swift-app-check swift-app-bundle \
+        man completions check-all
 
 ## ---------------------------------------------------------------------------
 ## Setup & quality
@@ -165,6 +166,24 @@ swift-run-app: swift-build ## run the SwiftUI app (usbscope-app)
 
 swift-app-check: swift-build ## headless self test of the app's data path (row counts per view)
 	./.build/debug/usbscope-app --print-rows
+
+swift-app-bundle: ## build the SwiftUI app into dist/usbscope-swift.app (release, ad-hoc signed)
+	$(UV) run python scripts/build_swift_app.py
+
+## ---------------------------------------------------------------------------
+## Manual page & shell completions
+## ---------------------------------------------------------------------------
+
+man: ## install the CLI manual page into ~/.local/share/man/man1 (no sudo)
+	@mkdir -p $(HOME)/.local/share/man/man1
+	cp docs/man/usbscope.1 $(HOME)/.local/share/man/man1/usbscope.1
+	@echo "installed: run 'man usbscope' (add ~/.local/share/man to MANPATH if needed)"
+
+completions: ## install the zsh + bash completions into the user directories
+	@mkdir -p $(HOME)/.zsh/completions $(HOME)/.local/share/bash-completion/completions
+	cp scripts/completions/_usbscope $(HOME)/.zsh/completions/_usbscope
+	cp scripts/completions/usbscope.bash $(HOME)/.local/share/bash-completion/completions/usbscope
+	@echo "installed: zsh -> ~/.zsh/completions, bash -> ~/.local/share/bash-completion/completions"
 
 ## ---------------------------------------------------------------------------
 ## Housekeeping
