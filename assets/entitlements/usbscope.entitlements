@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for a Mac App Store build of usbscope.
+
+  `com.apple.security.app-sandbox` is mandatory for the App Store and is the only
+  entitlement requested here: the app reads hardware facts, it does not need
+  network, camera, contacts, or any user file outside its container.
+
+  NOT granted on purpose: `com.apple.security.device.usb`. That entitlement is for
+  *driving* USB devices (IOKit user clients), which usbscope never does - it only
+  reads what the system reports about the ports and the attached devices.
+
+  OPEN RISK (see docs/app-store.md): the data sources of this build spawn
+  `/usr/sbin/system_profiler` and `/usr/bin/ioreg` as child processes. Whether those
+  children may read the IO registry while inheriting the sandbox cannot be verified
+  without a real Apple Distribution signature plus an App Store provisioning profile
+  (`codesign` with this entitlement and an ad-hoc signature makes the process trap at
+  launch). If the sandbox blocks them, the app needs an in-process IOKit source
+  (`pyobjc-framework-IOKit`) - described in docs/app-store.md, not implemented yet.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+</dict>
+</plist>

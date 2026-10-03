@@ -18,7 +18,7 @@ VERSION := $(shell $(PY) -c "import usbscope; print(usbscope.__version__)" 2>/de
 
 .PHONY: help doctor sync test lint format check coverage run watch run-app \
         refresh-screenshots screenshots snapshot icon binary app-bundle app dmg artifacts \
-        checksums ci install clean distclean env version
+        checksums ci mas-pkg mas-pkg-dry mas-screenshots install clean distclean env version
 
 ## ---------------------------------------------------------------------------
 ## Setup & quality
@@ -118,6 +118,21 @@ dmg: ## rebuild only the DMG for an existing dist/usbscope.app
 artifacts: check binary app-bundle ## full release build: gates, CLI binary, app + DMG
 
 ci: check ## what the GitHub Actions workflow runs (alias for check)
+
+mas-pkg: ## package for the Mac App Store (needs Apple Distribution certificates)
+	$(UV) run python scripts/make_mas_pkg.py
+
+mas-pkg-dry: ## show the App Store packaging commands without running them
+	$(UV) run python scripts/make_mas_pkg.py --dry-run
+
+mas-screenshots: snapshot ## App Store screenshots (16:10, no alpha) into docs/screenshots/asc-*
+	@command -v magick >/dev/null || { echo "ImageMagick (magick) is required"; exit 1; }
+	@for spec in "1440x900:ports" "1280x800:devices"; do \
+		size=$${spec%%:*}; view=$${spec##*:}; \
+		magick docs/screenshots/app-$$view.png -background "#1e1e1e" -alpha remove -alpha off \
+			-resize $$size -gravity north -extent $$size docs/screenshots/asc-$$size.png; \
+		echo "docs/screenshots/asc-$$size.png"; \
+	done
 
 checksums: ## verify the checksums of everything in dist/
 	@cd dist && for f in SHA256SUMS SHA256SUMS-app; do \

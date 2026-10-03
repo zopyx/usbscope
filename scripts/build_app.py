@@ -160,6 +160,9 @@ def patch_info_plist(bundle: Path, name: str, icon_name: str | None = None) -> d
             "NSHighResolutionCapable": True,
             "NSHumanReadableCopyright": "MIT licensed",
             "LSApplicationCategoryType": "public.app-category.utilities",
+            # App Store Connect asks about export compliance on every upload; saying it
+            # here keeps the question out of the submission flow
+            "ITSAppUsesNonExemptEncryption": False,
         }
     )
     with plist_path.open("wb") as handle:

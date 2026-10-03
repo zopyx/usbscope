@@ -147,6 +147,8 @@ to a target is its description. Everything runs through `uv`, so the pinned Pyth
 | `make dmg` | rebuilds only the DMG for an existing `dist/usbscope.app` |
 | `make artifacts` | gates + CLI binary + app: the full release build |
 | `make ci` | alias for `check` — what `.github/workflows/ci.yml` runs |
+| `make mas-pkg` | signs with the sandbox entitlements and builds the App Store `.pkg` |
+| `make mas-pkg-dry` | prints those commands without running them (no certificates needed) |
 | `make checksums` | verifies `dist/SHA256SUMS` and `dist/SHA256SUMS-app` |
 | `make install` | `uv tool install '.[macapp]'` (CLI + `usbscope-app` on the PATH) |
 | `make clean` / `make distclean` | build output / plus the virtualenv |
@@ -174,7 +176,10 @@ should not pay for. `concurrency` cancels a superseded run for the same ref.
 
 Signing for real distribution (Developer ID, `notarytool`, `stapler`, universal2,
 Homebrew cask) is documented — including what is still *not* done — in
-[distribution.md](distribution.md).
+[distribution.md](distribution.md). The Mac App Store path (sandbox entitlements,
+Apple Distribution signing, `productbuild`, App Store Connect metadata and the open
+sandbox question) is in [app-store.md](app-store.md); `make mas-pkg` builds the
+installer package, `make mas-pkg-dry` shows the commands without needing certificates.
 
 ## The macOS app
 
