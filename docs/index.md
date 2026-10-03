@@ -14,6 +14,7 @@ uv run usbscope ports -v      # port table with per-transport detail
 uv run usbscope devices       # device tree only
 uv run usbscope cables        # cable / e-marker / CC / liquid detection
 uv run usbscope thunderbolt   # Thunderbolt / USB4 receptacles
+uv run usbscope security      # per-device/port findings + USB mass storage
 uv run usbscope --json        # JSON snapshot (schema below)
 ```
 
@@ -38,6 +39,7 @@ prints one snapshot instead, because JSON in a live loop makes no sense.
 | `devices` | bus → device tree with VID/PID, link mode, serial, port/transport mapping |
 | `cables` | cable class (passive / e-marked / active / optical), CC authentication + hash status, SOP spec revision, LDCM liquid status, controller firmware; `-v` adds the port-controller USB mode plus a *Charging & adapter* panel |
 | `thunderbolt` | Thunderbolt/USB4 receptacles: state, link speed, host adapter |
+| `security` | security findings per device/port (severity + short reason) plus the USB mass-storage inventory |
 
 `-v/--verbose` adds raw detail (location IDs, plug orientation, TRM state,
 per-transport rate/signaling/lanes, CC hash status, SOP revision, sources) and the
@@ -72,6 +74,7 @@ port — the mode describes the link, not the connector.
 | `system_profiler SPPowerDataType -json` | adapter watt, charger connected, charging state, state of charge |
 | `ioreg -a -l -w0 -p IOPort` | port controller view: ports, transport states, cable/CC/SOP data, power contract, LDCM, TRM |
 | `ioreg -a -l -w0 -p IOUSB` | USB device tree: descriptor basics (`bDeviceClass`/`SubClass`/`Protocol`, `bcdUSB`, `bMaxPacketSize0`, `bNumConfigurations`), enumeration speed code, device address, hub tier and parent hub |
+| `diskutil list -plist` / `diskutil info -plist <device>` | USB mass storage (security view): whole disks with `BusProtocol == USB`, capacity, read-only state and mount point |
 | `ioreg -r -n AppleSmartBattery -a -l -w0` | live power telemetry: adapter input, system load, battery flow, adapter PD menu |
 
 Both sources are optional at runtime: a failing source only adds a warning that
@@ -138,6 +141,46 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
   tables stay clean.
 * Thunderbolt link speed is the *cable capability* reported per receptacle, not
   the negotiated lane rate.
+
+## Security posture (`usbscope security`)
+
+`usbscope security` runs a small, purely local analysis over the same snapshot
+(no sudo, no private framework), printing the findings most severe first and the
+USB mass-storage inventory below them. `usbscope security --json` emits the
+findings and the storage as their own document (`kind: "security"`) — it never
+changes the `schema_version: 1` snapshot document.
+
+| Severity | Rule | Fires when |
+| --- | --- | --- |
+| `warning` | `mass-storage` | the device reports USB base class 8 (mass storage) |
+| `warning` | `hid-and-storage-on-port` | one receptacle carries both a class-3 and a class-8 device |
+| `attention` | `hid-without-serial` | a class-3 (HID) device has no serial number |
+| `attention` | `restricted-by-macos` | the device was marked restricted by macOS (the port controller's TRM flag) |
+| `attention` | `authorization` | a port's accessory authorization is neither `Not Required` nor `No Action` |
+| `attention` | `restricted-transport` | an *active* transport of a port is restricted by macOS (TRM) |
+| `attention` | `no-usb-data` | a device is attached but the controller reports no active USB2/USB3/USB4 transport |
+| `info` | `composite-per-interface` | the device class is `0` (declared per interface) |
+| `info` | `composite-iad` | the device reports the IAD composite triple `0xEF/2/1` |
+
+The severity is a heuristic, not a verdict. The analysis is explicit about what
+it cannot see:
+
+* **A composite device's interfaces are not exposed.** macOS publishes the
+  device-level class triple only; the interface/endpoint tree needs an
+  `IOUSBHostDevice` user client. A class of `0` is therefore reported as
+  `composite-per-interface` (and `0xEF/2/1` as `composite-iad`) and the view
+  states that the contained functions — the HID + mass-storage mix of a bad-USB
+  stick, for instance — **cannot be confirmed here instead of being guessed**.
+* **A missing serial is a missing report.** `hid-without-serial` fires when
+  macOS did not report a serial number, not when the device provably has none.
+* **Authorization and restriction are the controller's own strings and flags**
+  (`UserAuthorizationStatusDescription`, `TRM_TransportRestricted`), shown
+  verbatim; a restriction is only reported for a transport that carries traffic.
+* **Storage covers whole disks only.** The inventory keeps disks whose
+  `diskutil` `BusProtocol` is `USB`, with capacity and read-only state from
+  `diskutil info`. A Mac without USB storage is normal — an empty inventory, not
+  an error — and the filesystem contents and the encryption state are not
+  inspected.
 
 ## JSON schema (`schema_version: 1`)
 

@@ -19,8 +19,10 @@ from rich.tree import Tree
 
 from .format import charger_flags, charging_state, charging_summary, power_line, watts
 from .models import Port, Snapshot, Transport, UsbDevice, UsbMode
+from .security import FindingSeverity, SecurityReport, analyse
+from .sources.storage import StorageDevice
 
-__all__ = ["render"]
+__all__ = ["build_security_view", "build_view", "render", "render_security"]
 
 WIDE_WIDTH = 118
 MEDIUM_WIDTH = 92
@@ -588,6 +590,137 @@ def _empty_devices_hint(snapshot: Snapshot) -> RenderableType | None:
     )
 
 
+_SEVERITY_STYLES: dict[str, str] = {
+    "info": "cyan",
+    "attention": "yellow",
+    "warning": "bold red",
+}
+
+
+def _severity_style(severity: FindingSeverity) -> str:
+    return _SEVERITY_STYLES[severity.value]
+
+
+def _security_summary_panel(report: SecurityReport) -> Panel:
+    """Severity counts plus the plain statement that this is a heuristic."""
+    counts = report.counts
+    grid = Table.grid(padding=(0, 2))
+    grid.add_column(justify="right", style="dim")
+    grid.add_column()
+    grid.add_row("Warning", Text(str(counts["warning"]), style="bold red"))
+    grid.add_row("Attention", Text(str(counts["attention"]), style="yellow"))
+    grid.add_row("Info", Text(str(counts["info"]), style="cyan"))
+    if report.is_empty:
+        grid.add_row("Findings", Text("nothing stood out in what macOS reports", style="dim"))
+    else:
+        grid.add_row("Findings", Text(str(counts["total"])))
+    return Panel(
+        grid,
+        title="[bold]Security posture[/] [dim]— heuristic, not a verdict[/]",
+        border_style="cyan",
+        box=box.ROUNDED,
+    )
+
+
+def _findings_table(report: SecurityReport) -> Table:
+    table = Table(
+        box=box.ROUNDED,
+        header_style="bold white",
+        border_style="grey37",
+        title="Findings",
+        title_justify="left",
+        title_style="bold",
+    )
+    table.add_column("Severity", no_wrap=True)
+    table.add_column("Rule", no_wrap=True)
+    table.add_column("Subject", overflow="fold")
+    table.add_column("Why", overflow="fold")
+    for finding in report.findings:
+        table.add_row(
+            Text(finding.severity.value, style=_severity_style(finding.severity)),
+            Text(finding.rule),
+            Text(finding.subject),
+            Text(finding.detail, style="dim"),
+        )
+    return table
+
+
+def _storage_table(storage: tuple[StorageDevice, ...]) -> RenderableType:
+    """The USB mass-storage inventory; absence is stated, not treated as a fault."""
+    if not storage:
+        return Text("no USB mass storage attached — a Mac without one is normal", style="dim")
+    table = Table(
+        box=box.ROUNDED,
+        header_style="bold white",
+        border_style="grey37",
+        title="USB mass storage",
+        title_justify="left",
+        title_style="bold",
+    )
+    for column in ("Device", "Name", "Capacity", "Mode", "Mount"):
+        table.add_column(column, overflow="fold")
+    for device in storage:
+        if device.read_only is True:
+            mode = Text("read-only", style="yellow")
+        elif device.read_only is False:
+            mode = Text("read/write", style="dim")
+        else:
+            mode = Text("–", style="dim")
+        table.add_row(
+            Text(device.identifier, style="bold"),
+            Text(device.label),
+            Text(device.capacity_text or "–"),
+            mode,
+            Text(device.mount_point or "–", style="dim"),
+        )
+    return table
+
+
+def _security_limits() -> Text:
+    """What the analysis provably cannot see — printed with every report."""
+    return Text.from_markup(
+        "[dim]honest limits: the class triple is device level, so the interfaces of a composite "
+        "device (and therefore its HID/mass-storage mix) are not exposed without a user client; a "
+        "missing serial is a missing report, not proof there is none; storage covers only whole "
+        "disks whose diskutil BusProtocol is USB.[/]"
+    )
+
+
+def build_security_view(
+    snapshot: Snapshot,
+    storage: tuple[StorageDevice, ...] = (),
+    console: Console | None = None,
+    *,
+    verbose: bool = False,
+    refresh: int | None = None,
+) -> RenderableType:
+    """Assemble the security view: findings plus the storage inventory."""
+    report = analyse(snapshot)
+    parts: list[RenderableType] = [_summary_panel(snapshot, refresh, verbose)]
+    if (warnings := _warnings(snapshot)) is not None:
+        parts.append(warnings)
+    parts.append(_security_summary_panel(report))
+    if not report.is_empty:
+        parts.append(_findings_table(report))
+    parts.append(_storage_table(storage))
+    parts.append(_security_limits())
+    if console is not None:
+        parts.append(_footer(console, snapshot, verbose))
+    return Group(*parts)
+
+
+def render_security(
+    snapshot: Snapshot,
+    storage: tuple[StorageDevice, ...],
+    console: Console,
+    *,
+    verbose: bool = False,
+    refresh: int | None = None,
+) -> None:
+    """Print the security view of ``snapshot`` to ``console``."""
+    console.print(build_security_view(snapshot, storage, console, verbose=verbose, refresh=refresh))
+
+
 def build_view(
     snapshot: Snapshot,
     console: Console,
@@ -595,12 +728,15 @@ def build_view(
     view: str = "overview",
     verbose: bool = False,
     refresh: int | None = None,
+    storage: tuple[StorageDevice, ...] = (),
 ) -> RenderableType:
     """Assemble the requested view as a single renderable.
 
     Returning (instead of printing) keeps one-shot output and the flicker free
     live mode of ``--watch`` on the same code path.
     """
+    if view == "security":
+        return build_security_view(snapshot, storage, console, verbose=verbose, refresh=refresh)
     parts: list[RenderableType] = [_summary_panel(snapshot, refresh, verbose)]
     if (warnings := _warnings(snapshot)) is not None:
         parts.append(warnings)

@@ -8,19 +8,21 @@ import sys
 import time
 from collections.abc import Sequence
 
-from rich.console import Console
+from rich.console import Console, RenderableType
 from rich.live import Live
 from rich.panel import Panel
 
 from . import __version__
 from .models import Snapshot
-from .render import build_view, render
-from .serialize import snapshot_to_json
+from .render import build_security_view, build_view, render, render_security
+from .security import analyse
+from .serialize import security_to_json, snapshot_to_json
 from .snapshot import collect
+from .sources.storage import StorageDevice, StorageSource
 
 __all__ = ["build_parser", "main"]
 
-VIEWS = ("overview", "ports", "devices", "cables", "thunderbolt", "json")
+VIEWS = ("overview", "ports", "devices", "cables", "thunderbolt", "security", "json")
 
 EPILOG = """\
 views:
@@ -29,11 +31,13 @@ views:
   devices      device tree with vendor/product IDs and link modes
   cables       cable, e-marker (SOP), CC authentication, power contract, liquid detection
   thunderbolt  Thunderbolt / USB4 receptacles
+  security     security findings per device/port plus the USB mass-storage inventory
   json         machine readable snapshot (same as --json)
 
 data sources: system_profiler (SPUSBHostDataType, SPThunderboltDataType,
 SPPowerDataType) and ioreg -p IOPort (port controller: transports, cable e-marker,
-power contract, LDCM, TRM) plus the AppleSmartBattery node (live charging power).
+power contract, LDCM, TRM) plus the AppleSmartBattery node (live charging power);
+the security view also maps USB mass storage through diskutil.
 """
 
 
@@ -69,9 +73,29 @@ def _emit_json(snapshot: Snapshot) -> None:
     sys.stdout.flush()
 
 
+def _storage_inventory() -> tuple[StorageDevice, ...]:
+    """USB mass storage of the machine; absence is normal and never fatal."""
+    storage, _warnings = StorageSource().inventory()
+    return storage
+
+
+def _emit_security_json(snapshot: Snapshot, storage: tuple[StorageDevice, ...]) -> None:
+    """Write the security report (findings + storage) as its own JSON document."""
+    payload = security_to_json(analyse(snapshot), storage, generated_at=snapshot.seen_at)
+    sys.stdout.write(payload + "\n")
+    sys.stdout.flush()
+
+
 def _run_once(console: Console, args: argparse.Namespace, refresh: int | None) -> int:
     with console.status("[cyan]reading USB subsystem…", spinner="dots"):
         snapshot = collect()
+        storage = _storage_inventory() if args.view == "security" else ()
+    if args.view == "security":
+        if args.json:
+            _emit_security_json(snapshot, storage)
+        else:
+            render_security(snapshot, storage, console, verbose=args.verbose, refresh=refresh)
+        return 0
     if args.json or args.view == "json":
         _emit_json(snapshot)
     else:
@@ -100,12 +124,19 @@ def _watch(console: Console, args: argparse.Namespace, interval: float) -> int:
             refresh += 1
             started = time.monotonic()
             snapshot = collect()
-            live.update(
-                build_view(
+            if args.view == "security":
+                view: RenderableType = build_security_view(
+                    snapshot,
+                    _storage_inventory(),
+                    console,
+                    verbose=args.verbose,
+                    refresh=refresh,
+                )
+            else:
+                view = build_view(
                     snapshot, console, view=args.view, verbose=args.verbose, refresh=refresh
-                ),
-                refresh=True,
-            )
+                )
+            live.update(view, refresh=True)
             time.sleep(max(interval - (time.monotonic() - started), 0.0))
     return 0
 

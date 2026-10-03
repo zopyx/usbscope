@@ -225,4 +225,68 @@ public enum Serialize {
         else { return "{}" }
         return text
     }
+
+    // MARK: - security report (its own document, never the snapshot schema)
+
+    public static let securitySchemaVersion = 1
+
+    static func finding(_ finding: Finding) -> [String: Any] {
+        [
+            "rule": finding.rule,
+            "severity": finding.severity.rawValue,
+            "subject": finding.subject,
+            "detail": finding.detail,
+            "port": orNull(finding.port),
+            "device": orNull(finding.device),
+            "location_id": orNull(finding.locationID),
+        ]
+    }
+
+    static func storageDevice(_ device: StorageDevice) -> [String: Any] {
+        [
+            "identifier": device.identifier,
+            "name": orNull(device.name),
+            "bus_protocol": orNull(device.busProtocol),
+            "capacity_bytes": orNull(device.capacityBytes),
+            "read_only": orNull(device.readOnly),
+            "removable": orNull(device.removable),
+            "mount_point": orNull(device.mountPoint),
+            "content": orNull(device.content),
+        ]
+    }
+
+    /// Serialise a security report plus the storage inventory.
+    ///
+    /// This is a document of its own (`kind: security`) — it never changes the
+    /// `schema_version: 1` snapshot document.
+    public static func securityDict(
+        _ report: SecurityReport, storage: [StorageDevice] = [], generatedAt: Date
+    ) -> [String: Any] {
+        [
+            "schema_version": securitySchemaVersion,
+            "kind": "security",
+            "generated_at": seenAtFormatter.string(from: generatedAt),
+            "counts": [
+                "info": report.count(.info),
+                "attention": report.count(.attention),
+                "warning": report.count(.warning),
+                "total": report.findings.count,
+            ],
+            "findings": report.findings.map { finding($0) },
+            "storage": storage.map { storageDevice($0) },
+        ]
+    }
+
+    /// Serialise the security report as JSON text (pretty output sorts keys, like Python).
+    public static func securityJSON(
+        _ report: SecurityReport, storage: [StorageDevice] = [], generatedAt: Date, indent: Int? = 2
+    ) -> String {
+        var options: JSONSerialization.WritingOptions = [.withoutEscapingSlashes]
+        if indent != nil { options.insert(.prettyPrinted); options.insert(.sortedKeys) }
+        let payload = securityDict(report, storage: storage, generatedAt: generatedAt)
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: options),
+              let text = String(data: data, encoding: .utf8)
+        else { return "{}" }
+        return text
+    }
 }
