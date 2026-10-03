@@ -11,7 +11,13 @@ import pytest
 
 from usbscope.models import Snapshot
 from usbscope.snapshot import collect
-from usbscope.sources import ChargingSource, IoregSource, SystemProfiler, USBRegistrySource
+from usbscope.sources import (
+    ChargingSource,
+    IoregSource,
+    SystemProfiler,
+    ThunderboltFabricSource,
+    USBRegistrySource,
+)
 from usbscope.sources.shell import CommandResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -31,6 +37,11 @@ _PROFILER_FILES = {
 # The USB device tree issues one command; served from the captured IOUSB plane.
 _REGISTRY_FILES = {
     "IOUSB": "usbplane.plist",
+}
+
+# The USB4/Thunderbolt fabric issues one command; served from the switch capture.
+_FABRIC_FILES = {
+    "IOThunderboltSwitch": "tb_switch.plist",
 }
 
 # The charging adapter issues two commands; both are served from the fixtures.
@@ -108,11 +119,22 @@ def usbregistry() -> USBRegistrySource:
 
 
 @pytest.fixture
+def tb_fabric() -> ThunderboltFabricSource:
+    """ThunderboltFabricSource wired to the captured IOThunderboltSwitch plist."""
+    from typing import cast
+
+    from usbscope.sources.thunderbolt import Runner
+
+    return ThunderboltFabricSource(runner=cast(Runner, make_runner(_FABRIC_FILES)))
+
+
+@pytest.fixture
 def snapshot(
     profiler: SystemProfiler,
     ioreg: IoregSource,
     charging: ChargingSource,
     usbregistry: USBRegistrySource,
+    tb_fabric: ThunderboltFabricSource,
 ) -> Snapshot:
     """A full snapshot built from the captured payloads."""
     return collect(
@@ -120,6 +142,7 @@ def snapshot(
         ioreg=ioreg,
         charging=charging,
         usbregistry=usbregistry,
+        fabric=tb_fabric,
         host=FIXTURE_HOST,
         os_version=FIXTURE_OS_VERSION,
     )

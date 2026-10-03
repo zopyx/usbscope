@@ -533,12 +533,14 @@ public struct Snapshot: Equatable, Sendable {
     public var ports: [UsbPort] = []
     public var buses: [Bus] = []
     public var thunderbolt: [ThunderboltPort] = []
+    public var thunderboltFabric = ThunderboltFabric()
     public var charging: Charging?
     public var warnings: [String] = []
 
     public init(
         host: String, osVersion: String, seenAt: Date, model: String? = nil, chip: String? = nil,
         ports: [UsbPort] = [], buses: [Bus] = [], thunderbolt: [ThunderboltPort] = [],
+        thunderboltFabric: ThunderboltFabric = ThunderboltFabric(),
         charging: Charging? = nil, warnings: [String] = []
     ) {
         self.host = host
@@ -549,6 +551,7 @@ public struct Snapshot: Equatable, Sendable {
         self.ports = ports
         self.buses = buses
         self.thunderbolt = thunderbolt
+        self.thunderboltFabric = thunderboltFabric
         self.charging = charging
         self.warnings = warnings
     }

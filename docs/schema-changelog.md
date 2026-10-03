@@ -26,3 +26,8 @@ keys keeps working):
   `tier`, `parent`, `address` — the USB descriptor basics from `ioreg -p IOUSB`.
 * `power_sources[].winning` / `.options[]`: `kind`, `kind_label`, `uuid` — the PDO
   type and the controller's option identity.
+* `thunderbolt_fabric` (top level): the USB4 topology from
+  `ioreg -c IOThunderboltSwitch` — `routers[]` with their identity (`router_id`,
+  `uid`, `depth`, `route_string`, `thunderbolt_version`), the switch `ports[]`
+  (`protocol`, link speed/width, lane, credits) and the tunnel adapters
+  `tunnels[]` (PCIe/USB/DisplayPort with their driver).

@@ -76,6 +76,7 @@ public enum SnapshotBuilder {
         ioreg: IoregSource = IoregSource(),
         charging: ChargingSource = ChargingSource(),
         usbregistry: USBRegistrySource = USBRegistrySource(),
+        fabric: ThunderboltFabricSource = ThunderboltFabricSource(),
         clock: @Sendable () -> Date = { Date() },
         osVersion: String? = nil,
         host: String? = nil
@@ -87,6 +88,8 @@ public enum SnapshotBuilder {
         warnings.append(contentsOf: busWarnings)
         let (thunderbolt, thunderboltWarnings) = profiler.thunderbolt()
         warnings.append(contentsOf: thunderboltWarnings)
+        let (thunderboltFabric, fabricWarnings) = fabric.fabric()
+        warnings.append(contentsOf: fabricWarnings)
         let hardware = profiler.hardware()
         warnings.append(contentsOf: hardware.warnings)
         let (power, powerWarnings) = charging.charging()
@@ -135,6 +138,7 @@ public enum SnapshotBuilder {
             ports: mergedPorts,
             buses: mergedBuses,
             thunderbolt: thunderbolt,
+            thunderboltFabric: thunderboltFabric,
             charging: power,
             warnings: warnings
         )

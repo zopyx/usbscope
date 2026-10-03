@@ -69,6 +69,7 @@ port — the mode describes the link, not the connector.
 | `system_profiler SPUSBHostDataType -json` | bus tree, devices, link speed, VID/PID, serial (modern key names) |
 | `system_profiler SPUSBDataType -json` | fallback for machines that only expose the legacy device list |
 | `system_profiler SPThunderboltDataType -json` | Thunderbolt/USB4 receptacles, link status and cable capability |
+| `ioreg -r -c IOThunderboltSwitch -a -l -w0` | USB4 fabric: routers (UID, router id, depth), switch ports (link speed/width, lane, credits) and the PCIe/USB/DisplayPort tunnel adapters |
 | `system_profiler SPPowerDataType -json` | adapter watt, charger connected, charging state, state of charge |
 | `ioreg -a -l -w0 -p IOPort` | port controller view: ports, transport states, cable/CC/SOP data, power contract, LDCM, TRM |
 | `ioreg -a -l -w0 -p IOUSB` | USB device tree: descriptor basics (`bDeviceClass`/`SubClass`/`Protocol`, `bcdUSB`, `bMaxPacketSize0`, `bNumConfigurations`), enumeration speed code, device address, hub tier and parent hub |
@@ -138,6 +139,23 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
   tables stay clean.
 * Thunderbolt link speed is the *cable capability* reported per receptacle, not
   the negotiated lane rate.
+* **The receptacles and the fabric are two views of the same sockets, and they are
+  never merged.** `system_profiler` describes the physical receptacle (status,
+  cable capability); `ioreg -c IOThunderboltSwitch` describes the USB4 *topology*:
+  the routers (`router_id`, `uid`, `depth`, `route_string`), the switch ports with
+  their link facts and the PCIe/USB/DisplayPort tunnel adapters below them. The
+  fabric lives in the JSON snapshot (`thunderbolt_fabric`); the terminal tables
+  keep showing the receptacles.
+* **The switch link facts are raw enumerations.** `Current`/`Target`/`Supported
+  Link Speed` and `-Width`, the lane, the credits and the `Adapter Type` bitfield
+  are published by the switch but their encoding is not public, so usbscope reports
+  the integers verbatim plus the port `label` (e.g. `PCIe Adapter`) instead of
+  inventing a Gbit/s number or a generation.
+* **A tunnel adapter is not an established tunnel.** macOS lists one down-adapter
+  port per tunneled protocol the router *can* carry, whether or not a device is
+  attached, so usbscope reports the tunnel endpoints with their driver and never
+  claims an active tunnel. A daisy-chained router appears as its own entry in
+  `routers` with `depth` > 0; the host routers are the `depth` 0 entries.
 
 ## JSON schema (`schema_version: 1`)
 
@@ -174,6 +192,21 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
   "buses": [{"name": "USB 3.1 Bus", "driver": "AppleT8122USBXHCI", "devices": []}],
   "thunderbolt": [{"bus": "thunderboltusb4_bus_0", "receptacle": 1, "status": null,
                    "speed": "Up to 40 Gb/s", "connected": false}],
+  "thunderbolt_fabric": {"routers": [{
+      "router_id": 0, "uid": 408840496304102592, "vendor_id": 1452, "vendor_name": "Apple Inc.",
+      "device_model_name": "iOS", "device_model_id": 15, "device_model_revision": 1,
+      "thunderbolt_version": 32, "depth": 0, "route_string": 0, "max_port_number": 7,
+      "ports": [{"number": 1, "label": "Thunderbolt Port", "protocol": "thunderbolt",
+                 "socket_id": "1", "adapter_type": 1, "current_link_speed": 8,
+                 "target_link_speed": 12, "supported_link_speed": 12, "current_link_width": 1,
+                 "target_link_width": 1, "supported_link_width": 2, "lane": 1, "dual_link_port": 2,
+                 "link_bandwidth": 100, "max_credits": 174, "max_in_hop_id": 22,
+                 "max_out_hop_id": 22, "upstream_port_number": null, "restricted": false}],
+      "tunnels": [{"protocol": "pcie", "label": "PCIe Adapter", "port_number": 3,
+                   "adapter_type": 1048833,
+                   "driver": "com.apple.driver.AppleThunderboltPCIDownAdapter",
+                   "driver_class": "AppleThunderboltPCIDownAdapterType5",
+                   "device_id": "0x00002000&0x0000ff00"}]}]},
   "charging": {"connected": true, "charging": true, "fully_charged": false,
                "state_of_charge": 100, "time_remaining_minutes": 14,
                "system_power_in_mw": 27575, "system_voltage_in_mv": 19478,

@@ -18,6 +18,12 @@ from .models import (
     Transport,
     UsbDevice,
 )
+from .models_thunderbolt import (
+    ThunderboltFabric,
+    ThunderboltFabricPort,
+    ThunderboltRouter,
+    ThunderboltTunnel,
+)
 
 __all__ = ["snapshot_to_dict", "snapshot_to_json"]
 
@@ -180,6 +186,64 @@ def _thunderbolt(port: ThunderboltPort) -> dict[str, Any]:
     }
 
 
+def _tunnel(tunnel: ThunderboltTunnel) -> dict[str, Any]:
+    return {
+        "protocol": tunnel.protocol,
+        "label": tunnel.label,
+        "port_number": tunnel.port_number,
+        "adapter_type": tunnel.adapter_type,
+        "driver": tunnel.driver,
+        "driver_class": tunnel.driver_class,
+        "device_id": tunnel.device_id,
+    }
+
+
+def _fabric_port(port: ThunderboltFabricPort) -> dict[str, Any]:
+    return {
+        "number": port.number,
+        "label": port.label,
+        "protocol": port.protocol,
+        "socket_id": port.socket_id,
+        "adapter_type": port.adapter_type,
+        "current_link_speed": port.current_link_speed,
+        "target_link_speed": port.target_link_speed,
+        "supported_link_speed": port.supported_link_speed,
+        "current_link_width": port.current_link_width,
+        "target_link_width": port.target_link_width,
+        "supported_link_width": port.supported_link_width,
+        "lane": port.lane,
+        "dual_link_port": port.dual_link_port,
+        "link_bandwidth": port.link_bandwidth,
+        "max_credits": port.max_credits,
+        "max_in_hop_id": port.max_in_hop_id,
+        "max_out_hop_id": port.max_out_hop_id,
+        "upstream_port_number": port.upstream_port_number,
+        "restricted": port.restricted,
+    }
+
+
+def _router(router: ThunderboltRouter) -> dict[str, Any]:
+    return {
+        "router_id": router.router_id,
+        "uid": router.uid,
+        "vendor_id": router.vendor_id,
+        "vendor_name": router.vendor_name,
+        "device_model_name": router.device_model_name,
+        "device_model_id": router.device_model_id,
+        "device_model_revision": router.device_model_revision,
+        "thunderbolt_version": router.thunderbolt_version,
+        "depth": router.depth,
+        "route_string": router.route_string,
+        "max_port_number": router.max_port_number,
+        "ports": [_fabric_port(port) for port in router.ports],
+        "tunnels": [_tunnel(tunnel) for tunnel in router.tunnels],
+    }
+
+
+def _fabric(fabric: ThunderboltFabric) -> dict[str, Any]:
+    return {"routers": [_router(router) for router in fabric.routers]}
+
+
 def snapshot_to_dict(snapshot: Snapshot) -> dict[str, Any]:
     """Serialise a snapshot into plain JSON compatible types."""
     return {
@@ -198,6 +262,7 @@ def snapshot_to_dict(snapshot: Snapshot) -> dict[str, Any]:
         "ports": [_port(port) for port in snapshot.ports],
         "buses": [_bus(bus) for bus in snapshot.buses],
         "thunderbolt": [_thunderbolt(port) for port in snapshot.thunderbolt],
+        "thunderbolt_fabric": _fabric(snapshot.thunderbolt_fabric),
         "charging": _charging(snapshot.charging),
         "warnings": list(snapshot.warnings),
     }

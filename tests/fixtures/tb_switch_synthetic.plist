@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<dict>
+		<key>Depth</key>
+		<integer>0</integer>
+		<key>Device Model ID</key>
+		<integer>15</integer>
+		<key>Device Model Name</key>
+		<string>iOS</string>
+		<key>Device Model Revision</key>
+		<integer>1</integer>
+		<key>Device Vendor ID</key>
+		<integer>1</integer>
+		<key>Device Vendor Name</key>
+		<string>Apple Inc.</string>
+		<key>IOObjectClass</key>
+		<string>IOThunderboltSwitchType5</string>
+		<key>IORegistryEntryChildren</key>
+		<array>
+			<dict>
+				<key>Adapter Type</key>
+				<integer>1</integer>
+				<key>Current Link Speed</key>
+				<integer>8</integer>
+				<key>Current Link Width</key>
+				<integer>1</integer>
+				<key>Description</key>
+				<string>Thunderbolt Port</string>
+				<key>Dual-Link Port</key>
+				<integer>2</integer>
+				<key>IOObjectClass</key>
+				<string>IOThunderboltPort</string>
+				<key>IORegistryEntryChildren</key>
+				<array/>
+				<key>IORegistryEntryName</key>
+				<string>IOThunderboltPort</string>
+				<key>Lane</key>
+				<integer>1</integer>
+				<key>Link Bandwidth</key>
+				<integer>100</integer>
+				<key>Max Credits</key>
+				<integer>174</integer>
+				<key>Max In Hop ID</key>
+				<integer>22</integer>
+				<key>Max Out Hop ID</key>
+				<integer>22</integer>
+				<key>Port Number</key>
+				<integer>1</integer>
+				<key>Supported Link Speed</key>
+				<integer>12</integer>
+				<key>Supported Link Width</key>
+				<integer>2</integer>
+				<key>TRM Policy</key>
+				<string>Root</string>
+				<key>TRM Transport Active 0</key>
+				<true/>
+				<key>TRM Transport Restricted</key>
+				<integer>1</integer>
+				<key>Target Link Speed</key>
+				<integer>12</integer>
+				<key>Target Link Width</key>
+				<integer>1</integer>
+			</dict>
+			<dict>
+				<key>Adapter Type</key>
+				<integer>1</integer>
+				<key>Current Link Speed</key>
+				<integer>8</integer>
+				<key>Current Link Width</key>
+				<integer>1</integer>
+				<key>Description</key>
+				<string>Thunderbolt Port</string>
+				<key>Dual-Link Port</key>
+				<integer>1</integer>
+				<key>IOObjectClass</key>
+				<string>IOThunderboltPort</string>
+				<key>IORegistryEntryChildren</key>
+				<array>
+					<dict>
+						<key>Depth</key>
+						<integer>1</integer>
+						<key>Device Model ID</key>
+						<integer>15</integer>
+						<key>Device Model Name</key>
+						<string>iOS</string>
+						<key>Device Model Revision</key>
+						<integer>1</integer>
+						<key>Device Vendor ID</key>
+						<integer>1</integer>
+						<key>Device Vendor Name</key>
+						<string>Apple Inc.</string>
+						<key>IOObjectClass</key>
+						<string>IOThunderboltSwitchType5</string>
+						<key>IORegistryEntryChildren</key>
+						<array>
+							<dict>
+								<key>Adapter Type</key>
+								<integer>1</integer>
+								<key>Current Link Speed</key>
+								<integer>8</integer>
+								<key>Current Link Width</key>
+								<integer>1</integer>
+								<key>Description</key>
+								<string>Thunderbolt Port</string>
+								<key>Dual-Link Port</key>
+								<integer>2</integer>
+								<key>IOObjectClass</key>
+								<string>IOThunderboltPort</string>
+								<key>IORegistryEntryChildren</key>
+								<array/>
+								<key>IORegistryEntryName</key>
+								<string>IOThunderboltPort</string>
+								<key>Lane</key>
+								<integer>1</integer>
+								<key>Link Bandwidth</key>
+								<integer>100</integer>
+								<key>Max Credits</key>
+								<integer>174</integer>
+								<key>Max In Hop ID</key>
+								<integer>22</integer>
+								<key>Max Out Hop ID</key>
+								<integer>22</integer>
+								<key>Port Number</key>
+								<integer>1</integer>
+								<key>Supported Link Speed</key>
+								<integer>12</integer>
+								<key>Supported Link Width</key>
+								<integer>2</integer>
+								<key>Target Link Speed</key>
+								<integer>12</integer>
+								<key>Target Link Width</key>
+								<integer>1</integer>
+							</dict>
+							<dict>
+								<key>Adapter Type</key>
+								<integer>2097409</integer>
+								<key>Description</key>
+								<string>USB Adapter</string>
+								<key>IOObjectClass</key>
+								<string>IOThunderboltPort</string>
+								<key>IORegistryEntryChildren</key>
+								<array>
+									<dict>
+										<key>Adapter Type</key>
+										<integer>1048833</integer>
+										<key>CFBundleIdentifier</key>
+										<string>com.apple.driver.AppleThunderboltUSBDownAdapter</string>
+										<key>IOClass</key>
+										<string>AppleThunderboltUSBDownAdapter</string>
+										<key>IOObjectClass</key>
+										<string>AppleThunderboltUSBDownAdapter</string>
+										<key>IORegistryEntryChildren</key>
+										<array/>
+										<key>IORegistryEntryName</key>
+										<string>AppleThunderboltUSBDownAdapter</string>
+									</dict>
+								</array>
+								<key>IORegistryEntryName</key>
+								<string>IOThunderboltPort</string>
+								<key>Port Number</key>
+								<integer>2</integer>
+							</dict>
+						</array>
+						<key>IORegistryEntryName</key>
+						<string>IOThunderboltSwitchType5</string>
+						<key>Max Port Number</key>
+						<integer>5</integer>
+						<key>Route String</key>
+						<integer>256</integer>
+						<key>Router ID</key>
+						<integer>1</integer>
+						<key>Thunderbolt Version</key>
+						<integer>32</integer>
+						<key>UID</key>
+						<integer>408840496304102593</integer>
+						<key>Vendor ID</key>
+						<integer>1452</integer>
+					</dict>
+				</array>
+				<key>IORegistryEntryName</key>
+				<string>IOThunderboltPort</string>
+				<key>Lane</key>
+				<integer>2</integer>
+				<key>Link Bandwidth</key>
+				<integer>100</integer>
+				<key>Max Credits</key>
+				<integer>174</integer>
+				<key>Max In Hop ID</key>
+				<integer>22</integer>
+				<key>Max Out Hop ID</key>
+				<integer>22</integer>
+				<key>Port Number</key>
+				<integer>2</integer>
+				<key>Supported Link Speed</key>
+				<integer>12</integer>
+				<key>Supported Link Width</key>
+				<integer>2</integer>
+				<key>Target Link Speed</key>
+				<integer>12</integer>
+				<key>Target Link Width</key>
+				<integer>1</integer>
+			</dict>
+			<dict>
+				<key>Adapter Type</key>
+				<integer>1048833</integer>
+				<key>Description</key>
+				<string>PCIe Adapter</string>
+				<key>IOObjectClass</key>
+				<string>IOThunderboltPort</string>
+				<key>IORegistryEntryChildren</key>
+				<array>
+					<dict>
+						<key>Adapter Type</key>
+						<integer>1048833</integer>
+						<key>CFBundleIdentifier</key>
+						<string>com.apple.driver.AppleThunderboltPCIDownAdapter</string>
+						<key>Device ID</key>
+						<string>0x00002000&amp;0x0000ff00</string>
+						<key>IOClass</key>
+						<string>AppleThunderboltPCIDownAdapterType5</string>
+						<key>IOObjectClass</key>
+						<string>AppleThunderboltPCIDownAdapterType5</string>
+						<key>IORegistryEntryChildren</key>
+						<array/>
+						<key>IORegistryEntryName</key>
+						<string>AppleThunderboltPCIDownAdapterType5</string>
+					</dict>
+				</array>
+				<key>IORegistryEntryName</key>
+				<string>IOThunderboltPort</string>
+				<key>Port Number</key>
+				<integer>3</integer>
+			</dict>
+			<dict>
+				<key>Adapter Type</key>
+				<integer>1049601</integer>
+				<key>Description</key>
+				<string>Vendor Link Adapter</string>
+				<key>IOObjectClass</key>
+				<string>IOThunderboltPort</string>
+				<key>IORegistryEntryChildren</key>
+				<array>
+					<dict>
+						<key>Adapter Type</key>
+						<integer>1048833</integer>
+						<key>CFBundleIdentifier</key>
+						<string>com.apple.driver.AppleThunderboltVendorAdapter</string>
+						<key>IOClass</key>
+						<string>AppleThunderboltVendorAdapter</string>
+						<key>IOObjectClass</key>
+						<string>AppleThunderboltVendorAdapter</string>
+						<key>IORegistryEntryChildren</key>
+						<array/>
+						<key>IORegistryEntryName</key>
+						<string>AppleThunderboltVendorAdapter</string>
+					</dict>
+				</array>
+				<key>IORegistryEntryName</key>
+				<string>IOThunderboltPort</string>
+				<key>Port Number</key>
+				<integer>4</integer>
+			</dict>
+		</array>
+		<key>IORegistryEntryName</key>
+		<string>IOThunderboltSwitchType5</string>
+		<key>Max Port Number</key>
+		<integer>7</integer>
+		<key>Route String</key>
+		<integer>0</integer>
+		<key>Router ID</key>
+		<integer>0</integer>
+		<key>Thunderbolt Version</key>
+		<integer>32</integer>
+		<key>UID</key>
+		<integer>408840496304102592</integer>
+		<key>Vendor ID</key>
+		<integer>1452</integer>
+	</dict>
+</array>
+</plist>

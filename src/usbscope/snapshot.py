@@ -8,7 +8,13 @@ from dataclasses import replace
 from datetime import datetime
 
 from .models import Bus, Port, Snapshot, UsbDevice
-from .sources import ChargingSource, IoregSource, SystemProfiler, USBRegistrySource
+from .sources import (
+    ChargingSource,
+    IoregSource,
+    SystemProfiler,
+    ThunderboltFabricSource,
+    USBRegistrySource,
+)
 
 __all__ = ["collect"]
 
@@ -66,6 +72,7 @@ def collect(
     ioreg: IoregSource | None = None,
     charging: ChargingSource | None = None,
     usbregistry: USBRegistrySource | None = None,
+    fabric: ThunderboltFabricSource | None = None,
     clock: Clock = datetime.now,
     os_version: str | None = None,
     host: str | None = None,
@@ -83,6 +90,7 @@ def collect(
     ioreg = ioreg or IoregSource()
     charging_source = charging or ChargingSource()
     registry_source = usbregistry or USBRegistrySource()
+    fabric_source = fabric or ThunderboltFabricSource()
     warnings: list[str] = []
     ports, port_warnings = ioreg.ports()
     warnings.extend(port_warnings)
@@ -90,6 +98,8 @@ def collect(
     warnings.extend(bus_warnings)
     thunderbolt, tb_warnings = profiler.thunderbolt()
     warnings.extend(tb_warnings)
+    thunderbolt_fabric, fabric_warnings = fabric_source.fabric()
+    warnings.extend(fabric_warnings)
     hardware, hardware_warnings = profiler.hardware()
     warnings.extend(hardware_warnings)
     power, power_warnings = charging_source.charging()
@@ -137,6 +147,7 @@ def collect(
         ports=merged_ports,
         buses=tuple(merged_buses),
         thunderbolt=thunderbolt,
+        thunderbolt_fabric=thunderbolt_fabric,
         charging=power,
         warnings=tuple(warnings),
     )

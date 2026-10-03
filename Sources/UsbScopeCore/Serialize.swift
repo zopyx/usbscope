@@ -168,6 +168,64 @@ public enum Serialize {
         ]
     }
 
+    static func tunnel(_ tunnel: ThunderboltTunnel) -> [String: Any] {
+        [
+            "protocol": tunnel.protocolName,
+            "label": tunnel.label,
+            "port_number": orNull(tunnel.portNumber),
+            "adapter_type": orNull(tunnel.adapterType),
+            "driver": orNull(tunnel.driver),
+            "driver_class": orNull(tunnel.driverClass),
+            "device_id": orNull(tunnel.deviceID),
+        ]
+    }
+
+    static func fabricPort(_ port: ThunderboltFabricPort) -> [String: Any] {
+        [
+            "number": orNull(port.number),
+            "label": port.label,
+            "protocol": port.protocolName,
+            "socket_id": orNull(port.socketID),
+            "adapter_type": orNull(port.adapterType),
+            "current_link_speed": orNull(port.currentLinkSpeed),
+            "target_link_speed": orNull(port.targetLinkSpeed),
+            "supported_link_speed": orNull(port.supportedLinkSpeed),
+            "current_link_width": orNull(port.currentLinkWidth),
+            "target_link_width": orNull(port.targetLinkWidth),
+            "supported_link_width": orNull(port.supportedLinkWidth),
+            "lane": orNull(port.lane),
+            "dual_link_port": orNull(port.dualLinkPort),
+            "link_bandwidth": orNull(port.linkBandwidth),
+            "max_credits": orNull(port.maxCredits),
+            "max_in_hop_id": orNull(port.maxInHopID),
+            "max_out_hop_id": orNull(port.maxOutHopID),
+            "upstream_port_number": orNull(port.upstreamPortNumber),
+            "restricted": orNull(port.restricted),
+        ]
+    }
+
+    static func router(_ router: ThunderboltRouter) -> [String: Any] {
+        [
+            "router_id": orNull(router.routerID),
+            "uid": orNull(router.uid),
+            "vendor_id": orNull(router.vendorID),
+            "vendor_name": orNull(router.vendorName),
+            "device_model_name": orNull(router.deviceModelName),
+            "device_model_id": orNull(router.deviceModelID),
+            "device_model_revision": orNull(router.deviceModelRevision),
+            "thunderbolt_version": orNull(router.thunderboltVersion),
+            "depth": orNull(router.depth),
+            "route_string": orNull(router.routeString),
+            "max_port_number": orNull(router.maxPortNumber),
+            "ports": router.ports.map { fabricPort($0) },
+            "tunnels": router.tunnels.map { tunnel($0) },
+        ]
+    }
+
+    static func fabric(_ fabric: ThunderboltFabric) -> [String: Any] {
+        ["routers": fabric.routers.map { router($0) }]
+    }
+
     static func charging(_ charging: Charging?) -> Any {
         guard let charging else { return NSNull() }
         return [
@@ -211,6 +269,7 @@ public enum Serialize {
             "ports": snapshot.ports.map { port($0) },
             "buses": snapshot.buses.map { bus($0) },
             "thunderbolt": snapshot.thunderbolt.map { thunderbolt($0) },
+            "thunderbolt_fabric": fabric(snapshot.thunderboltFabric),
             "charging": charging(snapshot.charging),
             "warnings": snapshot.warnings,
         ]
