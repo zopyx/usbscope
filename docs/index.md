@@ -450,7 +450,7 @@ implementations are pinned to the *same* fixtures.
 | --- | --- |
 | Package manifest | `Package.swift` (`swift-tools-version: 6.0`, macOS 14+) |
 | Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, `ioreg`, `system_profiler`, charging, snapshot, JSON serialiser, formatting |
-| Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, change diffing, detail pairs, TSV/CSV export (no SwiftUI, so it is unit-testable headless) |
+| Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, `Highlight`, detail pairs, TSV/CSV export (no SwiftUI, so it is unit-testable headless); the change **differ** (`deviceKey`/`diffSnapshots`) lives in `UsbScopeCore`, because the hotplug watcher and the history build on it too |
 | CLI executable `usbscope` | `Sources/usbscope/main.swift` |
 | SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the five views on top of `UsbScopeUI` |
 | Test suite | `SwiftTests/` |
@@ -519,4 +519,29 @@ The SwiftUI app also needs an app bundle before macOS will show it as a regular
 app with a Dock entry and a proper menu bar; run from the checkout it calls
 `NSApplication.setActivationPolicy(.regular)` to bring the window to the front.
 Packaging it into a `.app`/DMG is not done yet.
+
+### Hotplug events, event log and history
+
+`usbscope-app` watches for USB hotplug **event-driven**, not by polling: it arms
+`IOServiceAddMatchingNotification` for `kIOMatchedNotification` and
+`kIOTerminatedNotification` on the `IOUSBHostDevice` class and does nothing
+between edges (`UsbScopeCore.UsbHotplugWatcher`). The identity of an edge is
+resolved by diffing one fresh snapshot against the previous one, because a
+terminating device no longer reliably exposes its properties — so the event
+carries the same `deviceKey` the table rows use. When IOKit cannot be armed (the
+App Store sandbox), the watcher falls back to comparing snapshots on a
+`DispatchSourceTimer`; `isEventDriven` and `status` say which path is active.
+
+Every attach/detach is appended to
+`~/Library/Application Support/usbscope/events.jsonl` as one JSON object per line
+(ISO-8601 `seen_at`, the `deviceKey` as `key`) — append-only, never rewritten. The
+app also keeps the last 240 snapshots in memory (`SnapshotHistory`), each with its
+timestamp and the delta to its predecessor, and projects their charging telemetry
+onto a `powerTimeline()` of watts (`system_power_in_mw`, the measured input).
+
+Only the pure side of the timeline has a Python twin: `usbscope/history.py`
+(`PowerHistory` — a sample ring plus `timeline()`/`watts_timeline()`). The IOKit
+watcher is deliberately **Swift-only**: arming IOKit notifications from Python
+needs PyObjC bridging, and the event path belongs where the app runs.
+
 
