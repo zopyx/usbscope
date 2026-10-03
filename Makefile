@@ -18,7 +18,8 @@ VERSION := $(shell $(PY) -c "import usbscope; print(usbscope.__version__)" 2>/de
 
 .PHONY: help doctor sync test lint format check coverage run watch run-app \
         refresh-screenshots screenshots snapshot icon binary app-bundle app dmg artifacts \
-        checksums ci mas-pkg mas-pkg-dry mas-screenshots install clean distclean env version
+        checksums ci mas-pkg mas-pkg-dry mas-screenshots install clean distclean env version \
+        swift swift-build swift-test swift-golden swift-run-app swift-app-check check-all
 
 ## ---------------------------------------------------------------------------
 ## Setup & quality
@@ -68,6 +69,8 @@ check: ## all gates: format check, lint, types, tests (CI equivalent)
 	$(MAKE) lint
 	$(MAKE) test
 
+check-all: check swift-test ## every gate incl. the Swift port (Python + Swift)
+
 ## ---------------------------------------------------------------------------
 ## Run
 ## ---------------------------------------------------------------------------
@@ -86,7 +89,7 @@ run-app: ## run the native macOS app from the checkout
 ## ---------------------------------------------------------------------------
 
 snapshot: ## render the app window to docs/screenshots/app-<view>.png (offscreen)
-	@for view in ports cables devices thunderbolt; do \
+	@for view in ports cables devices thunderbolt power; do \
 		$(UV) run --extra macapp usbscope-app --snapshot docs/screenshots/app-$$view.png --view $$view >/dev/null; \
 		echo "docs/screenshots/app-$$view.png"; \
 	done
@@ -141,6 +144,27 @@ checksums: ## verify the checksums of everything in dist/
 
 install: ## install the CLI (and the app entry point) as uv tools
 	$(UV) tool install --force '.[macapp]'
+
+## ---------------------------------------------------------------------------
+## Swift port
+## ---------------------------------------------------------------------------
+
+swift: swift-build swift-test ## build and test the Swift port
+
+swift-build: ## build the Swift port (swift build)
+	swift build
+
+swift-test: ## run the Swift suite (JSON parity against the Python golden)
+	swift test
+
+swift-golden: ## regenerate the parity golden from the fixtures (Python side)
+	$(UV) run python scripts/swift_golden.py
+
+swift-run-app: swift-build ## run the SwiftUI app (usbscope-app)
+	./.build/debug/usbscope-app
+
+swift-app-check: swift-build ## headless self test of the app's data path (row counts per view)
+	./.build/debug/usbscope-app --print-rows
 
 ## ---------------------------------------------------------------------------
 ## Housekeeping

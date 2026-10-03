@@ -76,6 +76,26 @@ def _select(delegate: AppDelegate, row: int) -> None:
     delegate.table.selectRowIndexes_byExtendingSelection_(NSIndexSet.indexSetWithIndex_(row), False)
 
 
+def _view_texts(view: object) -> list[str]:
+    """Every ``stringValue`` in a view tree.
+
+    The detail popover is scrollable, so its labels live inside the scroll view
+    (and its document view) instead of being direct subviews of the content view.
+    """
+    texts: list[str] = []
+    string_value = getattr(view, "stringValue", None)
+    if callable(string_value):
+        texts.append(str(string_value()))
+    document = getattr(view, "documentView", None)
+    if callable(document):
+        texts.extend(_view_texts(document()))
+    subviews = getattr(view, "subviews", None)
+    if callable(subviews):
+        for child in subviews() or []:
+            texts.extend(_view_texts(child))
+    return texts
+
+
 def png_size(path: Path) -> tuple[int, int]:
     """Pixel size of a PNG, straight from the IHDR chunk (no image library needed)."""
     width, height = struct.unpack(">II", path.read_bytes()[16:24])
@@ -432,11 +452,7 @@ def test_export_is_cancelled_cleanly(
 def test_detail_popover_shows_every_field(delegate: AppDelegate) -> None:
     delegate._show_popover(0)
     assert delegate.popover is not None
-    labels = [
-        view.stringValue()
-        for view in delegate.popover.contentViewController().view().subviews()
-        if hasattr(view, "stringValue")
-    ]
+    labels = _view_texts(delegate.popover.contentViewController().view())
     assert "Ports detail" in labels
     assert "Port" in labels
     assert "HDMI@1" in labels
@@ -446,6 +462,21 @@ def test_detail_popover_shows_every_field(delegate: AppDelegate) -> None:
 def test_double_click_without_a_selection_does_not_open_a_popover(delegate: AppDelegate) -> None:
     delegate.rowDoubleClicked_(delegate.table)  # clickedRow() is -1 outside a real click
     assert delegate.popover is None
+
+
+def test_detail_popover_scrolls_to_every_optional_field(delegate: AppDelegate) -> None:
+    """The longer port detail list is scrollable, not clipped at the popover size."""
+    delegate._show_popover(5)  # USB-C@3: the port with the attached YubiKey
+    assert delegate.popover is not None
+    view = delegate.popover.contentViewController().view()
+    assert view.documentView() is not None  # a scroll view wraps the detail list
+    texts = _view_texts(view)
+    assert "USB mode" in texts and "2 (Device)" in texts
+    assert "Pin assignment" in texts and "rx2=4, tx2=3" in texts
+    assert "Power mode" in texts
+    assert "Supported power modes" in texts and "1, 3" in texts
+    assert "Liquid state" in texts and "Idle" in texts
+    delegate.popover.close()
 
 
 def test_saving_records_what_the_user_chose(

@@ -11,7 +11,7 @@ import pytest
 
 from usbscope.models import Snapshot
 from usbscope.snapshot import collect
-from usbscope.sources import IoregSource, SystemProfiler
+from usbscope.sources import ChargingSource, IoregSource, SystemProfiler, USBRegistrySource
 from usbscope.sources.shell import CommandResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -26,6 +26,17 @@ _PROFILER_FILES = {
     "SPUSBDataType": "usb_legacy_empty.json",
     "SPThunderboltDataType": "thunderbolt.json",
     "SPHardwareDataType": "hardware.json",
+}
+
+# The USB device tree issues one command; served from the captured IOUSB plane.
+_REGISTRY_FILES = {
+    "IOUSB": "usbplane.plist",
+}
+
+# The charging adapter issues two commands; both are served from the fixtures.
+_CHARGING_FILES = {
+    "SPPowerDataType": "power.json",
+    "AppleSmartBattery": "battery.plist",
 }
 
 
@@ -77,11 +88,38 @@ def ioreg() -> IoregSource:
 
 
 @pytest.fixture
-def snapshot(profiler: SystemProfiler, ioreg: IoregSource) -> Snapshot:
+def charging() -> ChargingSource:
+    """ChargingSource wired to the captured battery/charger payloads."""
+    from typing import cast
+
+    from usbscope.sources.charging import Runner
+
+    return ChargingSource(runner=cast(Runner, make_runner(_CHARGING_FILES)))
+
+
+@pytest.fixture
+def usbregistry() -> USBRegistrySource:
+    """USBRegistrySource wired to the captured IOUSB plane."""
+    from typing import cast
+
+    from usbscope.sources.usbregistry import Runner
+
+    return USBRegistrySource(runner=cast(Runner, make_runner(_REGISTRY_FILES)))
+
+
+@pytest.fixture
+def snapshot(
+    profiler: SystemProfiler,
+    ioreg: IoregSource,
+    charging: ChargingSource,
+    usbregistry: USBRegistrySource,
+) -> Snapshot:
     """A full snapshot built from the captured payloads."""
     return collect(
         profiler=profiler,
         ioreg=ioreg,
+        charging=charging,
+        usbregistry=usbregistry,
         host=FIXTURE_HOST,
         os_version=FIXTURE_OS_VERSION,
     )

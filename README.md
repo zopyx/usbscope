@@ -26,7 +26,7 @@ restrictions.
 ## A native macOS app
 
 The same data in a real Cocoa window (`usbscope-app`): unified toolbar with a view
-switcher and a live search field, sortable column headers, `⌘1`–`⌘4`, `⌘C`/`⇧⌘C`
+switcher and a live search field, sortable column headers, `⌘1`–`⌘5`, `⌘C`/`⇧⌘C`
 for TSV, double click for a detail popover, JSON/CSV export, a refresh that keeps
 your selection and scroll position, green/red row marks when a device appears or
 disappears, a menu bar extra (`2/6` with connect/disconnect banners) and everything

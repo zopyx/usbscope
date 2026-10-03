@@ -27,12 +27,13 @@ views:
   overview     ports, cables, devices and USB4 receptacles (default)
   ports        USB-C / Thunderbolt port table with negotiated modes
   devices      device tree with vendor/product IDs and link modes
-  cables       cable, e-marker (SOP), CC authentication and liquid detection
+  cables       cable, e-marker (SOP), CC authentication, power contract, liquid detection
   thunderbolt  Thunderbolt / USB4 receptacles
   json         machine readable snapshot (same as --json)
 
-data sources: system_profiler (SPUSBHostDataType, SPThunderboltDataType) and
-ioreg -p IOPort (port controller: transports, cable e-marker, LDCM, TRM).
+data sources: system_profiler (SPUSBHostDataType, SPThunderboltDataType,
+SPPowerDataType) and ioreg -p IOPort (port controller: transports, cable e-marker,
+power contract, LDCM, TRM) plus the AppleSmartBattery node (live charging power).
 """
 
 

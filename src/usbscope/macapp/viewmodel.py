@@ -10,7 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import StrEnum
 
-from ..models import Port, Snapshot, ThunderboltPort, UsbDevice, UsbMode
+from ..format import charger_flags, charging_state, power_line, watts
+from ..models import Charging, Port, PowerSource, Snapshot, ThunderboltPort, UsbDevice, UsbMode
+from ..sources.usbregistry import speed_code_name as _speed_code_name
 from .changes import (
     ADDED,
     CHANGED,
@@ -46,7 +48,7 @@ __all__ = [
     "table_model",
 ]
 
-VIEWS = ("ports", "cables", "devices", "thunderbolt")
+VIEWS = ("ports", "cables", "devices", "thunderbolt", "power")
 
 
 class Align(StrEnum):
@@ -138,6 +140,17 @@ def _mode_style(mode: UsbMode) -> Style:
     if mode.rank >= 1:
         return Style.YELLOW
     return Style.DIM
+
+
+def _class_style(class_text: str) -> Style:
+    """Attention colours for the device classes a security check cares about."""
+    if class_text.startswith("HID"):
+        return Style.CYAN
+    if class_text.startswith("mass storage"):
+        return Style.MAGENTA
+    if class_text.startswith(("hub", "per-interface")):
+        return Style.DIM
+    return Style.DEFAULT
 
 
 def _state_cell(port: Port) -> Cell:
@@ -252,9 +265,17 @@ def _cables_model(snapshot: Snapshot) -> TableModel:
         Column("hash", "Hash (CC / USB)", 150),
         Column("spec", "PD spec", 70),
         Column("power", "Power in", 200, monospaced=False),
+        Column("contract", "Contract", 160),
         Column("liquid", "Liquid", 80, monospaced=False),
         Column("fw", "Controller fw", 120),
     )
+
+    def contract_cell(port: Port) -> Cell:
+        """The power option the port negotiated (the cable view's Contract)."""
+        contract = port.power_contract
+        if contract is None:
+            return replace(_DIM, sort_value=0)
+        return Cell(contract.label, Style.CYAN, sort_value=contract.watts)
 
     def hash_cell(port: Port) -> Cell:
         cable = port.cable
@@ -289,6 +310,7 @@ def _cables_model(snapshot: Snapshot) -> TableModel:
             if port.cable.pd_spec_revision
             else replace(_DIM, sort_value=0),
             Cell(", ".join(port.power_in), Style.CYAN) if port.power_in else _DIM,
+            contract_cell(port),
             Cell("detected", Style.RED, sort_value=1)
             if port.liquid_detected
             else Cell("clean", Style.DIM, sort_value=0),
@@ -318,9 +340,14 @@ def _device_rows(snapshot: Snapshot) -> tuple[tuple[Cell, ...], ...]:
                 Cell(device.vendor, Style.DEFAULT) if device.vendor else _DIM,
                 Cell(device.id_string, Style.DIM),
                 Cell(device.mode.label, _mode_style(device.mode), sort_value=device.mode.rank),
+                Cell(device.class_text, _class_style(device.class_text))
+                if device.class_text
+                else _DIM,
+                Cell(str(device.tier), Style.DIM, sort_value=device.tier)
+                if device.tier is not None
+                else _DIM,
                 Cell(device.port, Style.CYAN) if device.port else _DIM,
                 Cell(device.transport, Style.CYAN) if device.transport else _DIM,
-                Cell(device.bus, Style.DIM) if device.bus else _DIM,
                 Cell(device.serial, Style.DIM) if device.serial else _DIM,
                 Cell("yes", Style.YELLOW, sort_value=1)
                 if device.restricted
@@ -336,9 +363,10 @@ def _devices_model(snapshot: Snapshot) -> TableModel:
         Column("vendor", "Vendor", 130, monospaced=False),
         Column("id", "VID:PID", 110),
         Column("mode", "Mode", 200),
+        Column("class", "Class", 150, monospaced=False),
+        Column("tier", "Tier", 50),
         Column("port", "Port", 100),
         Column("transport", "Transport", 100),
-        Column("bus", "Bus", 140, monospaced=False),
         Column("serial", "Serial", 140),
         Column("restricted", "Restricted", 90, monospaced=False),
     )
@@ -381,6 +409,70 @@ def _thunderbolt_model(snapshot: Snapshot) -> TableModel:
     )
 
 
+def _charging_pairs(charging: Charging) -> tuple[tuple[str, str], ...]:
+    """Every live power fact of the machine (system wide, never per port)."""
+    return _pairs(
+        _pair("Status", charging_state(charging)),
+        _pair(
+            "Adapter",
+            power_line(
+                charging.adapter_power_mw,
+                charging.adapter_voltage_mv,
+                charging.adapter_current_ma,
+                compact=True,
+            ),
+        ),
+        _pair(
+            "From adapter",
+            power_line(
+                charging.system_power_in_mw,
+                charging.system_voltage_in_mv,
+                charging.system_current_in_ma,
+            ),
+        ),
+        _pair("System load", watts(charging.system_load_mw)),
+        _pair(
+            "Battery",
+            power_line(
+                charging.battery_power_mw,
+                charging.battery_voltage_mv,
+                charging.battery_current_ma,
+            ),
+        ),
+        _pair("Adapter loss", watts(charging.adapter_efficiency_loss_mw)),
+        _pair("Charger", charger_flags(charging)),
+    )
+
+
+def power_key(label: str) -> str:
+    """Row key of a charging metric."""
+    return f"power:{label}"
+
+
+def _power_model(snapshot: Snapshot) -> TableModel:
+    """The live charging telemetry: one row per metric.
+
+    The numbers are system wide (adapter, system load, battery); macOS never
+    reports a measured draw per port.
+    """
+    columns = (
+        Column("metric", "Metric", 220, monospaced=False, sortable=False),
+        Column("value", "Value", 340, sortable=False),
+    )
+    charging = snapshot.charging
+    pairs = _charging_pairs(charging) if charging is not None else ()
+    rows: list[tuple[Cell, Cell]] = []
+    for label, value in pairs:
+        live = label == "Status" and charging is not None and bool(charging.charging)
+        rows.append((Cell(label, Style.DIM), Cell(value, Style.GREEN if live else Style.DEFAULT)))
+    return TableModel(
+        columns,
+        tuple(rows),
+        empty_message="No battery or charger reported — a desktop Mac has none.",
+        row_keys=tuple(power_key(label) for label, _value in pairs),
+    )
+
+
 def table_model(snapshot: Snapshot, view: str) -> TableModel:
     """Build the table model for ``view`` (one of :data:`VIEWS`)."""
     builders = {
@@ -388,6 +480,7 @@ def table_model(snapshot: Snapshot, view: str) -> TableModel:
         "cables": _cables_model,
         "devices": _devices_model,
         "thunderbolt": _thunderbolt_model,
+        "power": _power_model,
     }
     try:
         builder = builders[view]
@@ -425,7 +518,7 @@ def status_text(
     when = snapshot.seen_at.strftime("%H:%M:%S")
     parts = [f"Read at {when} (read #{reads})"]
     parts.append(f"auto-refresh {interval:g}s" if interval else "auto-refresh off")
-    parts.append("system_profiler + ioreg -p IOPort")
+    parts.append("system_profiler + ioreg (IOPort, AppleSmartBattery)")
     if changes is not None and not changes.is_empty:
         parts.append(f"changed: {changes.summary()}")
     if filter_query:
@@ -462,6 +555,85 @@ def _pairs(*items: tuple[str, str] | None) -> tuple[tuple[str, str], ...]:
     return tuple(item for item in items if item is not None)
 
 
+def _power_mode_pairs(port: Port) -> tuple[tuple[str, str], ...]:
+    """Power-contract modes of the controller (raw enumerations)."""
+    limits = ", ".join(str(item) for item in port.power_current_limits)
+    return _pairs(
+        _pair("Power mode", port.power_mode),
+        _pair("Active power mode", port.active_power_mode),
+        _pair(
+            "Supported power modes",
+            ", ".join(str(item) for item in port.supported_power_modes),
+        ),
+        _pair("Power current limits", limits if any(port.power_current_limits) else None),
+    )
+
+
+def _power_menu_pair(source: PowerSource) -> tuple[str, str] | None:
+    """Summary of a provider's PD menu: count, voltage range, ceiling, PDO types."""
+    options = source.options
+    if not options:
+        return None
+    volts = [option.voltage_mv for option in options if option.voltage_mv]
+    watts = [option.watts for option in options if option.watts]
+    kinds = sorted({option.kind_label for option in options if option.kind_label})
+    parts = [f"{len(options)} option(s)"]
+    if volts:
+        parts.append(f"{min(volts) // 1000}–{max(volts) // 1000} V")
+    if watts:
+        parts.append(f"up to {max(watts):g} W")
+    if kinds:
+        parts.append(", ".join(kinds))
+    return ("PD menu", " · ".join(parts))
+
+
+def _power_source_pairs(port: Port) -> tuple[tuple[str, str], ...]:
+    """The power providers of a port and the option they negotiated."""
+    if not port.power_sources:
+        return ()
+    sources = _pairs(
+        _pair("Power sources", ", ".join(source.name for source in port.power_sources)),
+        _pair(
+            "Selected source",
+            next((source.name for source in port.power_sources if source.selected), None),
+        ),
+    )
+    selected = next((source for source in port.power_sources if source.selected), None)
+    menus = _pairs(_power_menu_pair(selected) if selected is not None else None)
+    options: list[tuple[str, str] | None] = []
+    for source in port.power_sources:
+        for index, option in enumerate(source.options, start=1):
+            kind = option.kind_label
+            suffix = f" ({kind})" if kind and kind != "fixed" else ""
+            options.append(_pair(f"{source.name} option {index}", f"{option.label}{suffix}"))
+    return sources + menus + _pairs(*options)
+
+
+def _liquid_pairs(port: Port) -> tuple[tuple[str, str], ...]:
+    """LDCM (liquid detection) facts of a port beyond the yes/no flag."""
+    return _pairs(
+        _pair("Liquid state", port.liquid_state),
+        _pair("Liquid measurement", port.liquid_measurement),
+        _pair("Liquid pin", port.liquid_pin),
+        _pair("Liquid mitigations", port.liquid_mitigations),
+        _pair("Liquid override", port.liquid_override),
+    )
+
+
+def _extra_pairs(port: Port) -> tuple[tuple[str, str], ...]:
+    """Optional port-controller details: USB mode, pins, power, LDCM."""
+    contract = port.power_contract
+    return _pairs(
+        _pair("USB mode", port.usb_mode_text),
+        _pair("Pin assignment", port.pins_text or None),
+        _pair("Accessory mode", port.accessory_mode or None),
+        _pair("Power contract", contract.label if contract is not None else None),
+        *_power_mode_pairs(port),
+        *_power_source_pairs(port),
+        *_liquid_pairs(port),
+    )
+
+
 def port_details(port: Port) -> tuple[tuple[str, str], ...]:
     """Every known fact about a port, as label/value pairs."""
     transport = port.usb_transport
@@ -495,6 +667,7 @@ def port_details(port: Port) -> tuple[tuple[str, str], ...]:
         _pair(
             "Devices", ", ".join(f"{device.name} ({device.id_string})" for device in port.devices)
         ),
+        *_extra_pairs(port),
     )
 
 
@@ -516,6 +689,8 @@ def cable_details(port: Port) -> tuple[tuple[str, str], ...]:
         _pair("Liquid detected", port.liquid_detected),
         _pair("Authorization", port.authorization),
         _pair("Controller firmware", port.firmware),
+        _pair("USB link", usb.mode.label if usb is not None else None),
+        *_extra_pairs(port),
     )
 
 
@@ -526,6 +701,20 @@ def device_details(device: UsbDevice) -> tuple[tuple[str, str], ...]:
         _pair("Vendor", device.vendor),
         _pair("VID:PID", device.id_string),
         _pair("USB link", device.mode.label),
+        _pair("Device class", device.class_text),
+        _pair(
+            "Class / subclass / protocol",
+            f"{device.device_class} / {device.device_subclass} / {device.device_protocol}"
+            if device.device_class not in (None, 0)
+            else None,
+        ),
+        _pair("USB specification", device.bcd_usb),
+        _pair("Control packet size", device.max_packet_size0),
+        _pair("Configurations", device.num_configurations),
+        _pair("Enumeration speed", _speed_code_name(device.speed_code)),
+        _pair("Hub tier", device.tier),
+        _pair("Parent hub", device.parent),
+        _pair("Device address", device.address),
         _pair("Speed", device.speed_text),
         _pair("Mode (bit/s)", device.speed_mbps),
         _pair("Port", device.port),
@@ -577,12 +766,19 @@ def details_for_key(snapshot: Snapshot, key: str) -> tuple[tuple[str, str], ...]
 
 
 def detail_pairs(snapshot: Snapshot, view: str, row_key: str) -> tuple[tuple[str, str], ...]:
-    """Detail pairs for a row of ``view`` (the cables view shows cable facts)."""
+    """Detail pairs for a row of ``view`` (cables shows cable facts, power the metric)."""
     if view == "cables":
         name = row_key.removeprefix("port:")
         for port in snapshot.ports:
             if port.name == name:
                 return cable_details(port)
+        return ()
+    if view == "power":
+        label = row_key.removeprefix("power:")
+        charging = snapshot.charging
+        for pair_label, value in _charging_pairs(charging) if charging is not None else ():
+            if pair_label == label:
+                return ((pair_label, value),)
         return ()
     return details_for_key(snapshot, row_key)
 

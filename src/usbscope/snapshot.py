@@ -8,7 +8,7 @@ from dataclasses import replace
 from datetime import datetime
 
 from .models import Bus, Port, Snapshot, UsbDevice
-from .sources import IoregSource, SystemProfiler
+from .sources import ChargingSource, IoregSource, SystemProfiler, USBRegistrySource
 
 __all__ = ["collect"]
 
@@ -38,6 +38,19 @@ def _merge(primary: UsbDevice, other: UsbDevice | None) -> UsbDevice:
             "transport",
             "generation",
             "restricted",
+            # USB descriptor facts (`ioreg -p IOUSB`); system_profiler and the
+            # port controller do not report them, so the registry fills them in.
+            "device_class",
+            "device_subclass",
+            "device_protocol",
+            "class_name",
+            "bcd_usb",
+            "max_packet_size0",
+            "num_configurations",
+            "speed_code",
+            "tier",
+            "parent",
+            "address",
         )
     }
     return replace(primary, **filled)
@@ -51,6 +64,8 @@ def collect(
     *,
     profiler: SystemProfiler | None = None,
     ioreg: IoregSource | None = None,
+    charging: ChargingSource | None = None,
+    usbregistry: USBRegistrySource | None = None,
     clock: Clock = datetime.now,
     os_version: str | None = None,
     host: str | None = None,
@@ -66,6 +81,8 @@ def collect(
     """
     profiler = profiler or SystemProfiler()
     ioreg = ioreg or IoregSource()
+    charging_source = charging or ChargingSource()
+    registry_source = usbregistry or USBRegistrySource()
     warnings: list[str] = []
     ports, port_warnings = ioreg.ports()
     warnings.extend(port_warnings)
@@ -75,29 +92,39 @@ def collect(
     warnings.extend(tb_warnings)
     hardware, hardware_warnings = profiler.hardware()
     warnings.extend(hardware_warnings)
+    power, power_warnings = charging_source.charging()
+    warnings.extend(power_warnings)
+    registry_devices, registry_warnings = registry_source.devices()
+    warnings.extend(registry_warnings)
 
     bus_index = _index(device for bus in buses for device in bus.devices)
     port_index = _index(device for port in ports for device in port.devices)
+    registry_index = _index(registry_devices)
+
+    def merged(device: UsbDevice, *sources: dict[int, UsbDevice]) -> UsbDevice:
+        """Fill a device from the other sources, in order."""
+        result = device
+        for source in sources:
+            result = _merge(result, source.get(device.location_id or -1))
+        return result
 
     merged_buses: list[Bus] = [
         replace(
             bus,
-            devices=tuple(
-                _merge(device, port_index.get(device.location_id or -1)) for device in bus.devices
-            ),
+            devices=tuple(merged(device, port_index, registry_index) for device in bus.devices),
         )
         for bus in buses
     ]
     merged_ports: tuple[Port, ...] = tuple(
         replace(
             port,
-            devices=tuple(
-                _merge(device, bus_index.get(device.location_id or -1)) for device in port.devices
-            ),
+            devices=tuple(merged(device, bus_index, registry_index) for device in port.devices),
         )
         for port in ports
     )
-    orphans = tuple(device for key, device in port_index.items() if key not in bus_index)
+    orphans = tuple(
+        device for key, device in {**port_index, **registry_index}.items() if key not in bus_index
+    )
     if orphans:
         merged_buses.append(Bus(name=_ORPHAN_BUS, driver="ioreg", devices=orphans))
 
@@ -110,5 +137,6 @@ def collect(
         ports=merged_ports,
         buses=tuple(merged_buses),
         thunderbolt=thunderbolt,
+        charging=power,
         warnings=tuple(warnings),
     )

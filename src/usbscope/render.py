@@ -17,6 +17,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
+from .format import charger_flags, charging_state, charging_summary, power_line, watts
 from .models import Port, Snapshot, Transport, UsbDevice, UsbMode
 
 __all__ = ["render"]
@@ -88,6 +89,63 @@ def _transport_detail(transport: Transport) -> str | None:
 def _restricted_transports(port: Port) -> list[Transport]:
     """Only active transports can actually be restricted by macOS."""
     return [item for item in port.transports if item.restricted and item.active]
+
+
+def _power_text(port: Port) -> str:
+    """Power contract of the controller as one line (raw enumeration values)."""
+    mode = port.power_mode if port.power_mode is not None else "–"
+    parts = [f"mode {mode}"]
+    if port.active_power_mode is not None:
+        parts.append(f"active {port.active_power_mode}")
+    if port.supported_power_modes:
+        parts.append("supported " + "/".join(str(item) for item in port.supported_power_modes))
+    if any(port.power_current_limits):
+        parts.append("limits " + "/".join(str(item) for item in port.power_current_limits))
+    return "power contract: " + ", ".join(parts)
+
+
+def _liquid_text(port: Port) -> str | None:
+    """LDCM detail (state, measurement, pin and the flags macOS would act on)."""
+    parts = [item for item in (port.liquid_state, port.liquid_measurement, port.liquid_pin) if item]
+    if port.liquid_mitigations:
+        parts.append("mitigations on")
+    if port.liquid_override:
+        parts.append("override active")
+    return "LDCM: " + " · ".join(parts) if parts else None
+
+
+def _power_brief(port: Port) -> str | None:
+    """``USB-PD (20 V · 3 A · 60 W)`` — providers plus the agreed contract."""
+    if not port.power_in:
+        return None
+    names = ", ".join(port.power_in)
+    contract = port.power_contract
+    return f"{names} ({contract.label})" if contract is not None else names
+
+
+def _power_in_text(port: Port) -> str:
+    """``power in: USB-PD (20 V · 3 A · 60 W)`` — the note form of the brief."""
+    return "power in: " + (_power_brief(port) or "")
+
+
+def _extra_notes(port: Port) -> list[str]:
+    """Optional port-controller details, shown in verbose mode only.
+
+    The values are the raw controller enumerations (macOS does not document
+    them), so they are reported verbatim instead of being guessed at.
+    """
+    notes: list[str] = []
+    if (mode := port.usb_mode_text) is not None:
+        notes.append(f"USB mode: {mode}")
+    if pins := port.pins_text:
+        notes.append(f"pins: {pins}")
+    if port.power_mode is not None or port.supported_power_modes:
+        notes.append(_power_text(port))
+    if liquid := _liquid_text(port):
+        notes.append(liquid)
+    if port.accessory_mode:
+        notes.append(f"accessory mode: {port.accessory_mode}")
+    return notes
 
 
 def _state_text(port: Port) -> Text:
@@ -166,7 +224,7 @@ def _notes(port: Port, verbose: bool, level: str) -> list[tuple[str, str]]:
         detail = _transport_detail(displayport)
         notes.append((f"DP alt mode{': ' + detail if detail else ''}", "cyan"))
     if port.power_in:
-        notes.append(("power in: " + ", ".join(port.power_in), "cyan"))
+        notes.append((_power_in_text(port), "cyan"))
     if port.connected and port.usb_transport is None:
         notes.append(("charge/accessory only, no USB data transport", "yellow"))
     if port.liquid_detected:
@@ -186,6 +244,8 @@ def _notes(port: Port, verbose: bool, level: str) -> list[tuple[str, str]]:
             if transport.active and transport.trm_state:
                 profile = f" ({transport.trm_profile})" if transport.trm_profile else ""
                 notes.append((f"TRM {transport.kind}: {transport.trm_state}{profile}", "dim"))
+        for note in _extra_notes(port):
+            notes.append((note, "dim"))
     return notes
 
 
@@ -243,6 +303,10 @@ def _device_line(device: UsbDevice, verbose: bool) -> Text:
     text.append(f"{_SEP}{device.id_string}", style="dim")
     text.append(_SEP)
     text.append(device.mode.label, style=_mode_style(device.mode))
+    if verbose and device.class_text:
+        text.append(f"{_SEP}{device.class_text}", style="dim")
+    if verbose and device.tier is not None:
+        text.append(f"{_SEP}tier {device.tier}", style="dim")
     if device.serial:
         text.append(f"{_SEP}serial {device.serial}", style="dim")
     if device.version:
@@ -335,7 +399,7 @@ def _cables_panel(snapshot: Snapshot, verbose: bool) -> RenderableType:
     for column in ("Port", "Cable", "CC authentication", "Hash (CC / USB)", "PD spec"):
         table.add_column(column, overflow="fold")
     if verbose:
-        for column in ("Power in", "Liquid", "Accessory allowed", "Controller fw"):
+        for column in ("USB mode", "Power in", "Liquid", "Accessory allowed", "Controller fw"):
             table.add_column(column, overflow="fold")
     for port in snapshot.ports:
         cable = port.cable
@@ -366,9 +430,11 @@ def _cables_panel(snapshot: Snapshot, verbose: bool) -> RenderableType:
         if verbose:
             row.extend(
                 [
-                    Text(", ".join(port.power_in) or "–", style="cyan"),
+                    Text(port.usb_mode_text or "–", style="dim"),
+                    Text(_power_brief(port) or "–", style="cyan"),
                     Text(
-                        "detected" if port.liquid_detected else "clean",
+                        ("detected" if port.liquid_detected else "clean")
+                        + (f" · {port.liquid_state}" if port.liquid_state else ""),
                         style="red" if port.liquid_detected else "dim",
                     ),
                     Text(
@@ -384,7 +450,57 @@ def _cables_panel(snapshot: Snapshot, verbose: bool) -> RenderableType:
     return table
 
 
-def _summary_panel(snapshot: Snapshot, refresh: int | None) -> Panel:
+def _charging_panel(snapshot: Snapshot) -> RenderableType | None:
+    """Live adapter and battery numbers — system wide, never per port."""
+    charging = snapshot.charging
+    if charging is None:
+        return None
+    rows: tuple[tuple[str, str | None], ...] = (
+        ("State", charging_state(charging)),
+        (
+            "Adapter",
+            power_line(
+                charging.adapter_power_mw,
+                charging.adapter_voltage_mv,
+                charging.adapter_current_ma,
+                compact=True,
+            ),
+        ),
+        (
+            "From adapter",
+            power_line(
+                charging.system_power_in_mw,
+                charging.system_voltage_in_mv,
+                charging.system_current_in_ma,
+            ),
+        ),
+        ("System load", watts(charging.system_load_mw)),
+        (
+            "Battery",
+            power_line(
+                charging.battery_power_mw,
+                charging.battery_voltage_mv,
+                charging.battery_current_ma,
+            ),
+        ),
+        ("Adapter loss", watts(charging.adapter_efficiency_loss_mw)),
+        ("Charger", charger_flags(charging)),
+    )
+    grid = Table.grid(padding=(0, 2))
+    grid.add_column(justify="right", style="dim")
+    grid.add_column()
+    for label, value in rows:
+        if value:
+            grid.add_row(label, Text(value))
+    return Panel(
+        grid,
+        title="[bold]Charging & adapter[/] [dim]— system wide, not per port[/]",
+        border_style="cyan",
+        box=box.ROUNDED,
+    )
+
+
+def _summary_panel(snapshot: Snapshot, refresh: int | None, verbose: bool = False) -> Panel:
     machine = " · ".join(
         part for part in (snapshot.model, snapshot.chip, f"macOS {snapshot.os_version}") if part
     )
@@ -401,6 +517,13 @@ def _summary_panel(snapshot: Snapshot, refresh: int | None) -> Panel:
         ),
     )
     grid.add_row("Devices", Text(str(len(snapshot.devices))))
+    if verbose and snapshot.charging is not None:
+        state = charging_state(snapshot.charging)
+        power = charging_summary(snapshot.charging)
+        if state:
+            grid.add_row("Charging", Text(state))
+        if power:
+            grid.add_row("Power", Text(power))
     if snapshot.thunderbolt:
         connected = sum(1 for port in snapshot.thunderbolt if port.connected)
         grid.add_row(
@@ -478,13 +601,15 @@ def build_view(
     Returning (instead of printing) keeps one-shot output and the flicker free
     live mode of ``--watch`` on the same code path.
     """
-    parts: list[RenderableType] = [_summary_panel(snapshot, refresh)]
+    parts: list[RenderableType] = [_summary_panel(snapshot, refresh, verbose)]
     if (warnings := _warnings(snapshot)) is not None:
         parts.append(warnings)
     if view in {"overview", "ports"} and snapshot.ports:
         parts.append(_ports_table(snapshot, verbose, console.width))
     if view == "cables":
         parts.append(_cables_panel(snapshot, verbose))
+        if verbose and (charging := _charging_panel(snapshot)) is not None:
+            parts.append(charging)
     if view in {"overview", "ports"} and (hint := _empty_devices_hint(snapshot)) is not None:
         parts.append(hint)
     if view in {"overview", "devices"}:

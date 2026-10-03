@@ -3,9 +3,21 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from typing import Any
 
-from .models import Bus, Cable, Port, Snapshot, ThunderboltPort, Transport, UsbDevice
+from .models import (
+    Bus,
+    Cable,
+    Charging,
+    Port,
+    PowerOption,
+    PowerSource,
+    Snapshot,
+    ThunderboltPort,
+    Transport,
+    UsbDevice,
+)
 
 __all__ = ["snapshot_to_dict", "snapshot_to_json"]
 
@@ -33,6 +45,18 @@ def _device(device: UsbDevice) -> dict[str, Any]:
         "generation": device.generation,
         "restricted": device.restricted,
         "source": device.source,
+        "device_class": device.device_class,
+        "device_subclass": device.device_subclass,
+        "device_protocol": device.device_protocol,
+        "class_name": device.class_name,
+        "class_text": device.class_text,
+        "bcd_usb": device.bcd_usb,
+        "max_packet_size0": device.max_packet_size0,
+        "num_configurations": device.num_configurations,
+        "speed_code": device.speed_code,
+        "tier": device.tier,
+        "parent": device.parent,
+        "address": device.address,
     }
 
 
@@ -67,6 +91,36 @@ def _transport(transport: Transport) -> dict[str, Any]:
     }
 
 
+def _power_option(option: PowerOption | None) -> dict[str, Any] | None:
+    if option is None:
+        return None
+    return {
+        "voltage_mv": option.voltage_mv,
+        "max_current_ma": option.max_current_ma,
+        "max_power_mw": option.max_power_mw,
+        "watts": option.watts,
+        "kind": option.kind,
+        "kind_label": option.kind_label,
+        "uuid": option.uuid,
+    }
+
+
+def _power_source(source: PowerSource) -> dict[str, Any]:
+    return {
+        "name": source.name,
+        "type": source.source_type,
+        "priority": source.priority,
+        "selected": source.selected,
+        "winning": _power_option(source.winning),
+        "options": [_power_option(option) for option in source.options],
+    }
+
+
+def _charging(charging: Charging | None) -> dict[str, Any] | None:
+    """The live charging telemetry (all values in mV/mA/mW)."""
+    return None if charging is None else asdict(charging)
+
+
 def _port(port: Port) -> dict[str, Any]:
     return {
         "description": port.description,
@@ -84,6 +138,19 @@ def _port(port: Port) -> dict[str, Any]:
         "authorization": port.authorization,
         "firmware": port.firmware,
         "power_in": list(port.power_in),
+        "pin_configuration": {name: value for name, value in port.pin_configuration},
+        "usb_mode_type": port.usb_mode_type,
+        "accessory_mode": port.accessory_mode,
+        "power_mode": port.power_mode,
+        "active_power_mode": port.active_power_mode,
+        "supported_power_modes": list(port.supported_power_modes),
+        "power_current_limits": list(port.power_current_limits),
+        "liquid_state": port.liquid_state,
+        "liquid_measurement": port.liquid_measurement,
+        "liquid_pin": port.liquid_pin,
+        "liquid_mitigations": port.liquid_mitigations,
+        "liquid_override": port.liquid_override,
+        "power_sources": [_power_source(source) for source in port.power_sources],
         "cable": _cable(port.cable),
         "transports": [_transport(item) for item in port.transports],
         "devices": [_device(item) for item in port.devices],
@@ -131,6 +198,7 @@ def snapshot_to_dict(snapshot: Snapshot) -> dict[str, Any]:
         "ports": [_port(port) for port in snapshot.ports],
         "buses": [_bus(bus) for bus in snapshot.buses],
         "thunderbolt": [_thunderbolt(port) for port in snapshot.thunderbolt],
+        "charging": _charging(snapshot.charging),
         "warnings": list(snapshot.warnings),
     }
 

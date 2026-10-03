@@ -36,11 +36,14 @@ prints one snapshot instead, because JSON in a live loop makes no sense.
 | `overview` (default) | summary panel, port table, device tree, USB4 table |
 | `ports` | port table + device tree: state, negotiated mode, transports, cable, notes |
 | `devices` | bus → device tree with VID/PID, link mode, serial, port/transport mapping |
-| `cables` | cable class (passive / e-marked / active / optical), CC authentication + hash status, SOP spec revision, LDCM liquid status, controller firmware |
+| `cables` | cable class (passive / e-marked / active / optical), CC authentication + hash status, SOP spec revision, LDCM liquid status, controller firmware; `-v` adds the port-controller USB mode plus a *Charging & adapter* panel |
 | `thunderbolt` | Thunderbolt/USB4 receptacles: state, link speed, host adapter |
 
 `-v/--verbose` adds raw detail (location IDs, plug orientation, TRM state,
-per-transport rate/signaling/lanes, CC hash status, SOP revision, sources).
+per-transport rate/signaling/lanes, CC hash status, SOP revision, sources) and the
+optional port-controller details (USB mode, USB-C pin assignment, power contract,
+LDCM state). The summary panel then also carries the live `Charging`/`Power` rows
+and `usbscope cables -v` adds the charging panel.
 
 ## Columns of the port table
 
@@ -52,7 +55,7 @@ per-transport rate/signaling/lanes, CC hash status, SOP revision, sources).
 | Negotiated mode | link mode of the active USB transport, derived from the negotiated rate |
 | Transports | `CC` (configuration channel), `USB2`, `USB3`, `DP` (DisplayPort alt mode), `SD`; `●` active, `○` idle |
 | Cable | cable class; e-marked means the controller received a SOP e-marker response |
-| Notes | attached device(s), DisplayPort alt mode, liquid detection, accessory authorization, macOS restriction (TRM) |
+| Notes | attached device(s), DisplayPort alt mode, power in with the negotiated contract, liquid detection, accessory authorization, macOS restriction (TRM); `-v` adds the USB mode, pin assignment and LDCM state |
 
 Mode labels are derived from the negotiated rate (`1.5 / 12 / 480 Mbit/s`,
 `5 / 10 / 20 / 40 / 80 Gbit/s`). A device that negotiates 12 Mbit/s is
@@ -66,11 +69,14 @@ port — the mode describes the link, not the connector.
 | `system_profiler SPUSBHostDataType -json` | bus tree, devices, link speed, VID/PID, serial (modern key names) |
 | `system_profiler SPUSBDataType -json` | fallback for machines that only expose the legacy device list |
 | `system_profiler SPThunderboltDataType -json` | Thunderbolt/USB4 receptacles, link status and cable capability |
-| `ioreg -a -l -w0 -p IOPort` | port controller view: ports, transport states, cable/CC/SOP data, LDCM, TRM |
+| `system_profiler SPPowerDataType -json` | adapter watt, charger connected, charging state, state of charge |
+| `ioreg -a -l -w0 -p IOPort` | port controller view: ports, transport states, cable/CC/SOP data, power contract, LDCM, TRM |
+| `ioreg -a -l -w0 -p IOUSB` | USB device tree: descriptor basics (`bDeviceClass`/`SubClass`/`Protocol`, `bcdUSB`, `bMaxPacketSize0`, `bNumConfigurations`), enumeration speed code, device address, hub tier and parent hub |
+| `ioreg -r -n AppleSmartBattery -a -l -w0` | live power telemetry: adapter input, system load, battery flow, adapter PD menu |
 
 Both sources are optional at runtime: a failing source only adds a warning that
 is rendered in a yellow *notes* panel (or in `warnings[]` of the JSON), it never
-aborts the run.
+aborts the run. That holds for the two power sources too.
 
 The device list is merged by `locationID`: `system_profiler` supplies the
 vendor/product/serial identity and `ioreg` contributes the port, the transport
@@ -90,8 +96,46 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
 * **`plug orientation`** and the raw enumeration values from the controller are
   reported verbatim in `-v` mode instead of being mapped to "normal/flipped",
   because the numbering is not documented publicly.
+* **The optional port-controller details are raw enumerations too.** The USB mode
+  (`IOAccessoryUSBModeType`), the accessory mode, the power contract
+  (`IOAccessoryPowerMode`, `IOAccessoryPowerCurrentLimits`), the
+  `Pin Configuration` map and the LDCM state/measurement are shown as the
+  controller reports them — `-v`, the detail popover and the JSON snapshot carry
+  them, the default table stays clean. Where the raw value is certain noise it is
+  dropped instead of shown: an idle pin map (`pins:` lists only non-zero entries),
+  an all-zero current-limit list and an `AccessoryMode` of `0`.
+* **Device descriptors are device level only.** `ioreg -p IOUSB` publishes the
+  device class triple, `bcdUSB`, the control endpoint packet size and the
+  configuration count. The interface/endpoint descriptor tree needs an
+  `IOUSBHostDevice` user client, so a class of `0` (class declared per interface)
+  is reported as `per-interface` instead of guessed. The `Tier` column is the hub
+  depth (1 = directly on a controller) and `Parent hub` names the hub above a
+  device.
 * **`restricted by macOS`** mirrors the port controller's `TRM_TransportRestricted`
   flag (the "allow accessory to connect" prompt used from macOS 13 on).
+* **Power has two different truths, and they are kept apart.** A port
+  controller publishes the *contract* it negotiated (the winning
+  `PowerSourceOption`, e.g. `20 V · 5 A · 100 W`) plus the full PD menu of the
+  charger — that is a ceiling, not a measurement. The *live* numbers (adapter
+  input, system load, battery flow) only exist system wide in the SMC, so they
+  live in the `power` view / the charging panel and never pretend to belong to a
+  single port. A cable that carries no power therefore cannot be singled out.
+* **The power sources disagree, and that is shown as it is.** The adapter watt
+  from System Information (`70 W`), the port contract from the controller
+  (`20 V · 5 A · 100 W` in one capture) and the SMC's own adapter view
+  (`AdapterVoltage`/`Current`) come from three places; they are never averaged
+  into one number. macOS also reports the charging *state* twice: System
+  Information can say "fully charged, not charging" while the SMC still lists
+  `IsCharging` with a small battery current. usbscope takes the state from
+  System Information and the measured flow from the SMC.
+* **The contract and the menu are two different things.** The port controller
+  publishes the *negotiated* option (the RDO result, marked `[*]` in the
+  registry) and, next to it, the whole PDO menu the charger advertises — a
+  ceiling, not a measurement. Each option carries its PDO type (`fixed`, or
+  `adjustable` for a PPS/APDO) and the controller's option UUID, so the view can
+  say "negotiated 20 V · 5 A · 100 W out of 4 fixed options, 5–20 V, up to
+  100 W". The details sheet shows the menu summary as `PD menu`; the default
+  tables stay clean.
 * Thunderbolt link speed is the *cable capability* reported per receptacle, not
   the negotiated lane rate.
 
@@ -110,6 +154,16 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
     "cable": {"attached": true, "kind": "unknown", "emarker": false, "active": false,
               "optical": false, "authentication": "Idle", "hash_status": "Not Set",
               "pd_spec_revision": null},
+    "pin_configuration": {"rx1": 0, "rx2": 4, "tx1": 0, "tx2": 3, "sbu1": 0, "sbu2": 0},
+    "usb_mode_type": 2, "accessory_mode": 0, "power_mode": 1, "active_power_mode": 1,
+    "supported_power_modes": [1, 3], "power_current_limits": [0, 0, 0, 0, 0],
+    "liquid_state": "Idle", "liquid_measurement": "No Error", "liquid_pin": "Reference",
+    "liquid_mitigations": false, "liquid_override": false,
+    "power_sources": [{"name": "USB-PD", "type": 2, "priority": 1000, "selected": true,
+                       "winning": {"voltage_mv": 20000, "max_current_ma": 3000,
+                                   "max_power_mw": 60000, "watts": 60.0},
+                       "options": [{"voltage_mv": 5000, "max_current_ma": 3000,
+                                    "max_power_mw": 15000, "watts": 15.0}]}],
     "transports": [{"kind": "USB2", "active": true, "rate": "12 Mbps (Full Speed)",
                     "speed_mbps": 12, "mode": "full_speed", "generation": "USB 2.0",
                     "signaling": null, "data_role": "Host", "lanes": null,
@@ -120,6 +174,15 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
   "buses": [{"name": "USB 3.1 Bus", "driver": "AppleT8122USBXHCI", "devices": []}],
   "thunderbolt": [{"bus": "thunderboltusb4_bus_0", "receptacle": 1, "status": null,
                    "speed": "Up to 40 Gb/s", "connected": false}],
+  "charging": {"connected": true, "charging": true, "fully_charged": false,
+               "state_of_charge": 100, "time_remaining_minutes": 14,
+               "system_power_in_mw": 27575, "system_voltage_in_mv": 19478,
+               "system_current_in_ma": 1417, "system_load_mw": 16084,
+               "battery_power_mw": 11491, "battery_voltage_mv": 12955,
+               "battery_current_ma": 887, "adapter_power_mw": 70000,
+               "adapter_voltage_mv": 20000, "adapter_current_ma": 3500,
+               "adapter_efficiency_loss_mw": 679, "not_charging_reason": 0,
+               "slow_charging_reason": 0, "thermally_limited_seconds": 0},
   "warnings": []
 }
 ```
@@ -137,6 +200,7 @@ to a target is its description. Everything runs through `uv`, so the pinned Pyth
 | `make format` / `make lint` | `ruff format` + `--fix` resp. `ruff format --check`, `ruff check`, `ty check` |
 | `make test` / `make coverage` | `pytest` resp. pytest with a coverage report (`pytest-cov` is fetched on demand) |
 | `make check` | all gates, i.e. lint + test — the CI equivalent |
+| `make check-all` | `check` plus the Swift port (`swift test`) |
 | `make run` / `make watch` / `make run-app` | CLI overview, CLI with live refresh, native app |
 | `make snapshot` | app window → `docs/screenshots/app-<view>.png` (offscreen, no permissions needed) |
 | `make refresh-screenshots` | CLI screenshots (SVG + PNG, host name masked) |
@@ -151,6 +215,10 @@ to a target is its description. Everything runs through `uv`, so the pinned Pyth
 | `make mas-pkg-dry` | prints those commands without running them (no certificates needed) |
 | `make checksums` | verifies `dist/SHA256SUMS` and `dist/SHA256SUMS-app` |
 | `make install` | `uv tool install '.[macapp]'` (CLI + `usbscope-app` on the PATH) |
+| `make swift` | builds and tests the Swift port (`swift build` + `swift test`) |
+| `make swift-golden` | regenerates `SwiftTests/Golden/snapshot.json` from the fixtures (Python side) |
+| `make swift-run-app` | runs the SwiftUI app (`usbscope-app`) |
+| `make swift-app-check` | headless self test of the app's data path (row count per view) |
 | `make clean` / `make distclean` | build output / plus the virtualenv |
 
 Variables: `SHOT_HOST=<name> make refresh-screenshots` sets the host name shown in
@@ -195,20 +263,21 @@ $ open ~/src/usbscope/dist/usbscope.app   # or the built bundle / the release DM
 ```
 
 Views: **Ports** (state, negotiated mode, transports, cable, notes), **Cables**
-(CC authentication, hash, PD spec revision, power in, liquid detection, controller
-firmware), **Devices** (flat table with bus, port, transport, serial, macOS
-restriction) and **Thunderbolt**.
+(CC authentication, hash, PD spec revision, power in with the negotiated contract,
+port-controller USB mode, liquid detection, controller firmware), **Devices**
+(flat table with bus, port, transport, serial, macOS restriction), **Thunderbolt**
+and **Power** (the live charging telemetry: adapter, input, system load, battery).
 
 | Feature | Behaviour |
 | --- | --- |
-| Views | Segmented switcher (Ports · Cables · Devices · Thunderbolt) in the toolbar, plus `⌘1`–`⌘4` and the status item menu |
+| Views | Segmented switcher (Ports · Cables · Devices · Thunderbolt · Power) in the toolbar, plus `⌘1`–`⌘5` and the status item menu |
 | Search | Toolbar search field (`⌘F`), live filter over every column; the filter survives a view switch |
 | Sorting | Click a column header to sort, click again to reverse. Sorting uses a hidden rank where the text would sort wrong (`USB 1.1` before `USB 3.2 Gen 2`, `@2` before `@10`) |
 | Toolbar buttons | **Copy ▾** (selected rows, whole table, details, snapshot as JSON), **Export ▾** (CSV, JSON), **Refresh**, **Details** (popover for the selection), **Auto-refresh** + interval — every one of them the same action as its menu entry |
 | Refresh that does not disturb | Selection (tracked by row key) and scroll position survive every reload, sort and filter |
 | Change highlighting | Devices that appeared turn green, disappeared red, a changed port yellow — for 1.6 s after a read, plus a `changed: …` note in the status line |
 | Clipboard | `⌘C` copies the selected rows as TSV, `⇧⌘C` the whole table, `⌘D` the detail pairs, “Copy as JSON” the raw snapshot; right click and the **Copy ▾** button have the same actions |
-| Detail popover | Double click a row (or the **Details** button) for every field of that port/cable/device, including what the columns truncate |
+| Detail popover | Double click a row (or the **Details** button) for every field of that port/cable/device, including what the columns truncate and the optional controller details (USB mode, pin assignment, power contract, LDCM); the list scrolls when it is longer than the popover |
 | Export | `File ▸ Export JSON…` (`⌘S`) / `Export CSV…` (`⇧⌘S`), toolbar **Export ▾**, and the same entries in the table's context menu |
 | Tooltips | Every row, not only devices, carries its full detail list |
 | Status item | Menu bar extra with `connected/ports` (plus `⚠` when a source warns), the full summary as tooltip, view switching, “Refresh now”, a notifications switch and quit |
@@ -327,8 +396,9 @@ Two honest caveats:
 
 ## Screenshots
 
-`docs/screenshots/` holds SVG + PNG renderings of the four views, generated from a
-live snapshot of the machine this tool was written on:
+`docs/screenshots/` holds SVG + PNG renderings of the four CLI views (plus the
+app window shots), generated from a live snapshot of the machine this tool was
+written on:
 
 ```console
 make refresh-screenshots                                        # 140 cols, monokai, 1.5x
@@ -369,3 +439,84 @@ uv run pytest
 plus synthetic payloads for key styles no longer produced by this OS (their
 names say so). Parsers are tested against the fixtures; the render tests run
 Rich in record mode and assert on the text, never on ANSI codes.
+
+## Swift port
+
+A Swift rewrite of the core plus a CLI twin lives next to the Python package.
+The Python tool and its suite stay in place and keep working; the two
+implementations are pinned to the *same* fixtures.
+
+| Part | Path |
+| --- | --- |
+| Package manifest | `Package.swift` (`swift-tools-version: 6.0`, macOS 14+) |
+| Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, `ioreg`, `system_profiler`, charging, snapshot, JSON serialiser, formatting |
+| Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, change diffing, detail pairs, TSV/CSV export (no SwiftUI, so it is unit-testable headless) |
+| CLI executable `usbscope` | `Sources/usbscope/main.swift` |
+| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the five views on top of `UsbScopeUI` |
+| Test suite | `SwiftTests/` |
+| Parity golden | `SwiftTests/Golden/snapshot.json` |
+
+**The acceptance criterion is byte-identical JSON.** `usbscope --json` must
+produce the same `schema_version: 1` document from either implementation.
+
+```console
+swift build && swift test          # or: make swift
+./.build/debug/usbscope --json     # the Swift CLI
+uv run usbscope --json             # the Python CLI — the same document
+```
+
+`swift test` builds the snapshot from `tests/fixtures` through the Swift
+adapters and compares it to `SwiftTests/Golden/snapshot.json`, which
+`scripts/swift_golden.py` writes with the Python serialiser (regenerate it with
+`make swift-golden` after changing a fixture). A drift in either direction fails
+the suite with a leaf-level diff, so the two implementations cannot diverge
+unnoticed. Two macOS-specific pitfalls are covered by tests because they broke
+parity once and are easy to reintroduce:
+
+* `NSNumber` bridges to `Bool` for the integers `0` and `1` on Darwin, so
+  `value is Bool` is not a boolean test — the adapters use `PlistValue.isBool`
+  (`CFGetTypeID`), otherwise a pin assignment of `0` or a port number of `1`
+  would silently vanish from the JSON.
+* `ProcessInfo.processInfo.hostName` returns the Bonjour local name, whereas
+  Python's `platform.node()` is `gethostname(3)`; the Swift side calls
+  `gethostname` to match.
+
+The Rich terminal rendering is **not** part of the port — the Swift CLI carries
+its own small renderer. What the two implementations must agree on is the domain
+model, the data adapters and the JSON.
+
+### The SwiftUI app
+
+`usbscope-app` is the SwiftUI twin of the Python/AppKit app: the same five views
+(**Ports · Cables · Devices · Thunderbolt · Power**) as a real window, built on
+`UsbScopeUI`. The presentation layer is a straight port of
+`macapp/viewmodel.py` + `tableops.py` + `changes.py` — the column titles, the
+cell text and the sort ranks match the Python app, so the two UIs show the same
+numbers in the same order.
+
+```console
+swift run usbscope-app              # or: make swift-run-app
+make swift-app-check                # headless: row count of every view, then exit
+```
+
+| Feature | Behaviour |
+| --- | --- |
+| Views | Segmented switcher in the toolbar plus `⌘1`–`⌘5` |
+| Search | Toolbar field, live filter over every column (all terms must match) |
+| Sorting | Click a column header; the sort keys mirror the Python `Cell.sort_value` (a mode rank, a port number) so `USB 1.1` sorts below `USB 3.2 Gen 2` |
+| Detail sheet | **Details** button / `⌘D` shows every field of the selected row (port, cable, device or charging metric) |
+| Refresh | `⌘R`, plus an auto-refresh toggle and a 2/5/10/30 s interval menu |
+| Changes | Rows that appeared, disappeared or changed colour green/red/orange after a refresh; the status line names them |
+| Copy / export | `⌘C`/`⇧⌘C` (TSV), `⇧⌘J` (snapshot JSON) to the clipboard; `⌘S`/`⇧⌘S` write JSON/CSV through a save panel |
+| Status | Summary line (ports/connected/devices/cables) and a status bar with the read time, cadence, changes and warnings |
+
+**Not ported (yet):** the menu bar extra, the notification banners, the persisted
+preferences and the per-row tooltips of the Python app. The window itself needs
+no such state to run; `usbscope-app --print-rows` is the headless check the
+Python app has as `--snapshot`.
+
+The SwiftUI app also needs an app bundle before macOS will show it as a regular
+app with a Dock entry and a proper menu bar; run from the checkout it calls
+`NSApplication.setActivationPolicy(.regular)` to bring the window to the front.
+Packaging it into a `.app`/DMG is not done yet.
+

@@ -14,7 +14,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import replace
 from typing import Any
 
-from ..models import Cable, Port, Transport, UsbDevice
+from ..models import Cable, Port, PowerOption, PowerSource, Transport, UsbDevice
 from .shell import CommandResult, run_command, system_binary
 
 __all__ = ["IoregSource", "parse_ports"]
@@ -25,6 +25,8 @@ IOREG = system_binary("ioreg", "/usr/sbin/ioreg", "/usr/bin/ioreg")
 
 _DEVICE_MARKERS = ("UsbLinkSpeed", "idVendor", "USB Product Name", "UsbDeviceSignature")
 _TRANSPORT_KINDS = ("CC", "USB2", "USB3", "USB4", "DisplayPort", "SD")
+# canonical order of the ``Pin Configuration`` dict of a receptacle
+_PIN_ORDER = ("rx1", "rx2", "tx1", "tx2", "sbu1", "sbu2")
 
 
 def _iter_tree(node: Any, depth: int = 0) -> Iterator[tuple[dict[str, Any], int]]:
@@ -197,14 +199,97 @@ def _is_cable_plug(node: dict[str, Any]) -> bool:
     return name.strip().upper() in {"SOP'", "SOP''", "SOPP", "SOPPP", "SOP'S", "SOP''S"}
 
 
-def _power_sources(node: dict[str, Any]) -> tuple[str, ...]:
-    """Names of the power providers a port reports ("Power In" sources)."""
+def _power_source_names(node: dict[str, Any]) -> tuple[str, ...]:
+    """Names of the power providers a port reports (the Power In feature)."""
     power = _find(node, "Power In")
     if power is None:
         return ()
     return tuple(
         name for child in _children(power) if (name := _text(child.get("PowerSourceName")))
     )
+
+
+def _power_option_kind(raw: Any) -> str | None:
+    """Decode the controller's PDO class (``IOPortFeaturePowerSourceOptionFixed``).
+
+    ``Fixed`` is a normal PDO, ``Adjustable`` is a PPS/APDO, ``Variable`` and
+    ``Battery`` are the rarer PDO types. The controller names the class in the
+    option's ``Class`` key; unknown classes are lower-cased verbatim.
+    """
+    if not isinstance(raw, str) or not raw:
+        return None
+    prefix = "IOPortFeaturePowerSourceOption"
+    name = raw[len(prefix) :] if raw.startswith(prefix) else raw
+    if not name:
+        return None
+    return name[0].lower() + name[1:]
+
+
+def _power_option(raw: Any) -> PowerOption | None:
+    """Translate one ``PowerSourceOption`` dict (voltage/current/power capability)."""
+    if not isinstance(raw, dict):
+        return None
+    option = PowerOption(
+        max_power_mw=_int(raw.get("Max Power (mW)")),
+        max_current_ma=_int(raw.get("Max Current (mA)")),
+        voltage_mv=_int(raw.get("Voltage (mV)")),
+        kind=_power_option_kind(raw.get("Class")),
+        uuid=str(raw["UUID"]) if raw.get("UUID") else None,
+    )
+    known = option.max_power_mw is not None or option.max_current_ma is not None
+    return option if known or option.voltage_mv is not None else None
+
+
+def _power_sources(node: dict[str, Any]) -> tuple[PowerSource, ...]:
+    """Power providers of a port, including the option they negotiated.
+
+    macOS marks the winning provider with ``[*]`` in the registry name and stores
+    the agreed option only on that node.
+    """
+    feature = _find(node, "Power In")
+    if feature is None:
+        return ()
+    sources: list[PowerSource] = []
+    for child in _children(feature):
+        raw_name = _label(child)
+        winner = _power_option(child.get("WinningPowerSourceOption"))
+        name = raw_name.replace("[*]", "").strip()
+        if not name:
+            continue
+        sources.append(
+            PowerSource(
+                name=name,
+                source_type=_int(child.get("PowerSourceType")),
+                priority=_int(child.get("Priority")),
+                selected="[*]" in raw_name or winner is not None,
+                winning=winner,
+                options=tuple(
+                    option
+                    for option in (
+                        _power_option(entry) for entry in child.get("PowerSourceOptions") or []
+                    )
+                    if option is not None
+                ),
+            )
+        )
+    return tuple(sources)
+
+
+def _int_tuple(value: Any) -> tuple[int, ...]:
+    """Coerce a plist list of numbers into a tuple, dropping unparsable entries."""
+    if not isinstance(value, (list, tuple)):
+        return ()
+    numbers = (_int(item) for item in value)
+    return tuple(number for number in numbers if number is not None)
+
+
+def _pins(node: dict[str, Any]) -> tuple[tuple[str, int], ...]:
+    """USB-C pin assignment of the receptacle (``Pin Configuration``)."""
+    raw = node.get("Pin Configuration")
+    if not isinstance(raw, dict):
+        return ()
+    pairs = ((name, _int(raw.get(name))) for name in _PIN_ORDER)
+    return tuple((name, value) for name, value in pairs if value is not None)
 
 
 def _is_port_node(node: dict[str, Any]) -> bool:
@@ -229,7 +314,20 @@ def _parse_port(node: dict[str, Any]) -> Port:
         liquid_detected=liquid_detected,
         authorization=_text(node.get("UserAuthorizationStatusDescription")),
         firmware=_firmware(node.get("FW Version")),
-        power_in=_power_sources(node),
+        power_in=_power_source_names(node),
+        pin_configuration=_pins(node),
+        usb_mode_type=_int(node.get("IOAccessoryUSBModeType")),
+        accessory_mode=_int(node.get("AccessoryMode")),
+        power_mode=_int(node.get("IOAccessoryPowerMode")),
+        active_power_mode=_int(node.get("IOAccessoryActivePowerMode")),
+        supported_power_modes=_int_tuple(node.get("IOAccessorySupportedPowerModes")),
+        power_current_limits=_int_tuple(node.get("IOAccessoryPowerCurrentLimits")),
+        liquid_state=_text(node.get("LDCM_StateDescription")),
+        liquid_measurement=_text(node.get("LDCM_MeasurementStatusDescription")),
+        liquid_pin=_text(node.get("LDCMPinDescription")),
+        liquid_mitigations=_bool(node.get("LDCM_MitigationsEnabled")),
+        liquid_override=_bool(node.get("LDCM_UserOverrideActive")),
+        power_sources=_power_sources(node),
         cable=_parse_cable(node),
     )
     transports: list[Transport] = []

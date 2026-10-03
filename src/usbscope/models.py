@@ -17,7 +17,10 @@ from typing import Any
 __all__ = [
     "Bus",
     "Cable",
+    "Charging",
     "Port",
+    "PowerOption",
+    "PowerSource",
     "Snapshot",
     "ThunderboltPort",
     "Transport",
@@ -170,6 +173,22 @@ class UsbDevice:
     generation: str | None = None
     restricted: bool | None = None
     source: str = "system_profiler"
+    # USB descriptor basics reported by the device itself (`ioreg -p IOUSB`):
+    # the device-level class triple, the supported USB version, the control
+    # endpoint packet size, the number of configurations, the enumeration speed
+    # code and — from the tree shape — the hub tier, the parent hub and the
+    # device address.
+    device_class: int | None = None
+    device_subclass: int | None = None
+    device_protocol: int | None = None
+    class_name: str | None = None
+    bcd_usb: str | None = None
+    max_packet_size0: int | None = None
+    num_configurations: int | None = None
+    speed_code: int | None = None
+    tier: int | None = None
+    parent: str | None = None
+    address: int | None = None
     extra: dict[str, Any] = field(default_factory=dict, compare=False)
 
     @property
@@ -178,6 +197,23 @@ class UsbDevice:
         if self.speed_mbps is not None:
             return UsbMode.from_mbps(self.speed_mbps)
         return UsbMode.from_text(self.speed_text)
+
+    @property
+    def class_text(self) -> str | None:
+        """Human form of the device class triple, e.g. ``HID (3/1/1)``.
+
+        A device class of ``0`` means the class is declared per interface, which
+        macOS only exposes through an ``IOUSBHostDevice`` user client — so it is
+        reported as ``per-interface`` instead of guessed.
+        """
+        if self.device_class is None:
+            return None
+        base = self.class_name or f"0x{self.device_class:02x}"
+        if self.device_class == 0:
+            return base
+        sub = self.device_subclass if self.device_subclass is not None else "?"
+        proto = self.device_protocol if self.device_protocol is not None else "?"
+        return f"{base} ({self.device_class}/{sub}/{proto})"
 
     @property
     def id_string(self) -> str:
@@ -226,6 +262,70 @@ class Cable:
         return "unknown"
 
 
+# The controller's PDO classes (``IOPortFeaturePowerSourceOption*``) in human form.
+POWER_OPTION_KINDS: dict[str, str] = {
+    "fixed": "fixed",
+    "adjustable": "adjustable (PPS)",
+    "variable": "variable",
+    "battery": "battery",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class PowerOption:
+    """One power source option (a PDO) as the port controller lists it.
+
+    ``kind`` is the PDO type the controller reports in the option's ``Class``
+    key (``fixed``, ``adjustable`` for a PPS/APDO, ``variable``, ``battery``);
+    ``uuid`` is the controller's stable identity for the option, which is what
+    tells two otherwise identical contracts apart across reads.
+    """
+
+    max_power_mw: int | None = None
+    max_current_ma: int | None = None
+    voltage_mv: int | None = None
+    kind: str | None = None
+    uuid: str | None = None
+
+    @property
+    def watts(self) -> float | None:
+        """Nominal power of this option in watt."""
+        return None if self.max_power_mw is None else self.max_power_mw / 1000
+
+    @property
+    def kind_label(self) -> str | None:
+        """Human name of the PDO type (``fixed``, ``adjustable (PPS)`` …)."""
+        return POWER_OPTION_KINDS.get(self.kind or "", self.kind)
+
+    @property
+    def label(self) -> str:
+        """Compact ``20 V · 3 A · 60 W`` form, omitting what is unknown."""
+        parts = [
+            f"{self.voltage_mv / 1000:g} V" if self.voltage_mv is not None else None,
+            f"{self.max_current_ma / 1000:g} A" if self.max_current_ma is not None else None,
+            f"{self.max_power_mw / 1000:g} W" if self.max_power_mw is not None else None,
+        ]
+        return " · ".join(part for part in parts if part)
+
+
+@dataclass(frozen=True, slots=True)
+class PowerSource:
+    """A power provider the port controller reports, and what it negotiated.
+
+    ``selected`` marks the provider that won the power negotiation; macOS marks
+    it with a ``[*]`` in the registry name and only that node carries a
+    ``WinningPowerSourceOption``. Every source lists the options it offers (a
+    charger that speaks USB-PD publishes its full PDO menu here).
+    """
+
+    name: str
+    source_type: int | None = None
+    priority: int | None = None
+    selected: bool = False
+    winning: PowerOption | None = None
+    options: tuple[PowerOption, ...] = ()
+
+
 @dataclass(frozen=True, slots=True)
 class Transport:
     """A logical transport of a port: CC, USB2, USB3, DisplayPort, SD …"""
@@ -267,6 +367,22 @@ class Port:
     authorization: str | None = None
     firmware: str | None = None
     power_in: tuple[str, ...] = ()
+    # Optional port-controller details. They are raw enumeration values (macOS
+    # does not document them), so they stay verbatim and are only surfaced in
+    # the verbose CLI output, the detail popover and the JSON snapshot.
+    pin_configuration: tuple[tuple[str, int], ...] = ()
+    usb_mode_type: int | None = None
+    accessory_mode: int | None = None
+    power_mode: int | None = None
+    active_power_mode: int | None = None
+    supported_power_modes: tuple[int, ...] = ()
+    power_current_limits: tuple[int, ...] = ()
+    liquid_state: str | None = None
+    liquid_measurement: str | None = None
+    liquid_pin: str | None = None
+    liquid_mitigations: bool | None = None
+    liquid_override: bool | None = None
+    power_sources: tuple[PowerSource, ...] = ()
     cable: Cable = field(default_factory=Cable)
     transports: tuple[Transport, ...] = ()
     devices: tuple[UsbDevice, ...] = ()
@@ -277,6 +393,43 @@ class Port:
         head, _, tail = self.description.partition("@")
         prefix = head.removeprefix("Port-")
         return f"{prefix}@{tail}" if tail else prefix
+
+    @property
+    def pins_text(self) -> str:
+        """Non-zero USB-C pin assignment, e.g. ``rx2=4, tx2=3``.
+
+        An idle port reports all pins as ``0``; those entries are dropped so the
+        string stays readable (and is empty when the port has no pin data).
+        """
+        return ", ".join(f"{name}={value}" for name, value in self.pin_configuration if value)
+
+    @property
+    def usb_mode_text(self) -> str | None:
+        """Port-controller USB mode with the connect type it was paired with.
+
+        When nothing is attached the controller pairs
+        ``IOAccessoryUSBConnectType = 0`` with the literal string ``None``; that
+        zero enumeration is dropped instead of being shown as a value.
+        """
+        if self.usb_mode_type is None:
+            return None
+        connect = self.connect_type
+        if connect is None or connect.strip() in {"", "0", "None"}:
+            return str(self.usb_mode_type)
+        return f"{self.usb_mode_type} ({connect})"
+
+    @property
+    def power_contract(self) -> PowerOption | None:
+        """The power option this port negotiated (``None`` when nothing is attached).
+
+        Note that this is a ceiling, not a measurement: the port controller
+        publishes what the two sides agreed on. What the machine really draws is
+        only reported system wide — see :class:`Charging`.
+        """
+        for source in self.power_sources:
+            if source.selected and source.winning is not None:
+                return source.winning
+        return None
 
     def transport(self, kind: str) -> Transport | None:
         """First transport of the given kind, if any."""
@@ -339,6 +492,38 @@ class ThunderboltPort:
 
 
 @dataclass(frozen=True, slots=True)
+class Charging:
+    """Live power and charging telemetry of the battery and the adapter.
+
+    macOS aggregates these numbers for the whole machine (adapter input, system
+    load, flow into the battery) — they are *not* per USB-C port. Per port the
+    port controller publishes the negotiated contract only, see
+    :attr:`Port.power_contract`.
+    """
+
+    connected: bool | None = None
+    charging: bool | None = None
+    fully_charged: bool | None = None
+    state_of_charge: int | None = None
+    #: while charging this is the time to full, otherwise the runtime left
+    time_remaining_minutes: int | None = None
+    system_power_in_mw: int | None = None
+    system_voltage_in_mv: int | None = None
+    system_current_in_ma: int | None = None
+    system_load_mw: int | None = None
+    battery_power_mw: int | None = None
+    battery_voltage_mv: int | None = None
+    battery_current_ma: int | None = None
+    adapter_power_mw: int | None = None
+    adapter_voltage_mv: int | None = None
+    adapter_current_ma: int | None = None
+    adapter_efficiency_loss_mw: int | None = None
+    not_charging_reason: int | None = None
+    slow_charging_reason: int | None = None
+    thermally_limited_seconds: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Snapshot:
     """Everything the tool knows about the USB subsystem at one point in time."""
 
@@ -350,6 +535,7 @@ class Snapshot:
     ports: tuple[Port, ...] = ()
     buses: tuple[Bus, ...] = ()
     thunderbolt: tuple[ThunderboltPort, ...] = ()
+    charging: Charging | None = None
     warnings: tuple[str, ...] = ()
 
     @property

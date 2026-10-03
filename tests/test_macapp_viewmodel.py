@@ -26,7 +26,7 @@ from usbscope.models import Snapshot
 
 
 def test_views_are_complete(snapshot: Snapshot) -> None:
-    assert VIEWS == ("ports", "cables", "devices", "thunderbolt")
+    assert VIEWS == ("ports", "cables", "devices", "thunderbolt", "power")
     for view in VIEWS:
         model = table_model(snapshot, view)
         assert model.columns, view
@@ -80,6 +80,17 @@ def test_cables_model_has_cable_columns(snapshot: Snapshot) -> None:
     assert rows["USB-C@2"][1].text == "–"  # nothing attached
 
 
+def test_cables_model_shows_the_power_contract(snapshot: Snapshot) -> None:
+    """The charger's negotiated option, right next to the providers."""
+    model = table_model(snapshot, "cables")
+    headers = [column.title for column in model.columns]
+    assert "Contract" in headers
+    contract = headers.index("Contract")
+    rows = {row[0].text: row for row in model.rows}
+    assert rows["USB-C@1"][contract].text == "20 V · 5 A · 100 W"
+    assert rows["USB-C@2"][contract].text == "–"
+
+
 def test_devices_model_flattens_the_tree(snapshot: Snapshot) -> None:
     model = table_model(snapshot, "devices")
     assert model.row_count == 1
@@ -88,9 +99,12 @@ def test_devices_model_flattens_the_tree(snapshot: Snapshot) -> None:
     assert row[1].text == "Yubico"
     assert row[2].text == "0x1050:0x0407"
     assert row[3].text == "USB 1.1 Full-Speed · 12 Mbit/s"
-    assert row[4].text == "USB-C@3"
-    assert row[5].text == "USB2"
-    assert row[8].text == "no"
+    # the USB device tree adds the descriptor class and the hub tier
+    assert row[4].text == "per-interface"
+    assert row[5].text == "1"
+    assert row[6].text == "USB-C@3"
+    assert row[7].text == "USB2"
+    assert row[9].text == "no"
 
 
 def test_thunderbolt_model(snapshot: Snapshot) -> None:
@@ -188,6 +202,78 @@ def test_detail_pairs_cover_ports_cables_devices_and_thunderbolt(snapshot: Snaps
     tb_key_text = table_model(snapshot, "thunderbolt").row_keys[0]
     tb_pairs = dict(detail_pairs(snapshot, "thunderbolt", tb_key_text))
     assert tb_pairs["Receptacle"]
+
+
+def test_cable_details_include_the_optional_controller_fields(snapshot: Snapshot) -> None:
+    """The cables/ports detail popovers carry USB mode, pins, power and LDCM."""
+    port = next(item for item in snapshot.ports if item.name == "USB-C@3")
+    pairs = dict(detail_pairs(snapshot, "cables", port_key(port)))
+    assert pairs["USB link"] == "USB 1.1 Full-Speed · 12 Mbit/s"
+    assert pairs["USB mode"] == "2 (Device)"
+    assert pairs["Pin assignment"] == "rx2=4, tx2=3"
+    assert pairs["Power mode"] == "1"
+    assert pairs["Active power mode"] == "1"
+    assert pairs["Supported power modes"] == "1, 3"
+    assert pairs["Liquid state"] == "Idle"
+    assert pairs["Liquid measurement"] == "No Error"
+    assert pairs["Liquid pin"] == "Reference"
+    assert "Power current limits" not in pairs  # an all-zero limit list is noise
+    assert "Accessory mode" not in pairs  # 0 means "off"
+
+    port_pairs = dict(detail_pairs(snapshot, "ports", port_key(port)))
+    assert port_pairs["USB mode"] == "2 (Device)"
+    assert port_pairs["Pin assignment"] == "rx2=4, tx2=3"
+
+    # an HDMI receptacle has none of it: the fields are simply absent
+    hdmi = next(item for item in snapshot.ports if item.name == "HDMI@1")
+    hdmi_pairs = dict(detail_pairs(snapshot, "ports", port_key(hdmi)))
+    assert "USB mode" not in hdmi_pairs
+    assert "Pin assignment" not in hdmi_pairs
+    assert "Liquid state" not in hdmi_pairs
+
+
+def test_power_view_lists_the_live_charging_metrics(snapshot: Snapshot) -> None:
+    model = table_model(snapshot, "power")
+    assert [column.title for column in model.columns] == ["Metric", "Value"]
+    rows = {row[0].text: row[1].text for row in model.rows}
+    assert rows["Status"] == "charging · 100 %"
+    assert rows["Adapter"] == "70 W · 20 V · 3.5 A"
+    assert rows["From adapter"] == "27.6 W · 19.5 V · 1.42 A"
+    assert rows["System load"] == "16.1 W"
+    assert rows["Battery"] == "11.5 W · 13.0 V · 0.89 A"
+    assert "Charger" not in rows  # every reason is zero, so nothing to warn about
+
+
+def test_power_view_details_return_the_selected_metric(snapshot: Snapshot) -> None:
+    model = table_model(snapshot, "power")
+    assert list(model.row_keys)[:2] == ["power:Status", "power:Adapter"]
+    assert detail_pairs(snapshot, "power", "power:Status") == (("Status", "charging · 100 %"),)
+    assert detail_pairs(snapshot, "power", "power:nope") == ()
+
+
+def test_power_view_without_a_battery_is_empty() -> None:
+    from datetime import datetime
+
+    empty = Snapshot(host="mac", os_version="27.0.1", seen_at=datetime(2026, 10, 2))
+    model = table_model(empty, "power")
+    assert model.row_count == 0
+    assert "desktop" in model.empty_message
+    assert detail_pairs(empty, "power", "power:Status") == ()
+
+
+def test_port_details_include_the_negotiated_power_contract(snapshot: Snapshot) -> None:
+    """The charger's PD menu shows up in the port details of the app."""
+    port = next(item for item in snapshot.ports if item.name == "USB-C@1")
+    pairs = dict(detail_pairs(snapshot, "ports", port_key(port)))
+    assert pairs["Power contract"] == "20 V · 5 A · 100 W"
+    assert pairs["Power sources"] == "USB-PD, Brick ID, TypeC"
+    assert pairs["Selected source"] == "USB-PD"
+    assert len([label for label in pairs if label.startswith("USB-PD option")]) == 4
+
+    free = next(item for item in snapshot.ports if item.name == "USB-C@2")
+    free_pairs = dict(detail_pairs(snapshot, "ports", port_key(free)))
+    assert "Power contract" not in free_pairs
+    assert "Power sources" not in free_pairs
 
 
 def test_details_ignore_unknown_keys(snapshot: Snapshot) -> None:

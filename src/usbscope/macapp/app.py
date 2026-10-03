@@ -1,7 +1,7 @@
 """Native macOS UI (AppKit) for usbscope.
 
 A real Cocoa window, built from AppKit alone (``NSWindow``, ``NSToolbar``,
-``NSTableView``, ``NSPopover``): four views behind a segmented control in an
+``NSTableView``, ``NSPopover``): five views behind a segmented control in an
 unified toolbar, live search, sortable columns, row highlighting for devices that
 appeared or disappeared, clipboard export, a detail popover and a refresh timer.
 
@@ -110,6 +110,13 @@ STATUS_HEIGHT = 16.0
 HIGHLIGHT_SECONDS = 1.6
 DOCS_URL = "https://github.com/zopyx/usbscope#readme"
 
+# Detail popover: rows are laid out top down; long lists (every field of a port)
+# scroll instead of being clipped.
+POPOVER_WIDTH = 460.0
+POPOVER_HEADER = 32.0
+POPOVER_ROW_HEIGHT = 18.0
+POPOVER_MAX_HEIGHT = 520.0
+
 TOOLBAR_IDENTIFIER = "com.zopyx.usbscope.toolbar"
 ITEM_VIEWS = "usbscope.item.views"
 ITEM_SEARCH = "usbscope.item.search"
@@ -182,6 +189,18 @@ def _label(
     if mask:
         field.setAutoresizingMask_(mask)
     return field
+
+
+class _FlippedView(NSView):
+    """A view with a top-left origin, so a scrolled detail list starts at its top."""
+
+    def isFlipped(self) -> bool:  # AppKit selector name
+        return True
+
+
+def _detail_view_height(pairs: tuple[tuple[str, str], ...]) -> float:
+    """Height the detail rows need; the popover scrolls beyond that."""
+    return POPOVER_HEADER + POPOVER_ROW_HEIGHT * len(pairs) + 8.0
 
 
 @dataclass
@@ -520,7 +539,7 @@ class AppDelegate(NSObject):
 
     def _make_segments(self) -> NSSegmentedControl:
         segments = NSSegmentedControl.alloc().initWithFrame_(
-            NSMakeRect(0.0, 0.0, 404.0, TOOLBAR_HEIGHT)
+            NSMakeRect(0.0, 0.0, 501.0, TOOLBAR_HEIGHT)
         )
         segments.setSegmentCount_(len(VIEWS))
         for index, view in enumerate(VIEWS):
@@ -650,7 +669,7 @@ class AppDelegate(NSObject):
         self, _toolbar: NSToolbar, identifier: str, _flag: bool
     ) -> NSToolbarItem | None:
         if identifier == ITEM_VIEWS and self.segments is not None:
-            return self._make_toolbar_item(identifier, self.segments, "Views", 404.0)
+            return self._make_toolbar_item(identifier, self.segments, "Views", 501.0)
         if identifier == ITEM_SEARCH and self.search_field is not None:
             return self._make_toolbar_item(identifier, self.search_field, "Filter", 172.0)
         if identifier == ITEM_COPY and self.copy_popup is not None:
@@ -743,7 +762,7 @@ class AppDelegate(NSObject):
         self._save_preferences()
 
     def selectView_(self, sender: NSMenuItem) -> None:
-        """``View`` menu entry: ``⌘1`` … ``⌘4`` select a view."""
+        """``View`` menu entry: ``⌘1`` … ``⌘5`` select a view."""
         index = max(0, min(int(sender.tag()), len(VIEWS) - 1))
         self._select_view(VIEWS[index])
 
@@ -1087,7 +1106,9 @@ class AppDelegate(NSObject):
             return
         popover = NSPopover.alloc().init()
         popover.setBehavior_(NSPopoverBehaviorTransient)
-        popover.setContentSize_((460.0, min(90.0 + 18.0 * len(pairs), 520.0)))
+        popover.setContentSize_(
+            (POPOVER_WIDTH, min(_detail_view_height(pairs), POPOVER_MAX_HEIGHT))
+        )
         controller = NSViewController.alloc().init()
         controller.setView_(self._make_popover_view(pairs))
         popover.setContentViewController_(controller)
@@ -1096,26 +1117,37 @@ class AppDelegate(NSObject):
         self.popover = popover
 
     def _make_popover_view(self, pairs: tuple[tuple[str, str], ...]) -> NSView:
-        height = min(90.0 + 18.0 * len(pairs), 520.0)
-        root = NSView.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, 460.0, height))
-        root.setWantsLayer_(True)
+        """The detail list of the popover; scrolls when the rows do not fit."""
+        content_height = _detail_view_height(pairs)
+        height = min(content_height, POPOVER_MAX_HEIGHT)
+        scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(0.0, 0.0, POPOVER_WIDTH, height))
+        scroll.setBorderType_(0)  # NSNoBorder
+        scroll.setDrawsBackground_(False)
+        scroll.setHasVerticalScroller_(content_height > height)
+        scroll.setAutohidesScrollers_(True)
+
+        content = _FlippedView.alloc().initWithFrame_(
+            NSMakeRect(0.0, 0.0, POPOVER_WIDTH, content_height)
+        )
+        content.setWantsLayer_(True)
         title = _label(
             f"{self.state.view.capitalize()} detail",
-            NSMakeRect(14.0, height - 30.0, 430.0, 18.0),
+            NSMakeRect(14.0, 8.0, 430.0, 18.0),
             size=12.5,
             mono=False,
         )
         title.setFont_(NSFont.boldSystemFontOfSize_(12.5))
-        root.addSubview_(title)
-        y = height - 54.0
+        content.addSubview_(title)
+        y = POPOVER_HEADER
         for label, value in pairs:
             key_label = _label(f"{label}", NSMakeRect(14.0, y, 170.0, 16.0), size=11.0, mono=False)
             key_label.setTextColor_(NSColor.secondaryLabelColor())
             value_label = _label(value, NSMakeRect(188.0, y, 258.0, 16.0), size=11.0)
-            root.addSubview_(key_label)
-            root.addSubview_(value_label)
-            y -= 18.0
-        return root
+            content.addSubview_(key_label)
+            content.addSubview_(value_label)
+            y += POPOVER_ROW_HEIGHT
+        scroll.setDocumentView_(content)
+        return scroll
 
     # ------------------------------------------------------------- clipboard
     def _put_on_pasteboard(self, text: str) -> bool:
