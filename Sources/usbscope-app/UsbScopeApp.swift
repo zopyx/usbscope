@@ -5,7 +5,8 @@ import UsbScopeUI
 
 /// usbscope-app — the SwiftUI twin of the Python/AppKit app: the same five
 /// views on top of `UsbScopeCore`, with a view switcher, live search, sortable
-/// columns, a detail sheet and JSON/CSV export.
+/// columns, a detail sheet, JSON/CSV export, a menu bar extra, a `⌘,`
+/// preferences window, DE/EN localisation and per-view column layouts.
 
 @main
 struct UsbScopeApp: App {
@@ -17,36 +18,52 @@ struct UsbScopeApp: App {
             ContentView()
                 .environmentObject(state)
         }
-        .commands {
-            CommandGroup(after: .newItem) {
-                Button("Refresh Now") { state.refresh() }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .disabled(state.isLoading)
+        .commands { commands }
+
+        MenuBarExtra {
+            MenuBarContent()
+                .environmentObject(state)
+        } label: {
+            Text(state.menuBarTitle).monospacedDigit().help(state.menuBarTooltip)
+        }
+        .menuBarExtraStyle(.menu)
+
+        Settings {
+            PreferencesView()
+                .environmentObject(state)
+        }
+    }
+
+    @CommandsBuilder
+    private var commands: some Commands {
+        CommandGroup(after: .newItem) {
+            Button(L(.refreshNow, state.language)) { state.refresh() }
+                .keyboardShortcut("r", modifiers: .command)
+                .disabled(state.isLoading)
+        }
+        CommandMenu(L(.viewMenu, state.language)) {
+            ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
+                Button(L(.of(view), state.language)) { state.view = view }
+                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
             }
-            CommandMenu("View") {
-                ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
-                    Button(view.title) { state.view = view }
-                        .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
-                }
+        }
+        CommandMenu("Table") {
+            Button(L(.copySelected, state.language)) { state.copyTable(selected: true) }
+                .keyboardShortcut("c", modifiers: .command)
+            Button(L(.copyWholeTable, state.language)) { state.copyTable(selected: false) }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
+            Button(L(.copyJSON, state.language)) { state.copyJSON() }
+                .keyboardShortcut("j", modifiers: [.command, .shift])
+            Divider()
+            Button(L(.showDetails, state.language)) {
+                if let key = state.selection.first { state.detailRowKey = key }
             }
-            CommandMenu("Table") {
-                Button("Copy Selected Rows") { state.copyTable(selected: true) }
-                    .keyboardShortcut("c", modifiers: .command)
-                Button("Copy Whole Table") { state.copyTable(selected: false) }
-                    .keyboardShortcut("c", modifiers: [.command, .shift])
-                Button("Copy Snapshot as JSON") { state.copyJSON() }
-                    .keyboardShortcut("j", modifiers: [.command, .shift])
-                Divider()
-                Button("Show Details") {
-                    if let key = state.selection.first { state.detailRowKey = key }
-                }
-                .keyboardShortcut("d", modifiers: .command)
-                Divider()
-                Button("Export JSON…") { state.export(format: "json") }
-                    .keyboardShortcut("s", modifiers: .command)
-                Button("Export CSV…") { state.export(format: "csv") }
-                    .keyboardShortcut("s", modifiers: [.command, .shift])
-            }
+            .keyboardShortcut("d", modifiers: .command)
+            Divider()
+            Button(L(.exportJSON, state.language)) { state.export(format: "json") }
+                .keyboardShortcut("s", modifiers: .command)
+            Button(L(.exportCSV, state.language)) { state.export(format: "csv") }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
         }
     }
 }
@@ -69,7 +86,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    /// A menu bar extra keeps working after the window closes, so the app stays
+    /// alive; "Quit usbscope" in the status menu terminates it.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 }
 
 enum SelfTest {
@@ -89,8 +108,51 @@ enum SelfTest {
     }
 }
 
+// MARK: - Menu bar extra
+
+/// The status item menu: view switching, refresh, notifications and quit.
+struct MenuBarContent: View {
+    @EnvironmentObject private var state: AppState
+
+    private var lang: AppLanguage { state.language }
+
+    var body: some View {
+        Button(L(.openWindow, lang)) { showWindow() }
+        Divider()
+        Picker(L(.viewMenu, lang), selection: $state.view) {
+            ForEach(AppView.allCases) { view in
+                Text(L(.of(view), lang)).tag(view)
+            }
+        }
+        .pickerStyle(.inline)
+        Divider()
+        Button(L(.refreshNow, lang)) { state.refresh() }
+            .keyboardShortcut("r")
+            .disabled(state.isLoading)
+        Toggle(
+            L(.notifications, lang),
+            isOn: Binding(get: { state.notificationsEnabled }, set: { state.setNotifications($0) })
+        )
+        Divider()
+        Button(L(.quit, lang)) { NSApp.terminate(nil) }
+            .keyboardShortcut("q")
+    }
+
+    /// Bring the main window forward (or re-focus it if it is already open).
+    private func showWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+}
+
+// MARK: - Main window
+
 struct ContentView: View {
     @EnvironmentObject private var state: AppState
+
+    private var lang: AppLanguage { state.language }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -124,28 +186,36 @@ struct ContentView: View {
         .navigationTitle(state.title)
         .toolbar { toolbar }
         .frame(minWidth: 900, minHeight: 460)
+        .preferredColorScheme(colorScheme)
         .sheet(isPresented: detailSheetPresented) {
             DetailSheet().environmentObject(state)
         }
-        .onChange(of: state.view) { _, _ in state.selection.removeAll() }
         .onAppear {
             if state.isIdle { state.refresh() }
+        }
+    }
+
+    private var colorScheme: ColorScheme? {
+        switch state.appearance {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
         }
     }
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Picker("View", selection: $state.view) {
+            Picker(L(.viewMenu, lang), selection: $state.view) {
                 ForEach(AppView.allCases) { view in
-                    Label(view.title, systemImage: view.systemImage).tag(view)
+                    Label(L(.of(view), lang), systemImage: view.systemImage).tag(view)
                 }
             }
             .pickerStyle(.segmented)
-            .help("Switch view (⌘1–⌘5)")
+            .help(L(.viewMenu, lang) + " (⌘1–⌘5)")
         }
         ToolbarItem {
-            TextField("Filter", text: $state.search)
+            TextField(L(.filter, lang), text: $state.search)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 170)
                 .help("Filter every column (all terms must match)")
@@ -157,29 +227,64 @@ struct ContentView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .disabled(state.isLoading)
-            .help("Refresh now (⌘R)")
+            .help(L(.refreshNow, lang) + " (⌘R)")
         }
         ToolbarItem {
-            Toggle(isOn: Binding(get: { state.autoRefresh }, set: { state.setAutoRefresh($0) })) {
+            Toggle(
+                isOn: Binding(get: { state.autoRefresh }, set: { state.setAutoRefresh($0) })
+            ) {
                 Image(systemName: "timer")
             }
-            .help("Auto-refresh")
+            .help(L(.toggleAutoRefresh, lang))
         }
         ToolbarItem {
             Menu {
-                ForEach([2.0, 5.0, 10.0, 30.0], id: \.self) { value in
+                ForEach(PREFERENCE_INTERVALS, id: \.self) { value in
                     Button("\(Int(value)) s") { state.setInterval(value) }
                 }
             } label: {
                 Text("\(Int(state.interval))s")
             }
-            .help("Auto-refresh interval")
+            .help(L(.intervalHelp, lang))
+        }
+        if !GroupField.fields(for: state.view).isEmpty {
+            ToolbarItem {
+                Menu {
+                    Picker(L(.groupBy, lang), selection: $state.groupField) {
+                        ForEach(GroupField.fields(for: state.view)) { field in
+                            Text(L(.of(field), lang)).tag(field)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Image(systemName: "rectangle.3.group")
+                }
+                .help(L(.groupBy, lang))
+            }
         }
         ToolbarItem {
             Menu {
-                Button("Selected Rows (TSV)") { state.copyTable(selected: true) }
-                Button("Whole Table (TSV)") { state.copyTable(selected: false) }
-                Button("Snapshot (JSON)") { state.copyJSON() }
+                ForEach(Presentation.headers(for: state.view), id: \.self) { header in
+                    Toggle(
+                        header,
+                        isOn: Binding(
+                            get: { state.isColumnVisible(state.view, header) },
+                            set: { _ in state.toggleColumn(state.view, header) }
+                        )
+                    )
+                }
+                Divider()
+                Button(L(.showAllColumns, lang)) { state.showAllColumns(state.view) }
+            } label: {
+                Image(systemName: "tablecells")
+            }
+            .help(L(.columns, lang))
+        }
+        ToolbarItem {
+            Menu {
+                Button(L(.copySelected, lang)) { state.copyTable(selected: true) }
+                Button(L(.copyWholeTable, lang)) { state.copyTable(selected: false) }
+                Button(L(.copyJSON, lang)) { state.copyJSON() }
             } label: {
                 Image(systemName: "doc.on.doc")
             }
@@ -187,8 +292,8 @@ struct ContentView: View {
         }
         ToolbarItem {
             Menu {
-                Button("Export JSON…") { state.export(format: "json") }
-                Button("Export CSV…") { state.export(format: "csv") }
+                Button(L(.exportJSON, lang)) { state.export(format: "json") }
+                Button(L(.exportCSV, lang)) { state.export(format: "csv") }
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
@@ -201,7 +306,7 @@ struct ContentView: View {
                 Image(systemName: "info.circle")
             }
             .disabled(state.selection.isEmpty)
-            .help("Details of the selection (⌘D)")
+            .help(L(.showDetails, lang) + " (⌘D)")
         }
     }
 

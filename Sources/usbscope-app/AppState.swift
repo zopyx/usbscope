@@ -4,12 +4,31 @@ import SwiftUI
 import UsbScopeCore
 import UsbScopeUI
 
+/// The `UserDefaults` slice the preferences persist into.
+///
+/// The suite matches the Python app's domain (`com.zopyx.usbscope`) so a
+/// checkout run and a bundled run write the same place; the key is distinct so
+/// the two implementations never clobber each other's format.
+final class UserDefaultsBackend: PreferencesBackend {
+    static let suiteName = "com.zopyx.usbscope"
+
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults? = UserDefaults(suiteName: UserDefaultsBackend.suiteName)) {
+        self.defaults = defaults ?? .standard
+    }
+
+    func data(forKey key: String) -> Data? { defaults.data(forKey: key) }
+    func set(_ data: Data?, forKey key: String) { defaults.set(data, forKey: key) }
+}
+
 /// Observable app state: the current snapshot, the selected view, the search
 /// text, the auto-refresh cadence and the change set of the last refresh.
 ///
 /// Collection runs off the main thread (it shells out to `system_profiler` and
 /// `ioreg`); the state machine is idle → loading → loaded, with an error
-/// message instead of a crash when a source fails.
+/// message instead of a crash when a source fails. Every user choice that
+/// survives a launch is persisted through `PreferencesStore`.
 @MainActor
 final class AppState: ObservableObject {
     @Published private(set) var snapshot: Snapshot?
@@ -18,10 +37,20 @@ final class AppState: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
-    @Published var view: AppView = .ports
+    @Published var view: AppView = .ports {
+        didSet {
+            if view != oldValue { selection.removeAll() }
+            persist()
+        }
+    }
     @Published var search = ""
-    @Published var interval: Double = 5
+    @Published var interval: Double = 5 { didSet { persist() } }
     @Published private(set) var autoRefresh = false
+    @Published var appearance: Appearance = .system { didSet { persist() } }
+    @Published var language: AppLanguage = .en { didSet { persist() } }
+    @Published private(set) var notificationsEnabled = true { didSet { persist() } }
+    @Published var groupField: GroupField = .none { didSet { persist() } }
+    @Published private(set) var hiddenColumns: [AppView: Set<String>] = [:] { didSet { persist() } }
 
     /// Selected rows of the current view (row ids).
     @Published var selection = Set<String>()
@@ -31,6 +60,8 @@ final class AppState: ObservableObject {
 
     private var previous: Snapshot?
     private var timer: Timer?
+    private let store: PreferencesStore
+    private let notifier: DeviceNotifier?
 
     /// Snapshots with their deltas and the power timeline they form.
     private let history = SnapshotHistory()
@@ -51,10 +82,27 @@ final class AppState: ObservableObject {
     /// The charging watts over time, as far as the app has seen them.
     var powerTimeline: [PowerPoint] { history.powerTimeline() }
 
-    init() {
+    init(
+        store: PreferencesStore = PreferencesStore(backend: UserDefaultsBackend()),
+        notifier: DeviceNotifier? = DeviceNotifier()
+    ) {
+        self.store = store
+        self.notifier = notifier
+        let preferences = store.load()
+        view = preferences.defaultView
+        interval = preferences.interval
+        autoRefresh = preferences.autoRefresh
+        appearance = preferences.appearance
+        language = preferences.language
+        notificationsEnabled = preferences.notifications
+        groupField = preferences.grouping
+        hiddenColumns = preferences.hiddenColumns.reduce(into: [:]) { result, entry in
+            if let view = AppView(rawValue: entry.key) { result[view] = Set(entry.value) }
+        }
         // Own the IOKit notifications for the lifetime of the app; the watcher
         // collects its own baseline off the main thread, so launch is not blocked.
         startMonitoring()
+        if preferences.autoRefresh { startTimer() }
     }
 
     // MARK: - Hotplug monitoring
@@ -84,6 +132,38 @@ final class AppState: ObservableObject {
         apply(update.snapshot)
     }
 
+    // MARK: - Preferences
+
+    private func persist() {
+        let preferences = AppPreferences(
+            defaultView: view,
+            interval: interval,
+            autoRefresh: autoRefresh,
+            notifications: notificationsEnabled,
+            appearance: appearance,
+            language: language,
+            grouping: groupField,
+            hiddenColumns: hiddenColumns.reduce(into: [:]) { result, entry in
+                result[entry.key.rawValue] = Array(entry.value).sorted()
+            }
+        )
+        store.save(preferences)
+    }
+
+    func setNotifications(_ enabled: Bool) { notificationsEnabled = enabled }
+
+    /// Whether a column of `view` is currently visible.
+    func isColumnVisible(_ view: AppView, _ title: String) -> Bool {
+        !(hiddenColumns[view]?.contains(title) ?? false)
+    }
+
+    func toggleColumn(_ view: AppView, _ title: String) {
+        var hidden = hiddenColumns[view] ?? []
+        if hidden.contains(title) { hidden.remove(title) } else { hidden.insert(title) }
+        hiddenColumns[view] = hidden
+    }
+
+    func showAllColumns(_ view: AppView) { hiddenColumns[view] = [] }
 
     // MARK: - Refresh
 
@@ -92,10 +172,10 @@ final class AppState: ObservableObject {
         isLoading = true
         errorMessage = nil
         Task {
-            let fresh = await Task.detached(priority: .userInitiated) {
+            let result = await Task.detached(priority: .userInitiated) {
                 SnapshotBuilder.collect()
             }.value
-            apply(fresh)
+            apply(result)
         }
     }
 
@@ -111,6 +191,9 @@ final class AppState: ObservableObject {
         } else {
             errorMessage = fresh.warnings.joined(separator: " · ")
         }
+        if notificationsEnabled, let changes, changes.deviceCount > 0 {
+            notifier?.notify(changes, enabled: true)
+        }
     }
 
     // MARK: - Auto refresh
@@ -120,6 +203,11 @@ final class AppState: ObservableObject {
         timer?.invalidate()
         timer = nil
         guard enabled else { return }
+        startTimer()
+    }
+
+    private func startTimer() {
+        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: max(interval, 1), repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
@@ -140,11 +228,11 @@ final class AppState: ObservableObject {
     }
 
     var summaryLine: String {
-        snapshot.map(Presentation.summaryText) ?? "reading…"
+        snapshot.map(Presentation.summaryText) ?? L(.loading, language)
     }
 
     var statusLine: String {
-        guard let snapshot else { return "reading the USB subsystem…" }
+        guard let snapshot else { return L(.loading, language) }
         return Presentation.statusText(
             snapshot, interval: autoRefresh ? interval : nil, reads: reads,
             changes: changes, filterQuery: search
@@ -153,6 +241,24 @@ final class AppState: ObservableObject {
 
     var title: String {
         snapshot.map(Presentation.headerText) ?? "usbscope"
+    }
+
+    /// The compact menu bar title: `connected/ports`, plus a warning symbol.
+    var menuBarTitle: String {
+        guard let snapshot else { return "usbscope" }
+        let base = "\(snapshot.connectedPorts.count)/\(snapshot.ports.count)"
+        return snapshot.warnings.isEmpty ? base : "\(base) ⚠"
+    }
+
+    var menuBarTooltip: String {
+        guard let snapshot else { return "usbscope — \(L(.loading, language))" }
+        var parts = [
+            "\(snapshot.ports.count) port(s)",
+            "\(snapshot.connectedPorts.count) connected",
+            "\(snapshot.devices.count) device(s)",
+        ]
+        if !snapshot.warnings.isEmpty { parts.append("\(snapshot.warnings.count) warning(s)") }
+        return parts.joined(separator: " · ")
     }
 
     /// Detail pairs for the row whose sheet is open.
