@@ -305,7 +305,93 @@ recompute it against the file that was actually uploaded.
 
 ---
 
-## (e) Not done yet — explicit checklist
+## (f) The Swift app bundle — and what it does *not* do
+
+`scripts/build_swift_app.py` builds the SwiftUI app into `dist/usbscope-swift.app`
+(separate from the Python `dist/usbscope.app` that `make app-bundle` produces).
+[ran] on this machine (macOS 27.0.1, arm64):
+
+```console
+$ uv run python scripts/build_swift_app.py
+$ swift build -c release --product usbscope-app
+…
+$ codesign --force --deep --sign - --identifier com.zopyx.usbscope dist/usbscope-swift.app
+$ codesign --verify --verbose=2 dist/usbscope-swift.app
+dist/usbscope-swift.app: valid on disk
+dist/usbscope-swift.app: satisfies its Designated Requirement
+$ dist/usbscope-swift.app/Contents/MacOS/usbscope-app --version
+usbscope-app 0.4.0
+ad-hoc signed (codesign --verify OK)
+  --version → usbscope-app 0.4.0
+  --print-rows → 7 lines (live data path OK)
+  Info.plist: com.zopyx.usbscope 0.4.0 (min macOS 14.0)
+dist/usbscope-swift.app  (1.4 MiB, usbscope)
+```
+
+What the script does:
+
+* `swift build -c release --product usbscope-app` (or `--debug`), then
+  `swift build -c release --show-bin-path` to locate the executable.
+* assembles `Contents/MacOS/usbscope-app`, `Contents/Info.plist` and, when
+  `assets/icon/usbscope.icns` exists, `Contents/Resources/usbscope.icns`.
+* writes `CFBundleIdentifier com.zopyx.usbscope`, the `pyproject.toml` version as
+  `CFBundleShortVersionString`/`CFBundleVersion`, `LSMinimumSystemVersion 14.0`,
+  `NSHighResolutionCapable`, `CFBundleIconFile`, `LSApplicationCategoryType` and
+  `ITSAppUsesNonExemptEncryption = false`.
+* ad-hoc signs (`codesign --force --deep --sign -`) and **verifies** the signature.
+* runs the bundled binary (`--version`, plus `--print-rows` when a window server is
+  available) and refuses to finish if it does not start.
+* prints every command it runs; `--no-sign`, `--no-verify`, `--no-icon`, `--debug`
+  and `--name` change what it does. A missing icon or a failed code signing step
+  stops the build with a clear message instead of leaving a half-built bundle.
+
+What it does **not** do — the honest gaps, all of which need an Apple Developer
+account that does not exist on this machine:
+
+* **No Developer ID signature.** `--sign -` is ad hoc (`Signature=adhoc`,
+  `TeamIdentifier=not set`); `spctl -a -vvv -t install dist/usbscope-swift.app`
+  still reports `rejected` exactly as in section (a).
+* **No hardened runtime** (`--options runtime`) and **no secure timestamp**
+  (`--timestamp`) — notarisation requires both.
+* **No notarisation and no stapling.** There is no `notarytool submit` step and no
+  `stapler staple`, and — as in section (b) — an `.app` must travel inside a
+  `.zip`/`.dmg`/`.pkg` to be stapled (`ditto -c -k --keepParent` or a DMG).
+* **No DMG, no checksums.** The script stops at the `.app`; there is no
+  `SHA256SUMS-swift` next to it.
+* **No universal2 / x86_64 slice.** The bundle is the host architecture only
+  (`arm64` here). `swift build --arch x86_64 --arch arm64` plus `lipo` would be the
+  route; untested.
+* **No entitlements, no sandbox, no App Store packaging.** The Swift app carries no
+  entitlements and `make mas-pkg` (`scripts/make_mas_pkg.py`) targets the *Python*
+  app, not this bundle.
+* **Not reproducible.** The Mach-O embeds build paths and a UUID, so two builds
+  differ byte for byte; there is no `--build-timestamp`/deterministic-inputs setup.
+
+### What hardening the Swift app still needs
+
+The steps are the same six as section (b), applied to a much simpler bundle — the
+Swift app is a single Mach-O with **no embedded frameworks** (macOS 14+ ships the
+Swift runtime), so there is nothing nested to sign and the 1.4 MiB size is the whole
+bundle:
+
+```console
+# [flags verified, not run] — no Developer ID identity exists on this machine
+codesign --force --options runtime --timestamp --sign "Developer ID Application: NAME (TEAMID)" \
+    --identifier com.zopyx.usbscope dist/usbscope-swift.app
+codesign --verify --strict --verbose=2 dist/usbscope-swift.app
+spctl -a -vvv -t install dist/usbscope-swift.app            # expect: accepted, source=Developer ID
+ditto -c -k --keepParent dist/usbscope-swift.app dist/usbscope-swift.zip
+xcrun notarytool submit dist/usbscope-swift.zip --keychain-profile "AC_USBSCOPE" --wait
+xcrun stapler staple dist/usbscope-swift.app                # or staple the zip/dmg container
+```
+
+Because there are no nested binaries, a single `codesign` of the bundle is
+sufficient — `--deep` is unnecessary here even though the build script still passes
+it for symmetry with the Python path.
+
+---
+
+## (g) Not done yet — explicit checklist
 
 - [ ] Developer ID Application certificate issued and installed (only Apple
       Development certs exist on this machine **[ran]**).
@@ -326,6 +412,13 @@ recompute it against the file that was actually uploaded.
 - [ ] Homebrew tap and cask published.
 - [ ] `SHA256SUMS`/`SHA256SUMS-app` consumed by any automated downloader; today
       they are generated but nothing verifies them downstream.
+- [ ] The **Swift** app bundle (`dist/usbscope-swift.app`) Developer-ID signed with
+      `--options runtime --timestamp`, notarised and stapled (section f); it has no
+      DMG, no checksums and no universal2 slice either.
+- [ ] The in-process IOKit reader (`Sources/UsbScopeCore/IORegistryReader.swift`)
+      wired into the *app* build path (it is implemented and tested, but the Swift
+      `SnapshotBuilder` still spawns `ioreg` today) and verified inside a real
+      sandboxed bundle.
 
 Until the boxes above are ticked, every artifact is **ad-hoc signed, arm64-only
 and not notarised**, and `docs/index.md` / this file should say exactly that.

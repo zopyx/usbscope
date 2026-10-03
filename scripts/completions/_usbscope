@@ -1,0 +1,16 @@
+#compdef usbscope
+# zsh completion for usbscope. Install:
+#   mkdir -p ~/.zsh/completions
+#   cp scripts/completions/_usbscope ~/.zsh/completions/
+# and in ~/.zshrc:
+#   fpath=(~/.zsh/completions $fpath)
+#   autoload -Uz compinit && compinit
+
+_arguments -s -S \
+  '(-h --help)'{-h,--help}'[show help and exit]' \
+  '(-v --verbose)'{-v,--verbose}'[show additional details]' \
+  '--json[print the snapshot as JSON]' \
+  '--watch=[refresh continuously; Ctrl-C quits]:seconds:' \
+  '--no-color[disable colours]' \
+  '(-)'--version'[print the version and exit]' \
+  '1:view:(overview ports devices cables thunderbolt json)'

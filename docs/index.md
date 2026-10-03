@@ -219,6 +219,8 @@ to a target is its description. Everything runs through `uv`, so the pinned Pyth
 | `make swift-golden` | regenerates `SwiftTests/Golden/snapshot.json` from the fixtures (Python side) |
 | `make swift-run-app` | runs the SwiftUI app (`usbscope-app`) |
 | `make swift-app-check` | headless self test of the app's data path (row count per view) |
+| `make swift-app-bundle` | builds the SwiftUI app into `dist/usbscope-swift.app` (release, ad-hoc signed) |
+| `make man` / `make completions` | installs the CLI manual page / the zsh + bash completions into `~` (no sudo) |
 | `make clean` / `make distclean` | build output / plus the virtualenv |
 
 Variables: `SHOT_HOST=<name> make refresh-screenshots` sets the host name shown in
@@ -518,5 +520,46 @@ Python app has as `--snapshot`.
 The SwiftUI app also needs an app bundle before macOS will show it as a regular
 app with a Dock entry and a proper menu bar; run from the checkout it calls
 `NSApplication.setActivationPolicy(.regular)` to bring the window to the front.
-Packaging it into a `.app`/DMG is not done yet.
+
+### Building the Swift app bundle
+
+`uv run python scripts/build_swift_app.py` (or `make swift-app-bundle`) compiles
+the app with `swift build -c release`, assembles `dist/usbscope-swift.app`
+(`Contents/MacOS/usbscope-app`, an `Info.plist` with
+`CFBundleIdentifier com.zopyx.usbscope` and the package version,
+`LSMinimumSystemVersion 14.0`, `NSHighResolutionCapable`, the app icon copied from
+`assets/icon/usbscope.icns`), ad-hoc signs it and verifies the signature **and**
+that the bundled binary runs (`--version`, plus the `--print-rows` data path). It
+prints every command it runs and stops with a clear message instead of leaving a
+half-built bundle; `--no-sign` skips the signature, `--debug` builds the debug
+configuration. The signature is ad hoc only — what a real release still needs
+(Developer ID, hardened runtime, `notarytool`, `stapler`) and what the script does
+not do is in [distribution.md](distribution.md).
+
+### In-process registry reader (Plan B)
+
+`Sources/UsbScopeCore/IORegistryReader.swift` reads the `IOPort` registry plane
+through IOKit (`IOServiceGetMatchingServices` + `IORegistryEntryCreateCFProperties`
++ `IORegistryEntryCreateCFProperty` walking `IORegistryEntryChildren`) instead of
+spawning `/usr/bin/ioreg`. It returns the same dictionary shape the plist parser
+consumes, so `IOReg.parsePorts` is unchanged; `IORegistryReader.runner()` wraps it
+as a `Runner`, which makes `IoregSource(runner: IORegistryReader.runner())` a
+drop-in replacement for the subprocess source. This is the sandbox answer from
+[app-store.md](app-store.md) (Plan B) implemented for the Swift core. On the
+machine the fixtures were captured on the in-process tree parses to byte-identical
+`Port` values (verified against `ioreg -p IOPort`); `SwiftTests/IORegistryReaderTests`
+skips the live assertions with `XCTSkip` where the registry cannot be read.
+
+### Manual page and shell completions
+
+```console
+man ./docs/man/usbscope.1        # preview the manual page
+make man                         # install it into ~/.local/share/man/man1
+make completions                 # install the zsh + bash completions
+```
+
+`docs/man/usbscope.1` documents the CLI views, options, exit status and data
+sources; `scripts/completions/_usbscope` (zsh) and
+`scripts/completions/usbscope.bash` (bash) complete the same interface. Install
+instructions are in [man/README.md](man/README.md).
 

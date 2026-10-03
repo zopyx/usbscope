@@ -59,6 +59,16 @@ struct UsbScopeApp: App {
 /// Python app has `--snapshot` for the same reason).
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // `--version` prints the bundle's version and exits before any window is
+        // created; it is what `scripts/build_swift_app.py` uses to prove the
+        // assembled bundle actually runs.
+        if CommandLine.arguments.contains("--version") {
+            let version = Bundle.main.object(
+                forInfoDictionaryKey: "CFBundleShortVersionString"
+            ) as? String
+            print("usbscope-app \(version ?? "0.0.0-unbundled")")
+            exit(0)
+        }
         if CommandLine.arguments.contains("--print-rows") {
             SelfTest.runAndExit()
         }
