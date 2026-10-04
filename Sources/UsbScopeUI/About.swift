@@ -29,7 +29,7 @@ public enum AboutInfo {
 
     /// Used when the process has no bundle (`swift run`); a bundled app reports
     /// `CFBundleShortVersionString` instead.
-    public static let fallbackVersion = "0.4.0"
+    public static let fallbackVersion = "0.9.0"
 
     /// The live facts of this Mac, or an empty list before the first read.
     public static func facts(_ snapshot: Snapshot?) -> [AboutFact] {

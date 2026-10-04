@@ -87,17 +87,17 @@ Real output from this machine **[ran]**:
 $ scripts/build-swift-dmg.sh
 + hdiutil: /usr/bin/hdiutil
 $ ditto dist/usbscope-swift.app usbscope-swift.app
-$ hdiutil create -volname usbscope -srcfolder <staged> -ov -format UDZO dist/usbscope-swift-0.4.0-macos-arm64.dmg
-created: dist/usbscope-swift-0.4.0-macos-arm64.dmg
-$ hdiutil verify dist/usbscope-swift-0.4.0-macos-arm64.dmg
-hdiutil: verify: checksum of ".../usbscope-swift-0.4.0-macos-arm64.dmg" is VALID
-$ hdiutil attach dist/usbscope-swift-0.4.0-macos-arm64.dmg -nobrowse -readonly -mountpoint <staged mount>
+$ hdiutil create -volname usbscope -srcfolder <staged> -ov -format UDZO dist/usbscope-swift-0.9.0-macos-universal2.dmg
+created: dist/usbscope-swift-0.9.0-macos-universal2.dmg
+$ hdiutil verify dist/usbscope-swift-0.9.0-macos-universal2.dmg
+hdiutil: verify: checksum of ".../usbscope-swift-0.9.0-macos-universal2.dmg" is VALID
+$ hdiutil attach dist/usbscope-swift-0.9.0-macos-universal2.dmg -nobrowse -readonly -mountpoint <staged mount>
   mounted volume contents: Applications usbscope-swift.app
-  mounted copy --version → usbscope-app 0.4.0
+  mounted copy --version → usbscope-app 0.9.0
 $ hdiutil detach <staged mount>
 "disk12" ejected.
 
-dist/usbscope-swift-0.4.0-macos-arm64.dmg  (1.3 MiB)
+dist/usbscope-swift-0.9.0-macos-universal2.dmg  (2.4 MiB)
 ```
 
 `hdiutil create` / `attach` / `detach` print a deprecation warning pointing at
@@ -106,8 +106,8 @@ same `dist/SHA256SUMS`, so `make checksums` covers both artifacts:
 
 ```console
 $ make checksums
-usbscope-swift-0.4.0-macos-arm64.tar.gz: OK
-usbscope-swift-0.4.0-macos-arm64.dmg: OK
+usbscope-swift-0.9.0-macos-universal2.tar.gz: OK
+usbscope-swift-0.9.0-macos-universal2.dmg: OK
 ```
 
 `--no-verify` skips the mount/run test. The DMG passes `hdiutil verify` and mounts

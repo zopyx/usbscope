@@ -23,8 +23,8 @@ final class AboutTests: XCTestCase {
     }
 
     func testDiagnosticsCarryTheVersionLicenceAndSchema() {
-        let text = AboutInfo.diagnostics(version: "0.4.0", snapshot: Fixtures.snapshot())
-        XCTAssertTrue(text.hasPrefix("usbscope 0.4.0"))
+        let text = AboutInfo.diagnostics(version: "0.9.0", snapshot: Fixtures.snapshot())
+        XCTAssertTrue(text.hasPrefix("usbscope 0.9.0"))
         XCTAssertTrue(text.contains("MIT licensed"))
         XCTAssertTrue(text.contains(AboutInfo.repositoryURL))
         XCTAssertTrue(text.contains("Snapshot schema: version 1"))
@@ -43,6 +43,6 @@ final class AboutTests: XCTestCase {
         XCTAssertFalse(AboutInfo.dataNote.isEmpty)
         XCTAssertEqual(AboutInfo.license, "MIT licensed")
         XCTAssertTrue(AboutInfo.copyright.contains("ZOPYX"))
-        XCTAssertEqual(AboutInfo.fallbackVersion, "0.4.0")
+        XCTAssertEqual(AboutInfo.fallbackVersion, "0.9.0")
     }
 }

@@ -4,7 +4,7 @@ import UsbScopeUI
 
 // usbscope — the CLI. One snapshot, one JSON schema, two front ends (this and the app).
 
-let version = "0.4.0"
+let version = "0.9.0"
 
 struct Options {
     var view = "overview"
