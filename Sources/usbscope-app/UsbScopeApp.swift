@@ -368,7 +368,7 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
+        ToolbarItem(id: "view-selector", placement: .principal) {
             // A row of buttons, not `Picker(.segmented)`: a segmented picker is a single
             // AppKit control, so one `.help` covers every segment and hovering an icon
             // reported the generic "View" instead of its own name. Each button carries
@@ -447,7 +447,7 @@ struct ContentView: View {
             .help(L(.intervalHelp, lang))
         }
         if !GroupField.fields(for: state.view).isEmpty {
-            ToolbarItem {
+            ToolbarItem(id: "grouping", placement: .automatic) {
                 Menu {
                     Picker(L(.groupBy, lang), selection: $state.groupField) {
                         ForEach(GroupField.fields(for: state.view)) { field in
@@ -462,7 +462,7 @@ struct ContentView: View {
             }
         }
         if AppView.tableViews.contains(state.view) {
-            ToolbarItem {
+            ToolbarItem(id: "columns", placement: .automatic) {
                 Menu {
                     ForEach(Presentation.headers(for: state.view), id: \.self) { header in
                         Toggle(
