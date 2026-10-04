@@ -28,6 +28,15 @@ final class FixSpecTests: XCTestCase {
         XCTAssertEqual(failure?.technicalMessage, "permission denied")
     }
 
+    func testCommandExecutorUsesBoundedShellPolicy() {
+        let executor = ShellCommandExecutor(limits: .init(timeout: 0.05,
+                                                           maximumStdoutBytes: 8,
+                                                           maximumStderrBytes: 8))
+        let result = executor.run(["/bin/sh", "-c", "printf 123456789; sleep 1"])
+        XCTAssertTrue(result.timedOut)
+        XCTAssertLessThanOrEqual(result.stdout.count, 8)
+    }
+
     func testSchemaMigrationRejectsFutureDocuments() {
         XCTAssertThrowsError(try SnapshotLoading.migrate(["schema_version": 99])) { error in
             XCTAssertEqual(error as? SnapshotLoadingError, .unsupportedSchema(99, current: Serialize.schemaVersion))
@@ -87,6 +96,7 @@ final class FixSpecTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: destination.appendingPathComponent("events.json").path))
         XCTAssertFalse(metadata.contains("17825792"))
         XCTAssertFalse(snapshotJSON.contains("17825792"))
+        XCTAssertTrue(metadata.contains("provenance"))
     }
 
     func testSnapshotCoordinatorCoalescesAndKeepsStrongestReason() async {
@@ -127,5 +137,13 @@ final class FixSpecTests: XCTestCase {
         cache.insert(.init(model: "Mac", chip: "Apple", capturedAt: captured), for: "host|os")
         cache.invalidate()
         XCTAssertNil(cache.value(for: "host|os", at: captured))
+    }
+
+    func testDeviceProvenanceIdentifiesNormalizedSources() {
+        var device = UsbDevice(name: "Hub", source: "ioreg", deviceClass: 9)
+        device.interfaces = [DeviceInterface(number: 0)]
+        XCTAssertEqual(device.fieldProvenance["identity"], FactSource.ioUSB)
+        XCTAssertEqual(device.fieldProvenance["descriptors"], FactSource.ioUSB)
+        XCTAssertEqual(device.fieldProvenance["interfaces"], FactSource.interfaceRegistry)
     }
 }

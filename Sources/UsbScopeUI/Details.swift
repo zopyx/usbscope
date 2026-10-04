@@ -217,6 +217,10 @@ public enum Presentation {
             pair("Location ID", device.locationID.flatMap { $0 != 0 ? String(format: "0x%08x", $0) : nil }),
             pair("Restricted by macOS", device.restricted),
             pair("Source", device.source),
+            pair("Provenance", device.fieldProvenance
+                .sorted { $0.key < $1.key }
+                .map { "\($0.key)=\($0.value.rawValue)" }
+                .joined(separator: ", ")),
         ])
         // The interface level: one row per interface, since a composite device
         // declares its functions there and `endpoints` is the count macOS publishes.

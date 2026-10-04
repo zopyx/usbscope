@@ -270,6 +270,32 @@ public struct UsbDevice: Equatable, Sendable {
         }
         return name
     }
+
+    /// Source provenance for important normalized device fact groups. This is
+    /// diagnostic metadata rather than a change to the frozen snapshot schema,
+    /// so existing JSON consumers remain compatible.
+    public var fieldProvenance: [String: FactSource] {
+        let primary: FactSource = {
+            switch source.lowercased() {
+            case "ioport": return .ioPort
+            case "ioreg", "iousb": return .ioUSB
+            case "interfaceregistry": return .interfaceRegistry
+            default: return .systemProfiler
+            }
+        }()
+        var result: [String: FactSource] = [
+            "identity": primary,
+            "vendor": primary,
+            "serial": primary,
+            "connection": primary,
+            "negotiated_speed": primary,
+        ]
+        if deviceClass != nil || bcdUsb != nil || maxPacketSize0 != nil || !interfaces.isEmpty {
+            result["descriptors"] = .ioUSB
+        }
+        if !interfaces.isEmpty { result["interfaces"] = .interfaceRegistry }
+        return result
+    }
 }
 
 public struct Cable: Equatable, Sendable {

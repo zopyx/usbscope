@@ -65,6 +65,32 @@ public struct CommandResult: Sendable {
 /// A command runner, injectable so tests can serve captured payloads.
 public typealias Runner = @Sendable ([String]) -> CommandResult
 
+/// Injectable subprocess boundary for production adapters and integration
+/// tests. The closure-based `Runner` remains source-compatible; new adapters
+/// can depend on this protocol when they need explicit limits or cancellation.
+public protocol CommandExecutor: Sendable {
+    func run(_ argv: [String]) -> CommandResult
+    func run(_ argv: [String], limits: Shell.Limits,
+             cancellation: (@Sendable () -> Bool)?) -> CommandResult
+}
+
+public struct ShellCommandExecutor: CommandExecutor, Sendable {
+    public let limits: Shell.Limits
+
+    public init(limits: Shell.Limits = .init()) {
+        self.limits = limits
+    }
+
+    public func run(_ argv: [String]) -> CommandResult {
+        Shell.run(argv, limits: limits)
+    }
+
+    public func run(_ argv: [String], limits: Shell.Limits,
+                    cancellation: (@Sendable () -> Bool)? = nil) -> CommandResult {
+        Shell.run(argv, limits: limits, cancellation: cancellation)
+    }
+}
+
 /// Small, dependency free command runner shared by the adapters.
 public enum Shell {
     public struct Limits: Sendable, Equatable {

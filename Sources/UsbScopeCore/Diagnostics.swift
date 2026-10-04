@@ -137,6 +137,12 @@ public enum DiagnosticBundle {
             let safeWarnings = snapshot.map { current in
                 warnings.map { policy.redactText($0, snapshot: current) }
             } ?? warnings
+            let provenance: [[String: Any]] = snapshot?.devices.enumerated().map { index, device in
+                [
+                    "device_index": index,
+                    "fields": device.fieldProvenance.mapValues(\.rawValue),
+                ]
+            } ?? []
             let payload: [String: Any] = [
                 "format_version": formatVersion,
                 "generated_at": ISO8601DateFormatter().string(from: Date()),
@@ -151,6 +157,7 @@ public enum DiagnosticBundle {
                     "location_ids": policy.redactLocationIDs, "paths": policy.redactPaths,
                     "event_identities": policy.redactEventIdentities,
                 ],
+                "provenance": provenance,
             ]
             try json(payload).write(to: temporary.appendingPathComponent("metadata.json"), atomically: true, encoding: .utf8)
             if let snapshot {
