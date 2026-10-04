@@ -43,6 +43,10 @@ struct UsbScopeApp: App {
             Button(L(.refreshNow, state.language)) { state.refresh() }
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(state.isLoading)
+            Divider()
+            Button(L(.exportReport, state.language)) { state.exportReport() }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(state.snapshot == nil)
         }
         CommandMenu(L(.viewMenu, state.language)) {
             ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
@@ -211,6 +215,13 @@ struct ContentView: View {
                     Text(state.isLoading ? state.loadingLine : state.statusLine)
                         .font(.caption)
                         .foregroundStyle(state.errorMessage == nil ? Color.secondary : Color.orange)
+                    if let message = state.reportMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(state.reportFailed ? Color.orange : Color.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                     Spacer()
                 }
             }
@@ -353,6 +364,9 @@ struct ContentView: View {
             Menu {
                 Button(L(.exportJSON, lang)) { state.export(format: "json") }
                 Button(L(.exportCSV, lang)) { state.export(format: "csv") }
+                Divider()
+                Button(L(.exportReport, lang)) { state.exportReport() }
+                    .disabled(state.snapshot == nil)
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
