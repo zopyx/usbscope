@@ -362,6 +362,19 @@ final class AppState: ObservableObject {
         securitySeverityPolicy = SecuritySeverityPolicy(overrides: overrides)
     }
 
+    func sortPreference(for view: AppView) -> (key: String?, ascending: Bool) {
+        let value = viewPreferences[view] ?? ViewPreferences()
+        return (value.sortKey, value.sortAscending)
+    }
+
+    func setSortPreference(for view: AppView, key: String?, ascending: Bool) {
+        var value = viewPreferences[view] ?? ViewPreferences()
+        value.sortKey = key
+        value.sortAscending = ascending
+        viewPreferences[view] = value
+        persist()
+    }
+
     func dismissFirstRun() {
         UserDefaults.standard.set(true, forKey: "usbscope.firstRunExplained.v1")
         showFirstRun = false

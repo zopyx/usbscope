@@ -437,6 +437,13 @@ struct PortsView: View {
                            actionTitle: L(.refreshNow, state.language), action: state.refresh)
             }
         }
+        .onAppear { sortOrder = TableSortPersistence.ports(state.sortPreference(for: .ports)) }
+        .onChange(of: sortOrder) { _, newValue in
+            if let first = newValue.first {
+                state.setSortPreference(for: .ports, key: TableSortPersistence.portKey(first),
+                                        ascending: first.order == .forward)
+            }
+        }
     }
 
     private func grouped(_ rows: [PortRow]) -> some View {
@@ -524,6 +531,13 @@ struct CablesView: View {
                                actionTitle: L(.refreshNow, state.language), action: state.refresh)
                 }
             }
+            .onAppear { sortOrder = TableSortPersistence.cables(state.sortPreference(for: .cables)) }
+            .onChange(of: sortOrder) { _, newValue in
+                if let first = newValue.first {
+                    state.setSortPreference(for: .cables, key: TableSortPersistence.cableKey(first),
+                                            ascending: first.order == .forward)
+                }
+            }
         } else {
             LoadingView()
         }
@@ -601,6 +615,13 @@ struct DevicesView: View {
                            actionTitle: L(.refreshNow, state.language), action: state.refresh)
             }
         }
+        .onAppear { sortOrder = TableSortPersistence.devices(state.sortPreference(for: .devices)) }
+        .onChange(of: sortOrder) { _, newValue in
+            if let first = newValue.first {
+                state.setSortPreference(for: .devices, key: TableSortPersistence.deviceKey(first),
+                                        ascending: first.order == .forward)
+            }
+        }
     }
 
     private func grouped(_ rows: [DeviceRow]) -> some View {
@@ -673,6 +694,13 @@ struct ThunderboltView: View {
                                actionTitle: L(.refreshNow, state.language), action: state.refresh)
                 }
             }
+            .onAppear { sortOrder = TableSortPersistence.thunderbolt(state.sortPreference(for: .thunderbolt)) }
+            .onChange(of: sortOrder) { _, newValue in
+                if let first = newValue.first {
+                    state.setSortPreference(for: .thunderbolt, key: TableSortPersistence.thunderboltKey(first),
+                                            ascending: first.order == .forward)
+                }
+            }
         } else {
             LoadingView()
         }
@@ -681,12 +709,12 @@ struct ThunderboltView: View {
 
 struct PowerView: View {
     @EnvironmentObject private var state: AppState
+    @State private var sortOrder = [KeyPathComparator(\PowerRow.metricSort)]
 
     var body: some View {
         if let snapshot = state.snapshot {
             let rows = state.filtered(powerRows(snapshot))
-            // The power view has no natural order to sort by.
-            Table(rows, selection: $state.selection) {
+            Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
                 if state.isColumnVisible(.power, "Metric") {
                     TableColumn(Strings.columnLabel("Metric", state.language)) { CellText(text: $0.metric) }
                         .width(min: 140, ideal: 220)
@@ -700,6 +728,13 @@ struct PowerView: View {
                 if rows.isEmpty {
                     EmptyState(message: Strings.emptyMessage(for: .power, state.language),
                                actionTitle: L(.refreshNow, state.language), action: state.refresh)
+                }
+            }
+            .onAppear { sortOrder = TableSortPersistence.power(state.sortPreference(for: .power)) }
+            .onChange(of: sortOrder) { _, newValue in
+                if let first = newValue.first {
+                    state.setSortPreference(for: .power, key: TableSortPersistence.powerKey(first),
+                                            ascending: first.order == .forward)
                 }
             }
         } else {

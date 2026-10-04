@@ -58,7 +58,9 @@ final class PreferencesTests: XCTestCase {
         preferences.securitySeverityOverrides = ["mass-storage": "info"]
         preferences.viewPreferences = [
             "devices": ViewPreferences(search: "keyboard", filterPreset: .connected,
-                                        grouping: .deviceClass, preserveSelection: false)
+                                        grouping: .deviceClass, preserveSelection: false,
+                                        selection: ["device:keyboard"], sortKey: "mode",
+                                        sortAscending: false)
         ]
 
         let restored = AppPreferences.decode(preferences.encoded())
@@ -67,6 +69,9 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(restored.viewPreferences["devices"]?.search, "keyboard")
         XCTAssertEqual(restored.viewPreferences["devices"]?.filterPreset, .connected)
         XCTAssertFalse(restored.viewPreferences["devices"]?.preserveSelection ?? true)
+        XCTAssertEqual(restored.viewPreferences["devices"]?.selection, ["device:keyboard"])
+        XCTAssertEqual(restored.viewPreferences["devices"]?.sortKey, "mode")
+        XCTAssertFalse(restored.viewPreferences["devices"]?.sortAscending ?? true)
     }
 
     func testOlderPreferenceDocumentsDefaultTheMonitoringProfile() {

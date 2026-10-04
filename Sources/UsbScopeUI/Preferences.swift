@@ -68,18 +68,25 @@ public struct ViewPreferences: Codable, Equatable, Sendable {
     public var grouping: GroupField = .none
     public var preserveSelection: Bool = true
     public var selection: [String] = []
+    public var sortKey: String?
+    public var sortAscending: Bool = true
 
     public init(search: String = "", filterPreset: FilterPreset = .all,
                 grouping: GroupField = .none, preserveSelection: Bool = true,
-                selection: [String] = []) {
+                selection: [String] = [], sortKey: String? = nil,
+                sortAscending: Bool = true) {
         self.search = search
         self.filterPreset = filterPreset
         self.grouping = grouping
         self.preserveSelection = preserveSelection
         self.selection = selection
+        self.sortKey = sortKey
+        self.sortAscending = sortAscending
     }
 
-    private enum CodingKeys: String, CodingKey { case search, filterPreset, grouping, preserveSelection, selection }
+    private enum CodingKeys: String, CodingKey {
+        case search, filterPreset, grouping, preserveSelection, selection, sortKey, sortAscending
+    }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -88,6 +95,8 @@ public struct ViewPreferences: Codable, Equatable, Sendable {
         grouping = try values.decodeIfPresent(GroupField.self, forKey: .grouping) ?? .none
         preserveSelection = try values.decodeIfPresent(Bool.self, forKey: .preserveSelection) ?? true
         selection = try values.decodeIfPresent([String].self, forKey: .selection) ?? []
+        sortKey = try values.decodeIfPresent(String.self, forKey: .sortKey)
+        sortAscending = try values.decodeIfPresent(Bool.self, forKey: .sortAscending) ?? true
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -97,6 +106,8 @@ public struct ViewPreferences: Codable, Equatable, Sendable {
         try values.encode(grouping, forKey: .grouping)
         try values.encode(preserveSelection, forKey: .preserveSelection)
         try values.encode(selection, forKey: .selection)
+        try values.encodeIfPresent(sortKey, forKey: .sortKey)
+        try values.encode(sortAscending, forKey: .sortAscending)
     }
 }
 

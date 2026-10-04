@@ -320,6 +320,8 @@ public struct PowerRow: Identifiable, Hashable, Sendable {
     public let id: String
     public let metric: StyledText
     public let value: StyledText
+    public let metricSort: String
+    public let valueSort: String
 }
 
 /// The live charging metrics as one row each (`viewmodel._charging_pairs`).
@@ -363,7 +365,8 @@ public func powerRows(_ snapshot: Snapshot) -> [PowerRow] {
         return PowerRow(
             id: powerKey(label),
             metric: StyledText(label, .dim),
-            value: StyledText(value, live ? .green : .default)
+            value: StyledText(value, live ? .green : .default),
+            metricSort: label.lowercased(), valueSort: value.lowercased()
         )
     }
 }
