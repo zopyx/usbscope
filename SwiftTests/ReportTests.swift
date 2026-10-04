@@ -4,14 +4,15 @@ import XCTest
 
 @testable import UsbScopeCore
 
-/// `usbscope report` — the twin of `tests/test_report.py`.
+/// `usbscope report` — the Markdown and HTML renderer.
 ///
-/// The two hashes pin the *exact* Markdown and HTML bytes; `tests/test_report.py`
-/// asserts the very same two values from the Python renderer, so the two
-/// implementations cannot drift apart unnoticed.
+/// The two hashes pin the *exact* bytes of both formats over the fixture snapshot.
+/// They are re-pinned deliberately when the content changes; the last change was the
+/// interface descriptors feeding the security rules (the composite note now names the
+/// interfaces, and a HID interface without a serial is flagged).
 final class ReportTests: XCTestCase {
-    private let markdownSHA256 = "7084b7944106eaa732564d86e70e1bf007abf1139e9fba87669c66f785ff5e69"
-    private let htmlSHA256 = "23f7159b0da1ec966b7484450add4423288a2ffcb1881d94f7ba853348b87cd9"
+    private let markdownSHA256 = "451ebf65fae191e581f392ce3342587a2e84ca2e9f3fc001c2d38ace37af9d7e"
+    private let htmlSHA256 = "9601c7cc3ca7d466ca5860ee8a349e2e2c51aee5d9d01d251511425bf014d74d"
 
     private func sha256(_ text: String) -> String {
         SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()

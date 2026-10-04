@@ -49,6 +49,25 @@ public enum Serialize {
             "tier": orNull(device.tier),
             "parent": orNull(device.parent),
             "address": orNull(device.address),
+            "interfaces": device.interfaces.map(interface),
+        ]
+    }
+
+    /// One interface descriptor as JSON.
+    ///
+    /// `endpoints` is the *count* macOS publishes (`bNumEndpoints`) — the endpoint
+    /// descriptors themselves are not in the registry, so there is nothing to list.
+    static func interface(_ interface: DeviceInterface) -> [String: Any] {
+        [
+            "number": interface.number,
+            "alternate_setting": interface.alternateSetting,
+            "configuration": orNull(interface.configuration),
+            "class_code": orNull(interface.classCode),
+            "class_text": orNull(interface.classText),
+            "subclass": orNull(interface.subclass),
+            "protocol": orNull(interface.protocolCode),
+            "endpoints": orNull(interface.endpoints),
+            "name": orNull(interface.name),
         ]
     }
 

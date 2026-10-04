@@ -39,12 +39,14 @@ public struct StorageRow: Identifiable, Hashable, Sendable {
 public enum SecurityPresentation {
     public static let headline = "Security posture — heuristic, not a verdict"
 
-    /// The exact honest-limits paragraph the CLI prints.
+    /// The exact honest-limits paragraph the CLI prints (the CLI reads this constant,
+    /// so the two cannot drift).
     public static let honestLimits =
-        "honest limits: the class triple is device level, so the interfaces of a composite device "
-        + "(and therefore its HID/mass-storage mix) are not exposed without a user client; a missing "
-        + "serial is a missing report, not proof there is none; storage covers only whole disks "
-        + "whose diskutil BusProtocol is USB."
+        "honest limits: the class triple is device level, but the interfaces macOS publishes in "
+        + "the registry are read too, so a composite device's HID/mass-storage mix is visible — the "
+        + "endpoint descriptors, however, are not published at all; a missing serial is a missing "
+        + "report, not proof there is none; storage covers only whole disks whose diskutil "
+        + "BusProtocol is USB."
 
     public static let emptyReportText = "nothing stood out in what macOS reports"
     public static let emptyStorageText = "no USB mass storage attached — a Mac without one is normal"

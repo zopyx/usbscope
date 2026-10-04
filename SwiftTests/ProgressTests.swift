@@ -79,7 +79,10 @@ final class ProgressTests: XCTestCase {
             )
         })
         XCTAssertEqual(lines.count, SnapshotStage.allCases.count)
-        XCTAssertTrue(lines.first?.hasPrefix("collecting Ports · 1/6") == true, lines.first ?? "–")
-        XCTAssertTrue(lines.last?.hasSuffix("· 6/6") == true, lines.last ?? "–")
+        let total = SnapshotStage.allCases.count
+        XCTAssertTrue(
+            lines.first?.hasPrefix("collecting Ports · 1/\(total)") == true, lines.first ?? "–"
+        )
+        XCTAssertTrue(lines.last?.hasSuffix("· \(total)/\(total)") == true, lines.last ?? "–")
     }
 }

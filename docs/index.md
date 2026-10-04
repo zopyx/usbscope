@@ -72,7 +72,7 @@ The app has its own take on this: `⌘R` plus an auto-refresh toggle and a
 | --- | --- |
 | `overview` (default) | summary panel, port table, device tree, USB4 table |
 | `ports` | port table + device tree: state, negotiated mode, transports, cable, notes |
-| `devices` | bus → device tree with VID/PID, link mode, serial, port/transport mapping |
+| `devices` | bus → device tree with VID/PID, link mode, serial, port/transport mapping, and one line per interface descriptor (`if 0 · HID (3/1/1) · 1 endpoint(s)`) |
 | `cables` | cable class (passive / e-marked / active / optical), CC authentication + hash status, SOP spec revision, LDCM liquid status, controller firmware; `-v` adds the port-controller USB mode plus a *Charging & adapter* panel |
 | `thunderbolt` | Thunderbolt/USB4 receptacles: state, link speed, host adapter |
 | `usb4` | the USB4 fabric as a tree: routers, their ports (with the raw link speed/width enumerations) and the PCIe/USB/DisplayPort tunnels on them |
@@ -203,6 +203,7 @@ port — the mode describes the link, not the connector.
 | `system_profiler SPPowerDataType -json` | adapter watt, charger connected, charging state, state of charge |
 | `ioreg -a -l -w0 -p IOPort` | port controller view: ports, transport states, cable/CC/SOP data, power contract, LDCM, TRM |
 | `ioreg -a -l -w0 -p IOUSB` | USB device tree: descriptor basics (`bDeviceClass`/`SubClass`/`Protocol`, `bcdUSB`, `bMaxPacketSize0`, `bNumConfigurations`), enumeration speed code, device address, hub tier and parent hub |
+| `IOUSBHostInterface` (in-process IOKit, `ioreg -a -c IOUSBHostInterface -r -l -w0` as the fallback) | the interface descriptors of every device: number, alternate setting, class triple, configuration value and endpoint count, joined to the device by `locationID` |
 | `diskutil list -plist` / `diskutil info -plist <device>` | USB mass storage (security view): whole disks with `BusProtocol == USB`, capacity, read-only state and mount point |
 | `ioreg -r -n AppleSmartBattery -a -l -w0` | live power telemetry: adapter input, system load, battery flow, adapter PD menu |
 
@@ -245,13 +246,17 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
   them, the default table stays clean. Where the raw value is certain noise it is
   dropped instead of shown: an idle pin map (`pins:` lists only non-zero entries),
   an all-zero current-limit list and an `AccessoryMode` of `0`.
-* **Device descriptors are device level only.** `ioreg -p IOUSB` publishes the
-  device class triple, `bcdUSB`, the control endpoint packet size and the
-  configuration count. The interface/endpoint descriptor tree needs an
-  `IOUSBHostDevice` user client, so a class of `0` (class declared per interface)
-  is reported as `per-interface` instead of guessed. The `Tier` column is the hub
-  depth (1 = directly on a controller) and `Parent hub` names the hub above a
-  device.
+* **Device descriptors are device level; the interfaces come from the registry.**
+  `ioreg -p IOUSB` publishes the device class triple, `bcdUSB`, the control
+  endpoint packet size and the configuration count. The *interfaces* are separate
+  `IOUSBHostInterface` objects in the registry (`ioreg -c IOUSBHostInterface -r`),
+  which is readable without an entitlement: each carries its number, alternate
+  setting, class triple, configuration and endpoint count, and they are attached to
+  the device by `locationID`. A class of `0` at the device level is still reported
+  as `per-interface`, but the interfaces behind it are listed. The endpoint
+  descriptors themselves are published nowhere, so an interface is only known to
+  have *n* endpoints. The `Tier` column is the hub depth (1 = directly on a
+  controller) and `Parent hub` names the hub above a device.
 * **`restricted by macOS`** mirrors the port controller's `TRM_TransportRestricted`
   flag (the "allow accessory to connect" prompt used from macOS 13 on).
 * **Power has two different truths, and they are kept apart.** A port
@@ -309,6 +314,7 @@ changes the `schema_version: 1` snapshot document.
 | --- | --- | --- |
 | `warning` | `mass-storage` | the device reports USB base class 8 (mass storage) |
 | `warning` | `hid-and-storage-on-port` | one receptacle carries both a class-3 and a class-8 device |
+| `warning` | `hid-and-storage-on-device` | one device declares both HID and mass-storage interfaces — a filesystem and a keyboard at once |
 | `attention` | `hid-without-serial` | a class-3 (HID) device has no serial number |
 | `attention` | `restricted-by-macos` | the device was marked restricted by macOS (the port controller's TRM flag) |
 | `attention` | `authorization` | a port's accessory authorization is neither `Not Required` nor `No Action` |
@@ -320,12 +326,20 @@ changes the `schema_version: 1` snapshot document.
 The severity is a heuristic, not a verdict. The analysis is explicit about what
 it cannot see:
 
-* **A composite device's interfaces are not exposed.** macOS publishes the
-  device-level class triple only; the interface/endpoint tree needs an
-  `IOUSBHostDevice` user client. A class of `0` is therefore reported as
-  `composite-per-interface` (and `0xEF/2/1` as `composite-iad`) and the view
-  states that the contained functions — the HID + mass-storage mix of a bad-USB
-  stick, for instance — **cannot be confirmed here instead of being guessed**.
+* **The interface tree is read, the endpoint tree is not.** macOS publishes one
+  `IOUSBHostInterface` object per interface in the registry — number, alternate
+  setting, class triple, configuration and the endpoint *count* — and that needs
+  no entitlement, so the rules below run against device-level *and* interface-level
+  classes. What is still missing is the endpoints themselves: their descriptors
+  (address, transfer type, packet size, interval) are published nowhere, so an
+  interface is only known to have *n* endpoints, not which ones. A device that
+  publishes no interface objects is described by its device-level class only, and
+  the `composite-per-interface` / `composite-iad` note says so instead of guessing.
+* **Composites are checked where they are declared.** Because the interfaces are
+  known, a device that reports class `0` at the device level but carries a
+  mass-storage interface *is* flagged as mass storage, and one that carries both
+  HID and mass-storage interfaces is flagged by `hid-and-storage-on-device` — the
+  bad-USB shape — instead of being listed as an unknown composite.
 * **A missing serial is a missing report.** `hid-without-serial` fires when
   macOS did not report a serial number, not when the device provably has none.
 * **Authorization and restriction are the controller's own strings and flags**

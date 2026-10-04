@@ -164,6 +164,7 @@ final class SnapshotBackendTests: XCTestCase {
             ioreg: Fixtures.ioreg,
             charging: Fixtures.charging,
             usbregistry: Fixtures.usbregistry,
+            interfaces: Fixtures.interfaces,
             fabric: Fixtures.tbFabric,
             clock: { Date(timeIntervalSince1970: 1_790_000_000) },
             osVersion: Fixtures.osVersion,
@@ -174,7 +175,7 @@ final class SnapshotBackendTests: XCTestCase {
         XCTAssertEqual(seen.map(\.0), SnapshotStage.allCases, "the stages did not fire once each, in order")
         XCTAssertEqual(seen.map(\.1), Array(1...SnapshotStage.allCases.count), "the indices are not 1…n")
         XCTAssertTrue(seen.allSatisfy { $0.2 == SnapshotStage.allCases.count }, "the total is not the stage count")
-        XCTAssertEqual(SnapshotStage.allCases.count, 6)
+        XCTAssertEqual(SnapshotStage.allCases.count, 7)
     }
 
     /// The default is `nil`: omitting `progress` must still build a snapshot.
@@ -184,6 +185,7 @@ final class SnapshotBackendTests: XCTestCase {
             ioreg: Fixtures.ioreg,
             charging: Fixtures.charging,
             usbregistry: Fixtures.usbregistry,
+            interfaces: Fixtures.interfaces,
             fabric: Fixtures.tbFabric,
             clock: { Date(timeIntervalSince1970: 1_790_000_000) },
             osVersion: Fixtures.osVersion,
@@ -202,6 +204,7 @@ final class SnapshotBackendTests: XCTestCase {
                 ioregBackend: backend,
                 charging: Fixtures.charging,
                 usbregistry: Fixtures.usbregistry,
+                interfaces: Fixtures.interfaces,
                 fabric: Fixtures.tbFabric,
                 clock: { Date(timeIntervalSince1970: 1_790_000_000) },
                 osVersion: Fixtures.osVersion,

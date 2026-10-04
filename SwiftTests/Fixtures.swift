@@ -74,6 +74,18 @@ enum Fixtures {
         ThunderboltFabricSource(runner: runner(["IOThunderboltSwitch": "tb_switch.plist"]))
     }
 
+    /// The interface descriptors of the fixture device.
+    ///
+    /// Pinned to the **subprocess** backend on purpose: `.automatic` prefers the
+    /// in-process registry read, which would make the golden depend on whatever is
+    /// plugged into the machine running the suite.
+    static var interfaces: USBInterfaceSource {
+        USBInterfaceSource(
+            runner: runner(["IOUSBHostInterface": "usb_interfaces.plist"]),
+            backend: .subprocess
+        )
+    }
+
     /// A parsed plist fixture (for the parsers that take a tree directly).
     static func plist(_ name: String) throws -> [String: Any] {
         let raw = try data(name)
@@ -97,6 +109,7 @@ enum Fixtures {
             ioreg: ioreg,
             charging: charging,
             usbregistry: usbregistry,
+            interfaces: interfaces,
             fabric: tbFabric,
             clock: { Date(timeIntervalSince1970: 1_790_000_000) },
             osVersion: osVersion,

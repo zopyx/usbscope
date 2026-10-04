@@ -190,7 +190,7 @@ public enum Presentation {
 
     /// Every known fact about a device as label/value pairs.
     public static func deviceDetails(_ device: UsbDevice) -> [(String, String)] {
-        pairs([
+        var details = pairs([
             pair("Device", device.label),
             pair("Vendor", device.vendor),
             pair("VID:PID", device.idString),
@@ -218,6 +218,23 @@ public enum Presentation {
             pair("Restricted by macOS", device.restricted),
             pair("Source", device.source),
         ])
+        // The interface level: one row per interface, since a composite device
+        // declares its functions there and `endpoints` is the count macOS publishes.
+        if !device.interfaces.isEmpty {
+            details.append(("Interfaces", "\(device.interfaces.count)"))
+            for interface in device.interfaces {
+                details.append((interface.label, interfaceDetail(interface)))
+            }
+        }
+        return details
+    }
+
+    /// `HID (3/1/1) · 2 endpoint(s) · config 1` — how one interface reads.
+    public static func interfaceDetail(_ interface: DeviceInterface) -> String {
+        var parts = [interface.classText ?? "class unknown"]
+        if let endpoints = interface.endpoints { parts.append("\(endpoints) endpoint(s)") }
+        if let configuration = interface.configuration { parts.append("config \(configuration)") }
+        return parts.joined(separator: " · ")
     }
 
     /// Thunderbolt receptacle facts as label/value pairs.

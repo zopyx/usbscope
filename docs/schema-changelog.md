@@ -31,3 +31,8 @@ keys keeps working):
   `uid`, `depth`, `route_string`, `thunderbolt_version`), the switch `ports[]`
   (`protocol`, link speed/width, lane, credits) and the tunnel adapters
   `tunnels[]` (PCIe/USB/DisplayPort with their driver).
+* `devices[].interfaces[]`: the interface descriptors macOS publishes in the
+  registry (`IOUSBHostInterface`) — `number`, `alternate_setting`, `configuration`,
+  `class_code`, `class_text`, `subclass`, `protocol`, `endpoints` (the *count*
+  macOS reports; the endpoint descriptors themselves are not published) and `name`.
+  Empty for a device that publishes none.

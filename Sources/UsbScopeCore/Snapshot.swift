@@ -25,6 +25,7 @@ public enum IORegSourceBackend: Sendable {
 public enum SnapshotStage: String, CaseIterable, Sendable {
     case ports
     case buses
+    case interfaces
     case thunderbolt
     case hardware
     case charging
@@ -145,6 +146,7 @@ public enum SnapshotBuilder {
         ioregBackend: IORegSourceBackend = .automatic,
         charging: ChargingSource = ChargingSource(),
         usbregistry: USBRegistrySource = USBRegistrySource(),
+        interfaces: USBInterfaceSource = USBInterfaceSource(),
         fabric: ThunderboltFabricSource = ThunderboltFabricSource(),
         clock: @Sendable () -> Date = { Date() },
         osVersion: String? = nil,
@@ -165,6 +167,9 @@ public enum SnapshotBuilder {
         let (buses, busWarnings) = profiler.usbBuses()
         warnings.append(contentsOf: busWarnings)
         report(.buses)
+        let (interfaceMap, interfaceWarnings) = interfaces.interfaces()
+        warnings.append(contentsOf: interfaceWarnings)
+        report(.interfaces)
         let (thunderbolt, thunderboltWarnings) = profiler.thunderbolt()
         warnings.append(contentsOf: thunderboltWarnings)
         let (thunderboltFabric, fabricWarnings) = fabric.fabric()
@@ -193,19 +198,32 @@ public enum SnapshotBuilder {
             return result
         }
 
+        /// Attach the interface descriptors the registry published for this device.
+        ///
+        /// The join is `locationID`: the device records carry it and so does every
+        /// `IOUSBHostInterface` object, so no guessing by name or port is needed.
+        func withInterfaces(_ device: UsbDevice) -> UsbDevice {
+            guard let location = device.locationID, let list = interfaceMap[location] else {
+                return device
+            }
+            var copy = device
+            copy.interfaces = list
+            return copy
+        }
+
         var mergedBuses = buses.map { bus in
             var copy = bus
-            copy.devices = bus.devices.map { merged($0, portIndex, registryIndex) }
+            copy.devices = bus.devices.map { withInterfaces(merged($0, portIndex, registryIndex)) }
             return copy
         }
         var mergedPorts = ports.map { port in
             var copy = port
-            copy.devices = port.devices.map { merged($0, busIndex, registryIndex) }
+            copy.devices = port.devices.map { withInterfaces(merged($0, busIndex, registryIndex)) }
             return copy
         }
         let orphans = portIndex.merging(registryIndex) { current, _ in current }
             .filter { busIndex[$0.key] == nil }
-            .map(\.value)
+            .map { withInterfaces($0.value) }
         if !orphans.isEmpty {
             mergedBuses.append(Bus(name: orphanBus, driver: "ioreg", devices: orphans))
         }

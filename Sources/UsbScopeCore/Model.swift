@@ -97,6 +97,65 @@ public enum UsbMode: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// One interface descriptor of a USB device.
+///
+/// macOS publishes these in the registry as `IOUSBHostInterface` objects — reading
+/// them needs no entitlement, so the interface level of the descriptor tree is
+/// available on a plain machine. What the registry gives is one object per
+/// interface: its number, the alternate setting, the class triple, the
+/// configuration it belongs to and **how many** endpoints it has.
+///
+/// The endpoint descriptors themselves (address, transfer type, max packet size,
+/// interval) are *not* published; getting those means the IOUSBHost user-client API,
+/// and that is what needs the entitlement. So `endpoints` here is a count, not a
+/// list, and the docs say so.
+public struct DeviceInterface: Equatable, Sendable {
+    /// `bInterfaceNumber` — alternates share it.
+    public var number: Int
+    /// `bAlternateSetting`; together with `number` this identifies the interface.
+    public var alternateSetting: Int
+    /// `bConfigurationValue` the interface belongs to.
+    public var configuration: Int?
+    public var classCode: Int?
+    public var subclass: Int?
+    public var protocolCode: Int?
+    /// `bNumEndpoints` — the count macOS publishes in place of the descriptors.
+    public var endpoints: Int?
+    /// The registry node name, e.g. `IOUSBHostInterface@0`.
+    public var name: String?
+
+    public init(
+        number: Int, alternateSetting: Int = 0, configuration: Int? = nil,
+        classCode: Int? = nil, subclass: Int? = nil, protocolCode: Int? = nil,
+        endpoints: Int? = nil, name: String? = nil
+    ) {
+        self.number = number
+        self.alternateSetting = alternateSetting
+        self.configuration = configuration
+        self.classCode = classCode
+        self.subclass = subclass
+        self.protocolCode = protocolCode
+        self.endpoints = endpoints
+        self.name = name
+    }
+
+    /// `HID (3/1/1)` — the registry class name plus the raw triple, so a class the
+    /// table does not know still reads as its numbers.
+    public var classText: String? {
+        guard let classCode else { return nil }
+        let base = USBRegistry.className(classCode) ?? String(format: "0x%02x", classCode)
+        let sub = subclass.map(String.init) ?? "?"
+        let proto = protocolCode.map(String.init) ?? "?"
+        return "\(base) (\(classCode)/\(sub)/\(proto))"
+    }
+
+    /// `if 1 alt 0` — how the interface is addressed.
+    public var label: String {
+        alternateSetting == 0 ? "if \(number)" : "if \(number) alt \(alternateSetting)"
+    }
+}
+
+/// A USB device as the sources describe it.
 public struct UsbDevice: Equatable, Sendable {
     public var name: String
     public var vendor: String?
@@ -130,6 +189,10 @@ public struct UsbDevice: Equatable, Sendable {
     public var tier: Int? = nil
     public var parent: String? = nil
     public var address: Int? = nil
+    /// The interface descriptors macOS publishes for this device
+    /// (`IOUSBHostInterface`), in interface-number order. Empty when the device
+    /// reports none (a hub, or a machine where the registry is unreadable).
+    public var interfaces: [DeviceInterface] = []
 
     public init(
         name: String, vendor: String? = nil, vendorID: Int? = nil, productID: Int? = nil,

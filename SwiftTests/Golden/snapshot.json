@@ -35,6 +35,41 @@
           "device_subclass" : 0,
           "generation" : "USB 2.0",
           "id" : "0x1050:0x0407",
+          "interfaces" : [
+            {
+              "alternate_setting" : 0,
+              "class_code" : 3,
+              "class_text" : "HID (3\/1\/1)",
+              "configuration" : 1,
+              "endpoints" : 1,
+              "name" : "IOUSBHostInterface",
+              "number" : 0,
+              "protocol" : 1,
+              "subclass" : 1
+            },
+            {
+              "alternate_setting" : 0,
+              "class_code" : 3,
+              "class_text" : "HID (3\/0\/0)",
+              "configuration" : 1,
+              "endpoints" : 2,
+              "name" : "IOUSBHostInterface",
+              "number" : 1,
+              "protocol" : 0,
+              "subclass" : 0
+            },
+            {
+              "alternate_setting" : 0,
+              "class_code" : 11,
+              "class_text" : "smart card (11\/0\/0)",
+              "configuration" : 1,
+              "endpoints" : 3,
+              "name" : "IOUSBHostInterface",
+              "number" : 2,
+              "protocol" : 0,
+              "subclass" : 0
+            }
+          ],
           "location_id" : 17825792,
           "max_packet_size0" : 64,
           "mode" : "full_speed",
@@ -589,6 +624,41 @@
           "device_subclass" : 0,
           "generation" : "USB 2.0",
           "id" : "0x1050:0x0407",
+          "interfaces" : [
+            {
+              "alternate_setting" : 0,
+              "class_code" : 3,
+              "class_text" : "HID (3\/1\/1)",
+              "configuration" : 1,
+              "endpoints" : 1,
+              "name" : "IOUSBHostInterface",
+              "number" : 0,
+              "protocol" : 1,
+              "subclass" : 1
+            },
+            {
+              "alternate_setting" : 0,
+              "class_code" : 3,
+              "class_text" : "HID (3\/0\/0)",
+              "configuration" : 1,
+              "endpoints" : 2,
+              "name" : "IOUSBHostInterface",
+              "number" : 1,
+              "protocol" : 0,
+              "subclass" : 0
+            },
+            {
+              "alternate_setting" : 0,
+              "class_code" : 11,
+              "class_text" : "smart card (11\/0\/0)",
+              "configuration" : 1,
+              "endpoints" : 3,
+              "name" : "IOUSBHostInterface",
+              "number" : 2,
+              "protocol" : 0,
+              "subclass" : 0
+            }
+          ],
           "location_id" : 17825792,
           "max_packet_size0" : 64,
           "mode" : "full_speed",

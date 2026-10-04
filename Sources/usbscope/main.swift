@@ -304,6 +304,14 @@ func devicesTree(_ snapshot: Snapshot, verbose: Bool) -> String {
             if let port = device.port { line += " · → \(port)" }
             if verbose, let location = device.locationID { line += " · location=\(String(format: "0x%08x", location))" }
             lines.append(line)
+            // The interface level: what the device declares per interface, with the
+            // endpoint *count* macOS publishes in place of the endpoint descriptors.
+            for interface in device.interfaces {
+                var detail = [interface.classText ?? "class unknown"]
+                if let endpoints = interface.endpoints { detail.append("\(endpoints) endpoint(s)") }
+                if let configuration = interface.configuration { detail.append("config \(configuration)") }
+                lines.append("│       ├── \(interface.label) · \(detail.joined(separator: " · "))")
+            }
         }
     }
     return lines.joined(separator: "\n")
@@ -420,12 +428,7 @@ func securityView(_ snapshot: Snapshot, report: SecurityReport, storage: [Storag
         }
         parts.append("USB mass storage\n" + table(["Device", "Name", "Capacity", "Mode", "Mount"], rows))
     }
-    parts.append(
-        "honest limits: the class triple is device level, so the interfaces of a composite device "
-            + "(and therefore its HID/mass-storage mix) are not exposed without a user client; a missing "
-            + "serial is a missing report, not proof there is none; storage covers only whole disks "
-            + "whose diskutil BusProtocol is USB."
-    )
+    parts.append(SecurityPresentation.honestLimits)
     return parts.joined(separator: "\n")
 }
 

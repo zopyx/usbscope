@@ -92,13 +92,8 @@ public enum Security {
     static let massStorageDetail = "mass-storage device (class 8) — it presents a filesystem to the host"
     static let hidNoSerialDetail =
         "HID device without a serial number — an identical device cannot be told apart across reads"
-    static let compositePerInterfaceDetail =
-        "class declared per interface (composite) — macOS does not expose the interface classes "
-        + "without a user client, so the contained functions (e.g. HID and mass storage) cannot be "
-        + "confirmed here"
-    static let compositeIADDetail =
-        "Interface Association Descriptor composite (0xEF/2/1) — macOS does not expose the interface "
-        + "classes without a user client, so the contained functions cannot be confirmed here"
+    static let compositeIADDetailBase =
+        "Interface Association Descriptor composite (0xEF/2/1)"
     static let deviceRestrictedDetail =
         "macOS reports the device as restricted (TRM) — it was not granted access without a prompt"
     static let transportRestrictedDetail = "an active transport of this port is restricted by macOS (TRM)"
@@ -107,6 +102,49 @@ public enum Security {
         + "(charge/accessory only)"
     static let hidAndStorageDetail =
         "this port carries both a HID (class 3) and a mass-storage (class 8) device"
+    static let hidAndStorageOnDeviceDetail =
+        "one device declares both HID (class 3) and mass-storage (class 8) interfaces — it presents "
+        + "a filesystem and a keyboard at the same time"
+    /// What is *not* confirmed when macOS published no interface objects at all.
+    static let noInterfacesDetail =
+        " — macOS published no interface objects for this device, so the contained functions "
+        + "(e.g. HID and mass storage) cannot be confirmed here"
+
+    /// The classes a device declares — at the device level *and* per interface.
+    ///
+    /// A composite device reports class `0` at the device level and declares the real
+    /// functions on its interfaces. Before the interface descriptors were read, such a
+    /// device was invisible to every rule below: a mass-storage stick that also
+    /// exposes a keyboard looked like nothing at all.
+    public static func declaredClasses(_ device: UsbDevice) -> Set<Int> {
+        var classes = Set(device.interfaces.compactMap(\.classCode))
+        if let code = device.deviceClass { classes.insert(code) }
+        return classes
+    }
+
+    /// `if 0: HID (3/1/1), if 1: HID (3/0/0), if 2: smart card (11/0/0)` — or `nil`
+    /// when macOS published no interface objects.
+    public static func interfaceSummary(_ device: UsbDevice) -> String? {
+        guard !device.interfaces.isEmpty else { return nil }
+        return device.interfaces
+            .map { "\($0.label): \($0.classText ?? "class unknown")" }
+            .joined(separator: ", ")
+    }
+
+    /// The `composite-per-interface` note, naming the interfaces when they are known.
+    static func compositePerInterfaceDetail(_ device: UsbDevice) -> String {
+        let base = "class declared per interface (composite)"
+        guard let summary = interfaceSummary(device) else { return base + noInterfacesDetail }
+        return base + " — macOS publishes the interfaces in the registry: \(summary)"
+    }
+
+    /// The `composite-iad` note, naming the interfaces when they are known.
+    static func compositeIADDetail(_ device: UsbDevice) -> String {
+        guard let summary = interfaceSummary(device) else {
+            return compositeIADDetailBase + noInterfacesDetail
+        }
+        return compositeIADDetailBase + " — the interfaces macOS publishes are: \(summary)"
+    }
 
     /// Turn a snapshot into a ranked security report.
     public static func analyse(_ snapshot: Snapshot) -> SecurityReport {
@@ -143,19 +181,24 @@ public enum Security {
             )
         }
 
-        if device.deviceClass == classMassStorage {
+        let classes = declaredClasses(device)
+
+        if classes.contains(classMassStorage) {
             add("mass-storage", .warning, massStorageDetail)
         }
-        if device.deviceClass == classHID && (device.serial ?? "").isEmpty {
+        if classes.contains(classHID) && (device.serial ?? "").isEmpty {
             add("hid-without-serial", .attention, hidNoSerialDetail)
         }
+        if classes.contains(classHID) && classes.contains(classMassStorage) {
+            add("hid-and-storage-on-device", .warning, hidAndStorageOnDeviceDetail)
+        }
         if device.deviceClass == classPerInterface {
-            add("composite-per-interface", .info, compositePerInterfaceDetail)
+            add("composite-per-interface", .info, compositePerInterfaceDetail(device))
         } else if device.deviceClass == classMisc
             && device.deviceSubclass == 0x02
             && device.deviceProtocol == 0x01
         {
-            add("composite-iad", .info, compositeIADDetail)
+            add("composite-iad", .info, compositeIADDetail(device))
         }
         if device.restricted == true {
             add("restricted-by-macos", .attention, deviceRestrictedDetail)
@@ -187,7 +230,10 @@ public enum Security {
         if port.connected && !port.devices.isEmpty && !hasActiveUsbTransport(port) {
             add("no-usb-data", .attention, noUsbDataDetail)
         }
-        let classes = Set(port.devices.compactMap(\.deviceClass))
+        // Interface aware: a composite device declares its classes per interface, so
+        // both the device level and the interface level count.
+        var classes: Set<Int> = []
+        for device in port.devices { classes.formUnion(declaredClasses(device)) }
         if classes.contains(classHID) && classes.contains(classMassStorage) {
             add("hid-and-storage-on-port", .warning, hidAndStorageDetail)
         }
