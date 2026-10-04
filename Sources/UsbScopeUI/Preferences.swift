@@ -47,6 +47,15 @@ public enum NotificationDetail: String, CaseIterable, Identifiable, Codable, Sen
     public var id: String { rawValue }
 }
 
+/// Collection policy for automatic monitoring. Manual refreshes use the same
+/// selected policy so the status never hides which sources were reduced.
+public enum MonitoringProfile: String, CaseIterable, Identifiable, Codable, Sendable {
+    case balanced
+    case lowPower
+
+    public var id: String { rawValue }
+}
+
 /// The refresh cadences the app offers.
 public let PREFERENCE_INTERVALS: [Double] = [1, 2, 5, 10, 30]
 
@@ -59,6 +68,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public var appearance: Appearance = .system
     public var language: AppLanguage = .en
     public var grouping: GroupField = .none
+    public var monitoringProfile: MonitoringProfile = .balanced
     /// Hidden column titles per view raw value.
     public var hiddenColumns: [String: [String]] = [:]
 
@@ -73,6 +83,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         appearance: Appearance = .system,
         language: AppLanguage = .en,
         grouping: GroupField = .none,
+        monitoringProfile: MonitoringProfile = .balanced,
         hiddenColumns: [String: [String]] = [:]
     ) {
         self.defaultView = defaultView
@@ -83,7 +94,41 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.appearance = appearance
         self.language = language
         self.grouping = grouping
+        self.monitoringProfile = monitoringProfile
         self.hiddenColumns = hiddenColumns
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case defaultView, interval, autoRefresh, notifications, notificationDetail
+        case appearance, language, grouping, monitoringProfile, hiddenColumns
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        defaultView = try values.decodeIfPresent(AppView.self, forKey: .defaultView) ?? .ports
+        interval = try values.decodeIfPresent(Double.self, forKey: .interval) ?? 5
+        autoRefresh = try values.decodeIfPresent(Bool.self, forKey: .autoRefresh) ?? false
+        notifications = try values.decodeIfPresent(Bool.self, forKey: .notifications) ?? true
+        notificationDetail = try values.decodeIfPresent(NotificationDetail.self, forKey: .notificationDetail) ?? .generic
+        appearance = try values.decodeIfPresent(Appearance.self, forKey: .appearance) ?? .system
+        language = try values.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .en
+        grouping = try values.decodeIfPresent(GroupField.self, forKey: .grouping) ?? .none
+        monitoringProfile = try values.decodeIfPresent(MonitoringProfile.self, forKey: .monitoringProfile) ?? .balanced
+        hiddenColumns = try values.decodeIfPresent([String: [String]].self, forKey: .hiddenColumns) ?? [:]
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(defaultView, forKey: .defaultView)
+        try values.encode(interval, forKey: .interval)
+        try values.encode(autoRefresh, forKey: .autoRefresh)
+        try values.encode(notifications, forKey: .notifications)
+        try values.encode(notificationDetail, forKey: .notificationDetail)
+        try values.encode(appearance, forKey: .appearance)
+        try values.encode(language, forKey: .language)
+        try values.encode(grouping, forKey: .grouping)
+        try values.encode(monitoringProfile, forKey: .monitoringProfile)
+        try values.encode(hiddenColumns, forKey: .hiddenColumns)
     }
 
     /// A copy with every invalid value replaced by a default.
@@ -97,6 +142,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         copy.appearance = Appearance(rawValue: appearance.rawValue) ?? .system
         copy.language = AppLanguage(rawValue: language.rawValue) ?? .en
         copy.grouping = GroupField.fields(for: defaultView).contains(grouping) ? grouping : .none
+        copy.monitoringProfile = MonitoringProfile(rawValue: monitoringProfile.rawValue) ?? .balanced
         copy.hiddenColumns = hiddenColumns.reduce(into: [:]) { result, entry in
             guard let view = AppView(rawValue: entry.key) else { return }
             let headers = Set(Presentation.headers(for: view))

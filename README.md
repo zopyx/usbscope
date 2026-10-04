@@ -120,6 +120,8 @@ serials, host names, location IDs, paths, and event identities by default.
 
 The app records no network telemetry. Local diagnostic timing can include total
 read duration, per-source status, warnings, and subprocess timings.
+The optional low-power monitoring profile skips Thunderbolt and charging reads
+and reports that reduction as a visible source warning.
 
 Further contracts are documented in [the product brief](docs/product-brief.md),
 [the failure matrix](docs/failure-matrix.md), [the privacy inventory](docs/privacy-inventory.md),

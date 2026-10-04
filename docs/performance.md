@@ -18,3 +18,8 @@ concurrently, and a timeout returns a structured result. Event history is
 bounded to 500 in-memory events and the on-disk event log rotates by size and
 age. Diagnostic exports include per-source timings so a slow adapter can be
 identified without profiling the UI.
+
+The optional low-power profile is explicit and persisted with preferences. It
+skips Thunderbolt and charging reads, leaves those fields unavailable, and
+adds a visible source warning so reduced collection is never mistaken for a
+complete snapshot. Balanced monitoring remains the default.

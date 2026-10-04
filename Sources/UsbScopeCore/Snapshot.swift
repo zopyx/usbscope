@@ -32,6 +32,11 @@ public enum SnapshotStage: String, CaseIterable, Sendable {
     case registry
 }
 
+public enum SnapshotCollectionProfile: String, Sendable, CaseIterable {
+    case full
+    case lowPower
+}
+
 /// Aggregation: turn the raw OS reports into one `Snapshot` — the twin of
 /// `usbscope/snapshot.py`.
 public enum SnapshotBuilder {
@@ -175,6 +180,7 @@ public enum SnapshotBuilder {
         host: String? = nil,
         includeConflictWarnings: Bool = false,
         metadataCache: StableMetadataCache? = nil,
+        profile: SnapshotCollectionProfile = .full,
         progress: ((SnapshotStage, Int, Int) -> Void)? = nil
     ) -> Snapshot {
         let stages = SnapshotStage.allCases
@@ -194,10 +200,20 @@ public enum SnapshotBuilder {
         let (interfaceMap, interfaceWarnings) = interfaces.interfaces()
         warnings.append(contentsOf: interfaceWarnings)
         report(.interfaces)
-        let (thunderbolt, thunderboltWarnings) = profiler.thunderbolt()
-        warnings.append(contentsOf: thunderboltWarnings)
-        let (thunderboltFabric, fabricWarnings) = fabric.fabric()
-        warnings.append(contentsOf: fabricWarnings)
+        let thunderbolt: [ThunderboltPort]
+        let thunderboltFabric: ThunderboltFabric
+        if profile == .lowPower {
+            thunderbolt = []
+            thunderboltFabric = ThunderboltFabric()
+            warnings.append("monitoring: low-power profile skipped Thunderbolt reads")
+        } else {
+            let result = profiler.thunderbolt()
+            thunderbolt = result.0
+            warnings.append(contentsOf: result.1)
+            let fabricResult = fabric.fabric()
+            thunderboltFabric = fabricResult.0
+            warnings.append(contentsOf: fabricResult.1)
+        }
         report(.thunderbolt)
         let metadataKey = "\(host ?? hostName())|\(osVersion ?? osVersionString())"
         let hardware: (model: String?, chip: String?, warnings: [String])
@@ -214,8 +230,15 @@ public enum SnapshotBuilder {
         }
         warnings.append(contentsOf: hardware.warnings)
         report(.hardware)
-        let (power, powerWarnings) = charging.charging()
-        warnings.append(contentsOf: powerWarnings)
+        let power: Charging?
+        if profile == .lowPower {
+            power = nil
+            warnings.append("monitoring: low-power profile skipped charging reads")
+        } else {
+            let result = charging.charging()
+            power = result.0
+            warnings.append(contentsOf: result.1)
+        }
         report(.charging)
         let (registryDevices, registryWarnings) = usbregistry.devices()
         warnings.append(contentsOf: registryWarnings)

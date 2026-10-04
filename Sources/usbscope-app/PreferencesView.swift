@@ -65,6 +65,21 @@ struct PreferencesView: View {
                         .labelsHidden()
                         .pickerStyle(.menu)
                     }
+                    row(L(.monitoringProfile, lang)) {
+                        Picker("", selection: Binding(
+                            get: { state.monitoringProfile },
+                            set: { state.setMonitoringProfile($0) }
+                        )) {
+                            Text(L(.profileBalanced, lang)).tag(MonitoringProfile.balanced)
+                            Text(L(.profileLowPower, lang)).tag(MonitoringProfile.lowPower)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                    }
+                    Text(L(.lowPowerNote, lang))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 section(L(.prefNotifications, lang)) {
                     row(L(.prefNotifications, lang)) {

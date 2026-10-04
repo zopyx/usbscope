@@ -152,6 +152,10 @@ enum StringKey: String, CaseIterable {
     case staleStatus
     case loadingStatus
     case capturedAt
+    case monitoringProfile
+    case profileBalanced
+    case profileLowPower
+    case lowPowerNote
     case renameBaselineTitle
     case renameAction
     case cancel
@@ -385,6 +389,10 @@ enum Strings {
         case .staleStatus: "Stale"
         case .loadingStatus: "Loading"
         case .capturedAt: "Captured"
+        case .monitoringProfile: "Monitoring profile"
+        case .profileBalanced: "Balanced"
+        case .profileLowPower: "Low power"
+        case .lowPowerNote: "Low-power monitoring skips Thunderbolt and charging reads; the status remains visibly partial."
         case .renameBaselineTitle: "Rename baseline"
         case .renameAction: "Rename"
         case .cancel: "Cancel"
@@ -549,6 +557,10 @@ enum Strings {
         case .staleStatus: "Veraltet"
         case .loadingStatus: "Wird geladen"
         case .capturedAt: "Erfasst"
+        case .monitoringProfile: "Überwachungsprofil"
+        case .profileBalanced: "Ausgewogen"
+        case .profileLowPower: "Energiesparmodus"
+        case .lowPowerNote: "Die energiesparende Überwachung überspringt Thunderbolt- und Ladevorgänge; der Status bleibt sichtbar unvollständig."
         case .renameBaselineTitle: "Vergleichsbasis umbenennen"
         case .renameAction: "Umbenennen"
         case .cancel: "Abbrechen"

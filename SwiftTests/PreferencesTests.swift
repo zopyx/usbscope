@@ -15,6 +15,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.appearance, .system)
         XCTAssertEqual(preferences.language, .en)
         XCTAssertEqual(preferences.grouping, .none)
+        XCTAssertEqual(preferences.monitoringProfile, .balanced)
         XCTAssertTrue(preferences.hiddenColumns.isEmpty)
     }
 
@@ -50,10 +51,16 @@ final class PreferencesTests: XCTestCase {
         preferences.appearance = .dark
         preferences.language = .de
         preferences.grouping = .deviceClass
+        preferences.monitoringProfile = .lowPower
         preferences.hiddenColumns = ["devices": ["Serial", "Tier"]]
 
         let restored = AppPreferences.decode(preferences.encoded())
         XCTAssertEqual(restored, preferences.sanitized())
+    }
+
+    func testOlderPreferenceDocumentsDefaultTheMonitoringProfile() {
+        let data = Data("{\"defaultView\":\"ports\",\"interval\":5}".utf8)
+        XCTAssertEqual(AppPreferences.decode(data).monitoringProfile, .balanced)
     }
 
     func testDecodeFallsBackOnGarbage() {

@@ -66,6 +66,7 @@ final class AppState: ObservableObject {
     @Published private(set) var notificationsEnabled = true { didSet { persist() } }
     @Published private(set) var notificationDetail: NotificationDetail = .generic { didSet { persist() } }
     @Published var groupField: GroupField = .none { didSet { persist() } }
+    @Published private(set) var monitoringProfile: MonitoringProfile = .balanced { didSet { persist() } }
     @Published private(set) var hiddenColumns: [AppView: Set<String>] = [:] { didSet { persist() } }
 
     /// The quick filter on top of the search text (session only, not persisted).
@@ -161,6 +162,7 @@ final class AppState: ObservableObject {
         notificationsEnabled = preferences.notifications
         notificationDetail = preferences.notificationDetail
         groupField = preferences.grouping
+        monitoringProfile = preferences.monitoringProfile
         hiddenColumns = preferences.hiddenColumns.reduce(into: [:]) { result, entry in
             if let view = AppView(rawValue: entry.key) { result[view] = Set(entry.value) }
         }
@@ -190,7 +192,12 @@ final class AppState: ObservableObject {
     /// Start the hotplug watcher. Safe to call more than once.
     func startMonitoring() {
         guard watcher == nil else { return }
-        let watcher = UsbHotplugWatcher()
+        let profile = monitoringProfile == .lowPower ? SnapshotCollectionProfile.lowPower : .full
+        let watcher = UsbHotplugWatcher(collect: {
+            SnapshotBuilder.collect(includeConflictWarnings: true,
+                                    metadataCache: SnapshotBuilder.stableMetadataCache,
+                                    profile: profile)
+        })
         watcher.start { [weak self] update in
             Task { @MainActor in self?.handleHotplug(update) }
         }
@@ -239,6 +246,7 @@ final class AppState: ObservableObject {
             appearance: appearance,
             language: language,
             grouping: groupField,
+            monitoringProfile: monitoringProfile,
             hiddenColumns: hiddenColumns.reduce(into: [:]) { result, entry in
                 result[entry.key.rawValue] = Array(entry.value).sorted()
             }
@@ -248,6 +256,13 @@ final class AppState: ObservableObject {
 
     func setNotifications(_ enabled: Bool) { notificationsEnabled = enabled }
     func setNotificationDetail(_ detail: NotificationDetail) { notificationDetail = detail }
+    func setMonitoringProfile(_ profile: MonitoringProfile) {
+        monitoringProfile = profile
+        stopMonitoring()
+        startMonitoring()
+        if isLoading { return }
+        refresh()
+    }
 
     func dismissFirstRun() {
         UserDefaults.standard.set(true, forKey: "usbscope.firstRunExplained.v1")
@@ -278,9 +293,18 @@ final class AppState: ObservableObject {
         isLoading = true
         errorMessage = nil
         progress = nil
+        let profile = monitoringProfile == .lowPower ? SnapshotCollectionProfile.lowPower : .full
         refreshTask = Task { [weak self] in
             let appState = self
-            let result = await appState?.coordinator.request(.manual, progress: { [weak appState] stage, index, total in
+            let collector: SnapshotCoordinator.Collector = { progress in
+                await Task.detached(priority: .userInitiated) {
+                    SnapshotBuilder.collect(includeConflictWarnings: true,
+                                            metadataCache: SnapshotBuilder.stableMetadataCache,
+                                            profile: profile,
+                                            progress: progress)
+                }.value
+            }
+            let result = await appState?.coordinator.request(.manual, collector: collector, progress: { [weak appState] stage, index, total in
                 let value = SnapshotProgress(stage: stage, index: index, total: total)
                 Task { @MainActor [weak appState] in
                     guard let appState, appState.refreshGeneration == generation else { return }

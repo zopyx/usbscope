@@ -155,4 +155,22 @@ final class FixSpecTests: XCTestCase {
         XCTAssertEqual(device.fieldProvenance["descriptors"], FactSource.ioUSB)
         XCTAssertEqual(device.fieldProvenance["interfaces"], FactSource.interfaceRegistry)
     }
+
+    func testLowPowerProfileMakesReducedSourcesExplicit() {
+        let snapshot = SnapshotBuilder.collect(
+            profiler: Fixtures.profiler,
+            ioreg: Fixtures.ioreg,
+            charging: Fixtures.charging,
+            usbregistry: Fixtures.usbregistry,
+            interfaces: Fixtures.interfaces,
+            fabric: Fixtures.tbFabric,
+            osVersion: Fixtures.osVersion,
+            host: Fixtures.host,
+            profile: .lowPower
+        )
+        XCTAssertNil(snapshot.charging)
+        XCTAssertTrue(snapshot.thunderbolt.isEmpty)
+        XCTAssertTrue(snapshot.thunderboltFabric.routers.isEmpty)
+        XCTAssertTrue(snapshot.warnings.contains { $0.contains("low-power profile") })
+    }
 }
