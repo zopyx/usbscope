@@ -21,8 +21,11 @@ import IOKit
 /// Two deliberate differences from the `ioreg` subprocess are worth naming:
 ///
 ///   * Registry values that are an `OSSet` (e.g. `PowerSourceOptions`) are
-///     emitted as an array sorted by their description, because `ioreg` gives no
-///     order guarantee for a set and a stable snapshot is more useful.
+///     emitted as an array sorted by a **canonical, process independent key**
+///     (canonical JSON of the member), because `ioreg` gives no order guarantee
+///     for a set and a stable snapshot is more useful. Sorting by the member's
+///     `description` would *not* be stable: Swift renders a dictionary in the
+///     process' random hash order, so the array would rotate between runs.
 ///   * Kernel `CFNumber`s stay numbers (`CFNumberGetTypeID`), so an integer `0`
 ///     or `1` is never mistaken for a `Bool` — the `NSNumber`→`Bool` bridge trap
 ///     the adapters already guard against with `PlistValue.isBool`.
@@ -212,7 +215,22 @@ public enum IORegistryReader {
             guard let pointer else { return nil }
             return sanitize(Unmanaged<CFTypeRef>.fromOpaque(pointer).takeUnretainedValue())
         }
-        return members.sorted { String(describing: $0) < String(describing: $1) }
+        return members.sorted { canonicalKey($0) < canonicalKey($1) }
+    }
+
+    /// A key that orders two set members the same way in *every* process.
+    ///
+    /// An `OSSet` has no order, so the array built from it needs one. `String(describing:)`
+    /// cannot supply it: for a dictionary Swift renders its pairs in the process' random
+    /// hash order, so an array "sorted" that way rotates between runs. That is not
+    /// cosmetic — two reads of an unchanged machine then differ, and `baseline check`
+    /// reports a change that never happened. Canonical JSON (sorted keys, recursively)
+    /// is stable across processes.
+    private static func canonicalKey(_ member: Any) -> String {
+        if let data = try? JSONSerialization.data(withJSONObject: member, options: [.sortedKeys]) {
+            return String(decoding: data, as: UTF8.self)
+        }
+        return String(describing: member)
     }
 
     // MARK: - registry helpers

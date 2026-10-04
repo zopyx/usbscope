@@ -17,10 +17,39 @@ final class SnapshotBackendTests: XCTestCase {
         return String(decoding: data, as: UTF8.self)
     }
 
+    /// A process independent ordering key for one value.
+    private func key(_ object: Any) -> String {
+        (try? canonical(object)) ?? String(describing: object)
+    }
+
     /// The port records of a snapshot as canonical JSON.
     private func portJSON(_ snapshot: Snapshot) throws -> String {
         let dict = Serialize.dict(snapshot)
         return try canonical(XCTUnwrap(dict["ports"], "the snapshot has no ports key"))
+    }
+
+    /// The port records with the *set derived* arrays put in a defined order.
+    ///
+    /// `PowerSourceOptions` is an `OSSet` in the registry. `ioreg` writes it in
+    /// whatever order the kernel holds it, the in-process reader sorts it; both are
+    /// correct, because a set has no order. Comparing the two backends byte for byte
+    /// would therefore assert something the registry never promised. Only that one
+    /// path is normalised — ports, transports and devices keep their order, which *is*
+    /// meaningful (and is pinned by the fixture golden).
+    private func normalizedPortJSON(_ snapshot: Snapshot) throws -> String {
+        let dict = Serialize.dict(snapshot)
+        var ports = try XCTUnwrap(
+            dict["ports"] as? [[String: Any]], "the snapshot has no ports array"
+        )
+        for index in ports.indices {
+            guard var sources = ports[index]["power_sources"] as? [[String: Any]] else { continue }
+            for source in sources.indices {
+                guard let options = sources[source]["options"] as? [[String: Any]] else { continue }
+                sources[source]["options"] = options.sorted { key($0) < key($1) }
+            }
+            ports[index]["power_sources"] = sources
+        }
+        return try canonical(ports)
     }
 
     /// A real snapshot through one backend. `ioreg` stays `nil`, so the backend
@@ -32,8 +61,9 @@ final class SnapshotBackendTests: XCTestCase {
     // MARK: - both backends agree
 
     /// The whole point of Plan B: the in-process read must be a drop-in for the
-    /// subprocess, so both — and the default `.automatic`, which prefers it —
-    /// must yield the same port records on the same machine at the same time.
+    /// subprocess, so both — and the default `.automatic`, which prefers it — must
+    /// yield the same port records on the same machine. Set derived arrays are
+    /// normalised; see `normalizedPortJSON`.
     func testInProcessAndSubprocessBackendsAgreeOnPorts() throws {
         let inProcess = liveSnapshot(.inProcess)
         guard !inProcess.ports.isEmpty else {
@@ -43,9 +73,38 @@ final class SnapshotBackendTests: XCTestCase {
         let automatic = liveSnapshot(.automatic)
         XCTAssertFalse(subprocess.ports.isEmpty, "the subprocess must find the same ports")
 
-        let expected = try portJSON(subprocess)
-        XCTAssertEqual(try portJSON(inProcess), expected, "in-process ports differ from the subprocess")
-        XCTAssertEqual(try portJSON(automatic), expected, "the default backend is not the in-process read")
+        let expected = try normalizedPortJSON(subprocess)
+        XCTAssertEqual(
+            try normalizedPortJSON(inProcess), expected, "in-process ports differ from the subprocess"
+        )
+        XCTAssertEqual(
+            try normalizedPortJSON(automatic), expected, "the default backend is not the in-process read"
+        )
+    }
+
+    /// The order the reader gives the set derived `PowerSourceOptions` must be a
+    /// property of the *values*, not of the process' random hash seed — otherwise two
+    /// reads of an unchanged machine differ and `baseline check` reports changes that
+    /// never happened. This pins the canonical order.
+    func testSetDerivedOptionsAreInCanonicalOrder() throws {
+        let dict = Serialize.dict(liveSnapshot(.inProcess))
+        let ports = try XCTUnwrap(dict["ports"] as? [[String: Any]])
+        var checked = 0
+        for port in ports {
+            for source in port["power_sources"] as? [[String: Any]] ?? [] {
+                guard let options = source["options"] as? [[String: Any]], options.count > 1 else {
+                    continue
+                }
+                XCTAssertEqual(
+                    options.map(key), options.map(key).sorted(),
+                    "the option array is not in canonical order (process dependent sort?)"
+                )
+                checked += 1
+            }
+        }
+        if checked == 0 {
+            throw XCTSkip("no port with a multi-option power source on this machine")
+        }
     }
 
     // MARK: - timing (reported, never asserted)
