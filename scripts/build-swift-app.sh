@@ -214,14 +214,14 @@ echo "+ write ${bundle#"$ROOT"/}/Contents/Info.plist (plutil --lint OK)"
 
 if [ "$sign" -eq 1 ]; then
   if command -v codesign >/dev/null 2>&1; then
-    entitlements_args=()
-    if [ -n "$entitlements" ]; then
-      entitlements_args=(--entitlements "$entitlements")
-    fi
     sign_args=(--force --deep --sign "$signing_identity" --identifier "$BUNDLE_ID")
     if [ "$signing_identity" != "-" ]; then sign_args+=(--options runtime); fi
     echo "\$ codesign --force --deep --sign $signing_identity --identifier $BUNDLE_ID $name.app"
-    codesign "${sign_args[@]}" "${entitlements_args[@]}" "$bundle"
+    if [ -n "$entitlements" ]; then
+      codesign "${sign_args[@]}" --entitlements "$entitlements" "$bundle"
+    else
+      codesign "${sign_args[@]}" "$bundle"
+    fi
     # The verification is not optional: a bundle whose signature does not check
     # out is a broken artifact.
     codesign --verify --verbose=2 "$bundle"
