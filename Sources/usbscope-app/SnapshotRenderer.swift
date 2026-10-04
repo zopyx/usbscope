@@ -13,7 +13,7 @@ import UsbScopeUI
 /// window server focus are involved. The process then exits with the PNG on disk.
 ///
 /// `--view` accepts any `AppView` raw value (`ports`, `cables`, `devices`,
-/// `thunderbolt`, `power`, `timeline`, `security`, `usb4`, `diff`).
+/// `thunderbolt`, `power`, `timeline`, `security`, `usb4`, `diff`, `warnings`).
 enum SnapshotRenderer {
     /// Parse `--snapshot` / `--view` / `--baseline` from the command line; `nil`
     /// when no screenshot was asked for.

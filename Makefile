@@ -17,7 +17,7 @@ VERSION := $(shell sed -n 's/^let version = "\([^"]*\)".*/\1/p' Sources/usbscope
 
 .PHONY: help doctor env build test check clean distclean version \
         swift swift-build swift-test swift-golden swift-run-app swift-app-check swift-app-bundle \
-        swift-app-dmg \
+        swift-app-dmg swift-app-smoke \
         run watch snapshot checksums man completions
 
 ## ---------------------------------------------------------------------------
@@ -95,6 +95,9 @@ swift-app-bundle: ## build dist/usbscope-swift.app (release, ad-hoc signed, veri
 swift-app-dmg: ## pack the app into a compressed DMG (hdiutil, unsigned) + SHA256SUMS
 	scripts/build-swift-dmg.sh
 
+swift-app-smoke: swift-app-bundle ## exercise the installed app bundle, offscreen where supported
+	scripts/smoke-swift-app.sh dist/usbscope-swift.app
+
 run: swift-build ## run the CLI (overview)
 	./.build/$(CONFIG)/usbscope
 
@@ -106,7 +109,7 @@ watch: swift-build ## run the CLI with live refresh every 2 s (Ctrl-C to stop)
 ## ---------------------------------------------------------------------------
 
 snapshot: swift-build ## render the app window to docs/screenshots/app-<view>.png (offscreen)
-	@for view in ports cables devices thunderbolt power timeline security usb4 diff; do \
+	@for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do \
 		./.build/$(CONFIG)/usbscope-app --snapshot docs/screenshots/app-$$view.png --view $$view >/dev/null; \
 		echo "docs/screenshots/app-$$view.png"; \
 	done
