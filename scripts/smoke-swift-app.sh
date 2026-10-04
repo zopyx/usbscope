@@ -9,7 +9,7 @@ EXE="$APP/Contents/MacOS/usbscope-app"
 [ -x "$EXE" ] || { echo "app executable not found: $EXE" >&2; exit 1; }
 
 "$EXE" --version
-if rows="$($EXE --print-rows 2>/dev/null)" && [ -n "$rows" ]; then
+if rows="$(timeout 120 "$EXE" --print-rows 2>/dev/null)" && [ -n "$rows" ]; then
     echo "--print-rows: $(printf '%s\n' "$rows" | wc -l | tr -d ' ') lines"
 elif [ -n "${CI:-}" ]; then
     echo "--print-rows: skipped (CI has no usable window server)"
@@ -22,7 +22,7 @@ tmp="$(mktemp -d "${TMPDIR:-/tmp}/usbscope-smoke.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
 for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do
     png="$tmp/$view.png"
-    if "$EXE" --snapshot "$png" --view "$view" >/dev/null 2>&1 && [ -s "$png" ]; then
+    if timeout 120 "$EXE" --snapshot "$png" --view "$view" >/dev/null 2>&1 && [ -s "$png" ]; then
         echo "--snapshot $view: $(stat -f '%z bytes' "$png")"
     elif [ -n "${CI:-}" ]; then
         echo "--snapshot $view: skipped (CI has no usable window server)"
