@@ -36,6 +36,9 @@ keys keeps working):
   `class_code`, `class_text`, `subclass`, `protocol`, `endpoints` (the *count*
   macOS reports; the endpoint descriptors themselves are not published) and `name`.
   Empty for a device that publishes none.
+* The separate `kind: "security"` document may include `storage_status`,
+  `storage_warnings`, and `storage_errors`; these preserve storage-source health
+  without changing the snapshot schema.
 # Fix-spec data contract
 
 The current snapshot document remains schema version 1 for parity with the

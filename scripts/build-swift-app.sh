@@ -15,6 +15,7 @@
 #   scripts/build-swift-app.sh --no-verify  # do not run the bundled binary
 #   scripts/build-swift-app.sh --no-archive # only the .app, no tarball/checksum
 #   scripts/build-swift-app.sh --universal  # build arm64 + x86_64 (fat), not native-only
+#   scripts/build-swift-app.sh --entitlements FILE # apply entitlements for a signed mode
 #
 # `--universal` adds `--arch arm64 --arch x86_64` to the `swift build`, so the
 # produced executable is a fat Mach-O (checked with `lipo`); without it the build
@@ -27,11 +28,13 @@
 # it, which `make checksums` re-verifies. `scripts/build-swift-dmg.sh` packs the
 # same bundle into a DMG.
 #
-# Like every bundle this repository builds, the signature is *ad-hoc*
-# (`codesign -s -`): a valid self-signature, but neither Developer-ID signed nor
-# notarised, so a download is still stopped by Gatekeeper. What a real release
-# additionally needs — Developer ID, hardened runtime, `notarytool`, `stapler` —
-# and everything this script does *not* do is written down in docs/distribution.md.
+# Direct bundles are signed ad hoc by default and deliberately do not carry the
+# Mac App Store sandbox entitlement. The MAS wrapper supplies that entitlement
+# together with the provisioning profile; a credentialed direct build may pass
+# `--entitlements` explicitly. An ad-hoc signature is a valid self-signature, but
+# neither Developer-ID signed nor notarised, so a download is still stopped by
+# Gatekeeper. What a real release additionally needs — Developer ID, hardened
+# runtime, `notarytool`, `stapler` — is written down in docs/distribution.md.
 
 set -euo pipefail
 
@@ -53,6 +56,7 @@ universal=0
 signing_identity="${CODESIGN_IDENTITY:--}"
 notarize=0
 notary_profile="${NOTARY_PROFILE:-}"
+entitlements=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -65,6 +69,7 @@ while [ $# -gt 0 ]; do
     --no-archive) archive=0; shift ;;
     --universal) universal=1; shift ;;
     --identity) signing_identity="${2:?--identity needs a codesign identity}"; shift 2 ;;
+    --entitlements) entitlements="${2:?--entitlements needs a plist path}"; shift 2 ;;
     --notarize) notarize=1; shift ;;
     --notary-profile) notary_profile="${2:?--notary-profile needs a keychain profile}"; shift 2 ;;
     -h|--help) sed -n '10,28p' "${BASH_SOURCE[0]}"; exit 0 ;;
@@ -75,6 +80,14 @@ done
 if [ "$notarize" -eq 1 ] && [ "$archive" -eq 0 ]; then
   echo "--notarize requires archive output (omit --no-archive)" >&2
   exit 2
+fi
+
+if [ -n "$entitlements" ]; then
+  [ -f "$entitlements" ] || { echo "entitlements file not found: $entitlements" >&2; exit 1; }
+  if [ "$signing_identity" = "-" ]; then
+    echo "sandbox or distribution entitlements require an Apple-issued signing identity; use --no-sign for the MAS wrapper" >&2
+    exit 2
+  fi
 fi
 
 # The version lives in the Swift CLI's main.swift.
@@ -202,8 +215,8 @@ echo "+ write ${bundle#"$ROOT"/}/Contents/Info.plist (plutil --lint OK)"
 if [ "$sign" -eq 1 ]; then
   if command -v codesign >/dev/null 2>&1; then
     entitlements_args=()
-    if [ -f "$ROOT/assets/entitlements/usbscope.entitlements" ]; then
-      entitlements_args=(--entitlements "$ROOT/assets/entitlements/usbscope.entitlements")
+    if [ -n "$entitlements" ]; then
+      entitlements_args=(--entitlements "$entitlements")
     fi
     sign_args=(--force --deep --sign "$signing_identity" --identifier "$BUNDLE_ID")
     if [ "$signing_identity" != "-" ]; then sign_args+=(--options runtime); fi

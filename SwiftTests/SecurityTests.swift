@@ -209,6 +209,22 @@ final class SecurityTests: XCTestCase {
         XCTAssertEqual(findings.first?["severity"] as? String, "warning")
     }
 
+    func testSecurityJSONPreservesStorageFailureState() {
+        let capturedAt = when
+        let source = StorageSource(runner: { argv in
+            CommandResult(argv: argv, returncode: 127, error: "diskutil not found")
+        })
+        let inventory = source.inventoryResult(clock: { capturedAt })
+        let report = Security.analyse(snapshot())
+        let dict = Serialize.securityDict(report, storage: inventory.devices, generatedAt: when,
+                                          storageStatus: inventory.status,
+                                          storageWarnings: inventory.warnings,
+                                          storageErrors: inventory.errors)
+        XCTAssertEqual(dict["storage_status"] as? String, SourceHealth.failed.rawValue)
+        XCTAssertFalse((dict["storage_warnings"] as? [String])?.isEmpty ?? true)
+        XCTAssertFalse((dict["storage_errors"] as? [[String: Any]])?.isEmpty ?? true)
+    }
+
     // MARK: - storage inventory
 
     private func listing(_ identifiers: String...) -> [String: Any] {
@@ -320,6 +336,17 @@ final class SecurityTests: XCTestCase {
         let (devices, warnings) = source.inventory()
         XCTAssertTrue(devices.isEmpty)
         XCTAssertTrue(warnings.isEmpty)
+    }
+
+    func testStorageInventoryDistinguishesFailureFromNoDevices() {
+        let source = StorageSource(runner: { argv in
+            CommandResult(argv: argv, returncode: 127, error: "diskutil not found")
+        })
+        let result = source.inventoryResult()
+        XCTAssertTrue(result.devices.isEmpty)
+        XCTAssertEqual(result.status, .failed)
+        XCTAssertFalse(result.warnings.isEmpty)
+        XCTAssertFalse(result.errors.isEmpty)
     }
 
     /// `readOnly` is optional: a controller that did not say must read as `–`, and

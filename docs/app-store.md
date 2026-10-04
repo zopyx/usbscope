@@ -12,7 +12,7 @@ source validation still require Apple-issued credentials.
 | Item | State |
 | --- | --- |
 | Bundle identifier | `com.zopyx.usbscope` (`BUNDLE_ID` in `scripts/build-swift-app.sh`) |
-| Version / build number | `CFBundleShortVersionString` = `CFBundleVersion` = version in `Sources/usbscope/main.swift` |
+| Version / build number | `CFBundleShortVersionString` = marketing version in `Sources/usbscope/main.swift`; `CFBundleVersion` = positive CI/revision build number |
 | Minimum system | `LSMinimumSystemVersion` 14.4 |
 | Category | `LSApplicationCategoryType` = `public.app-category.utilities` |
 | Icon | `CFBundleIconFile` = `usbscope.icns` from `assets/icon/usbscope.icns` |

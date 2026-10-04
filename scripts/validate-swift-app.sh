@@ -16,11 +16,26 @@ bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO")"
 [ "$bundle_id" = "com.zopyx.usbscope" ] || { echo "unexpected bundle id: $bundle_id" >&2; exit 1; }
 min_os="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$INFO")"
 [ "$min_os" = "14.4" ] || { echo "unexpected minimum macOS: $min_os" >&2; exit 1; }
+marketing_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO")"
+[ -n "$marketing_version" ] || { echo "missing marketing version" >&2; exit 1; }
+build_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO")"
+case "$build_version" in
+  ''|*[!0-9]*|0) echo "CFBundleVersion must be a positive integer: $build_version" >&2; exit 1 ;;
+esac
+
+# Keep the bundle's executable metadata aligned with the plist. This catches a
+# malformed hand-assembled artifact before signature or Gatekeeper checks hide
+# the more useful failure.
+plist_executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$INFO")"
+[ "$plist_executable" = "usbscope-app" ] || {
+  echo "unexpected bundle executable: $plist_executable" >&2
+  exit 1
+}
 
 codesign --verify --deep --strict --verbose=2 "$APP"
 archs="$(lipo -archs "$EXEC" 2>/dev/null || true)"
 [ -n "$archs" ] || { echo "cannot inspect executable architectures" >&2; exit 1; }
-echo "validated $(basename "$APP"): $bundle_id, macOS >= $min_os, arch=$archs"
+echo "validated $(basename "$APP"): $bundle_id, version=$marketing_version ($build_version), macOS >= $min_os, arch=$archs"
 
 if [ "$GATEKEEPER" -eq 1 ]; then
   spctl --assess --type execute --verbose=4 "$APP"

@@ -339,9 +339,11 @@ public enum Serialize {
     /// This is a document of its own (`kind: security`) — it never changes the
     /// `schema_version: 1` snapshot document.
     public static func securityDict(
-        _ report: SecurityReport, storage: [StorageDevice] = [], generatedAt: Date
+        _ report: SecurityReport, storage: [StorageDevice] = [], generatedAt: Date,
+        storageStatus: SourceHealth? = nil, storageWarnings: [String] = [],
+        storageErrors: [SourceError] = []
     ) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "schema_version": securitySchemaVersion,
             "kind": "security",
             "generated_at": seenAtFormatter.string(from: generatedAt),
@@ -354,15 +356,36 @@ public enum Serialize {
             "findings": report.findings.map { finding($0) },
             "storage": storage.map { storageDevice($0) },
         ]
+        if let storageStatus { payload["storage_status"] = storageStatus.rawValue }
+        if !storageWarnings.isEmpty { payload["storage_warnings"] = storageWarnings }
+        if !storageErrors.isEmpty {
+            payload["storage_errors"] = storageErrors.map { error in
+                var value: [String: Any] = [
+                    "code": error.code.rawValue,
+                    "source": error.source,
+                    "operation": error.operation,
+                    "severity": error.severity,
+                    "user_message": error.userMessage,
+                    "technical_message": error.technicalMessage,
+                ]
+                if let recoveryAction = error.recoveryAction { value["recovery_action"] = recoveryAction }
+                return value
+            }
+        }
+        return payload
     }
 
     /// Serialise the security report as JSON text (pretty output sorts keys, like Python).
     public static func securityJSON(
-        _ report: SecurityReport, storage: [StorageDevice] = [], generatedAt: Date, indent: Int? = 2
+        _ report: SecurityReport, storage: [StorageDevice] = [], generatedAt: Date, indent: Int? = 2,
+        storageStatus: SourceHealth? = nil, storageWarnings: [String] = [],
+        storageErrors: [SourceError] = []
     ) -> String {
         var options: JSONSerialization.WritingOptions = [.withoutEscapingSlashes]
         if indent != nil { options.insert(.prettyPrinted); options.insert(.sortedKeys) }
-        let payload = securityDict(report, storage: storage, generatedAt: generatedAt)
+        let payload = securityDict(report, storage: storage, generatedAt: generatedAt,
+                                   storageStatus: storageStatus, storageWarnings: storageWarnings,
+                                   storageErrors: storageErrors)
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: options),
               let text = String(data: data, encoding: .utf8)
         else { return "{}" }

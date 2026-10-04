@@ -308,7 +308,10 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
 (no sudo, no private framework), printing the findings most severe first and the
 USB mass-storage inventory below them. `usbscope security --json` emits the
 findings and the storage as their own document (`kind: "security"`) — it never
-changes the `schema_version: 1` snapshot document.
+changes the `schema_version: 1` snapshot document. The JSON also includes
+`storage_status`, `storage_warnings`, and structured `storage_errors` when
+`diskutil` is unavailable or returns malformed data, so an empty list is not
+mistaken for a successful no-storage result.
 
 | Severity | Rule | Fires when |
 | --- | --- | --- |

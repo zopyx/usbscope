@@ -412,7 +412,8 @@ func chargingPanel(_ snapshot: Snapshot) -> String? {
     return "Charging & adapter — system wide, not per port\n" + body
 }
 
-func securityView(_ snapshot: Snapshot, report: SecurityReport, storage: [StorageDevice], verbose: Bool) -> String {
+func securityView(_ snapshot: Snapshot, report: SecurityReport,
+                  storage: StorageInventory, verbose: Bool) -> String {
     var parts: [String] = [summaryPanel(snapshot, verbose: verbose)]
     if !snapshot.warnings.isEmpty {
         parts.append("notes\n" + snapshot.warnings.map { "• \(paint($0, .yellow))" }.joined(separator: "\n"))
@@ -427,10 +428,16 @@ func securityView(_ snapshot: Snapshot, report: SecurityReport, storage: [Storag
         let rows = report.findings.map { [$0.severity.rawValue, $0.rule, $0.subject, $0.detail] }
         parts.append(table(["Severity", "Rule", "Subject", "Why"], rows))
     }
-    if storage.isEmpty {
+    if storage.status != .healthy {
+        parts.append("storage source: \(storage.status.rawValue)")
+        if !storage.warnings.isEmpty {
+            parts.append("storage notes\n" + storage.warnings.map { "• \(paint($0, .yellow))" }.joined(separator: "\n"))
+        }
+    }
+    if storage.devices.isEmpty {
         parts.append("no USB mass storage attached — a Mac without one is normal")
     } else {
-        let rows = storage.map { device -> [String] in
+        let rows = storage.devices.map { device -> [String] in
             let mode = device.readOnly == true ? "read-only" : (device.readOnly == false ? "read/write" : "–")
             return [device.identifier, device.label, device.capacityText ?? "–", mode, device.mountPoint ?? "–"]
         }
@@ -459,9 +466,11 @@ func collect(_ options: Options) -> Snapshot {
 func render(_ snapshot: Snapshot, options: Options) {
     if options.view == "security" {
         let report = Security.analyse(snapshot)
-        let (storage, _) = StorageSource().inventory()
+        let storage = StorageSource().inventoryResult()
         if options.json {
-            print(Serialize.securityJSON(report, storage: storage, generatedAt: snapshot.seenAt))
+            print(Serialize.securityJSON(report, storage: storage.devices, generatedAt: snapshot.seenAt,
+                                         storageStatus: storage.status, storageWarnings: storage.warnings,
+                                         storageErrors: storage.errors))
         } else {
             print(securityView(snapshot, report: report, storage: storage, verbose: options.verbose))
         }
@@ -566,11 +575,12 @@ func runBaseline(_ options: Options) -> Never {
 
 /// `usbscope report [--format md|html] [--out file]`.
 func runReport(_ options: Options) -> Never {
-    let snapshot = collect(options)
-    let (storage, _) = StorageSource().inventory()
+    var snapshot = collect(options)
+    let storage = StorageSource().inventoryResult()
+    snapshot.warnings.append(contentsOf: storage.warnings)
     let text = options.format == "html"
-        ? Report.html(snapshot, storage: storage, language: options.language)
-        : Report.markdown(snapshot, storage: storage, language: options.language)
+        ? Report.html(snapshot, storage: storage.devices, language: options.language)
+        : Report.markdown(snapshot, storage: storage.devices, language: options.language)
     if let out = options.out {
         do {
             try text.write(toFile: out, atomically: true, encoding: .utf8)

@@ -12,9 +12,9 @@
 # comparison) skip themselves on a runner where it cannot be read — that is not a
 # regression.
 #
-# The bundle step is main-only: it compiles a release build and assembles
-# `dist/usbscope-swift.app`. A pull request does not need to pay for that on every
-# commit.
+# The bundle step runs on every event so malformed release metadata, signatures,
+# architectures, and executable launch failures are caught before merge. Only
+# the main branch publishes the resulting bundle as an artifact.
 #
 # Action versions are pinned to the exact released tags that were verified with
 # `gh api repos/<owner>/<repo>/releases/latest --jq .tag_name`:
@@ -69,8 +69,7 @@ jobs:
       - name: Test
         run: swift test
 
-      - name: Build the app bundle (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Build and validate the app bundle
         run: scripts/build-swift-app.sh
 
       - name: Upload the app bundle (main only)
