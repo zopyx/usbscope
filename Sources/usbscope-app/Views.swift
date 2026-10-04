@@ -288,7 +288,16 @@ struct CommandPalette: View {
         let id: String
         let title: String
         let symbol: String
+        let enabled: Bool
         let action: () -> Void
+
+        init(id: String, title: String, symbol: String, enabled: Bool = true, action: @escaping () -> Void) {
+            self.id = id
+            self.title = title
+            self.symbol = symbol
+            self.enabled = enabled
+            self.action = action
+        }
     }
 
     private var commands: [Command] {
@@ -308,11 +317,26 @@ struct CommandPalette: View {
             Command(id: "diagnostics", title: L(.diagnostics, state.language), symbol: "cross.case") { state.showCommandPalette = false; state.showDiagnostics = true },
             Command(id: "copy-diagnostics", title: L(.aboutCopy, state.language), symbol: "doc.on.doc") { state.showCommandPalette = false; state.copyDiagnostics() },
             Command(id: "export-diagnostics", title: L(.export, state.language), symbol: "square.and.arrow.up") { state.showCommandPalette = false; state.exportDiagnostics() },
-            Command(id: "export-report", title: L(.exportReport, state.language), symbol: "doc.richtext") { state.showCommandPalette = false; state.exportReport() },
-            Command(id: "copy-table", title: L(.copyWholeTable, state.language), symbol: "tablecells") { state.showCommandPalette = false; state.copyTable(selected: false) },
-            Command(id: "save-baseline", title: L(.saveBaseline, state.language), symbol: "externaldrive.badge.timemachine") { state.showCommandPalette = false; state.saveBaseline() },
+            Command(id: "export-report", title: L(.exportReport, state.language), symbol: "doc.richtext",
+                    enabled: state.snapshot != nil) { state.showCommandPalette = false; state.exportReport() },
+            Command(id: "copy-table", title: L(.copyWholeTable, state.language), symbol: "tablecells",
+                    enabled: state.snapshot != nil) { state.showCommandPalette = false; state.copyTable(selected: false) },
+            Command(id: "copy-selected", title: L(.copySelected, state.language), symbol: "checkmark.rectangle.stack",
+                    enabled: !state.selection.isEmpty) { state.showCommandPalette = false; state.copyTable(selected: true) },
+            Command(id: "show-details", title: L(.showDetails, state.language), symbol: "info.circle",
+                    enabled: !state.selection.isEmpty) {
+                state.showCommandPalette = false
+                state.detailRowKey = state.selection.first
+            },
+            Command(id: "export-json", title: L(.exportJSON, state.language), symbol: "curlybraces",
+                    enabled: state.snapshot != nil) { state.showCommandPalette = false; state.export(format: .json) },
+            Command(id: "export-csv", title: L(.exportCSV, state.language), symbol: "tablecells",
+                    enabled: state.snapshot != nil) { state.showCommandPalette = false; state.export(format: .csv) },
+            Command(id: "save-baseline", title: L(.saveBaseline, state.language), symbol: "externaldrive.badge.timemachine",
+                    enabled: state.snapshot != nil) { state.showCommandPalette = false; state.saveBaseline() },
             Command(id: "load-baseline", title: L(.loadBaseline, state.language), symbol: "folder") { state.showCommandPalette = false; state.pickBaseline() },
-            Command(id: "clear-baseline", title: L(.clearBaselineAction, state.language), symbol: "trash") { state.showCommandPalette = false; state.clearBaseline() },
+            Command(id: "clear-baseline", title: L(.clearBaselineAction, state.language), symbol: "trash",
+                    enabled: state.baseline != nil) { state.showCommandPalette = false; state.clearBaseline() },
         ]
     }
 
@@ -333,6 +357,7 @@ struct CommandPalette: View {
                     Label(command.title, systemImage: command.symbol)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .disabled(!command.enabled)
                 .buttonStyle(.plain)
                 .padding(.vertical, 5)
             }
