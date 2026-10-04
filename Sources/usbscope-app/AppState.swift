@@ -63,7 +63,9 @@ final class AppState: ObservableObject {
     @Published var view: AppView = .ports {
         didSet {
             if view != oldValue {
-                saveViewPreferences(for: oldValue, selectionValue: selection)
+                saveViewPreferences(for: oldValue, searchValue: search,
+                                    filterValue: filterPreset, groupingValue: groupField,
+                                    selectionValue: selection)
                 loadViewPreferences(for: view)
                 if !currentViewPreferences.preserveSelection { selection.removeAll() }
             }
@@ -313,12 +315,18 @@ final class AppState: ObservableObject {
         store.save(preferences)
     }
 
-    private func saveViewPreferences(for view: AppView, selectionValue: Set<String>? = nil) {
+    private func saveViewPreferences(
+        for view: AppView,
+        searchValue: String? = nil,
+        filterValue: FilterPreset? = nil,
+        groupingValue: GroupField? = nil,
+        selectionValue: Set<String>? = nil
+    ) {
         guard !restoringViewPreferences else { return }
         var value = viewPreferences[view] ?? ViewPreferences()
-        value.search = view == self.view ? search : value.search
-        value.filterPreset = view == self.view ? filterPreset : value.filterPreset
-        value.grouping = view == self.view ? groupField : value.grouping
+        value.search = searchValue ?? (view == self.view ? search : value.search)
+        value.filterPreset = filterValue ?? (view == self.view ? filterPreset : value.filterPreset)
+        value.grouping = groupingValue ?? (view == self.view ? groupField : value.grouping)
         if let selectionValue { value.selection = selectionValue.sorted() }
         else if view == self.view { value.selection = selection.sorted() }
         viewPreferences[view] = value
