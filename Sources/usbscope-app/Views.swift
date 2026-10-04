@@ -231,8 +231,13 @@ struct WarningsView: View {
                             Text(row.source).font(.caption.monospaced())
                         }
                         TableColumn(L(.severityWarning, state.language)) { row in
-                            Label(row.severity, systemImage: "exclamationmark.triangle")
+                            Label(Strings.warningSeverityLabel(row.severity, state.language), systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.orange)
+                        }
+                        TableColumn(L(.capturedAt, state.language)) { _ in
+                            Text(state.snapshot.map { Strings.capturedLabel($0.seenAt, state.language) }
+                                 ?? Strings.freshnessStatus(.unavailable, state.language))
+                                .font(.caption)
                         }
                         TableColumn(L(.warningField, state.language)) { row in Text(row.field).font(.caption.monospaced()) }
                         TableColumn(L(.warningMessage, state.language)) { row in Text(row.message).lineLimit(2) }

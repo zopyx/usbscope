@@ -834,7 +834,22 @@ extension Strings {
     }
 
     static func warningLabel(source: String, severity: String, _ language: AppLanguage) -> String {
-        "\(source) · \(severity)"
+        "\(source) · \(warningSeverityLabel(severity, language))"
+    }
+
+    static func warningSeverityLabel(_ severity: String, _ language: AppLanguage) -> String {
+        guard language == .de else {
+            switch severity.lowercased() {
+            case "failed": return "failed"
+            case "partial": return "partial"
+            default: return severity
+            }
+        }
+        switch severity.lowercased() {
+        case "failed": return "fehlgeschlagen"
+        case "partial": return "unvollständig"
+        default: return severity
+        }
     }
 
     static func findingAccessibilityLabel(severity: String, rule: String, subject: String,
