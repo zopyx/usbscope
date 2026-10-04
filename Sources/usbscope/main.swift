@@ -11,11 +11,17 @@ struct Options {
     var json = false
     var noColor = false
     var watch: Double?
+    var rest: [String] = []
+    var expects: [String] = []
+    var events = false
+    var interval: Double = 2.0
+    var format = "md"
+    var out: String?
 }
 
 func usage() -> String {
     """
-    usage: usbscope [view] [options]
+    usage: usbscope [view|command] [options]
 
     views:
       overview     ports, cables, devices and USB4 receptacles (default)
@@ -26,35 +32,77 @@ func usage() -> String {
       security     security findings per device/port plus USB mass storage
       json         machine readable snapshot (same as --json)
 
+    commands (for scripts and CI):
+      check        evaluate --expect assertions, exit 0/3 (2 on a malformed expectation)
+      watch        --events: one JSON line per attach/detach (IOKit, else polling)
+      baseline     save <file> | check <file>: compare the live machine to a baseline
+      report       --format md|html [--out file]: human readable report
+
     options:
       -v, --verbose   show additional details
-      --json          print the snapshot as JSON
+      --json          print the snapshot as JSON (check/baseline: their own document)
       --no-color      disable colours
+      --expect EXPR   check: an expectation, e.g. device=0x1050:0x0407 (repeatable)
+      --events        watch: stream attach/detach events
+      --interval S    watch: poll interval in seconds (default 2)
+      --format FMT    report: md (default) or html
+      --out FILE      report: write to FILE instead of stdout
       --version       print the version
     """
 }
 
 let views = ["overview", "ports", "devices", "cables", "thunderbolt", "security", "json"]
+let commands = ["check", "watch", "baseline", "report"]
+
+func fail(_ message: String) -> Never {
+    FileHandle.standardError.write(Data("usbscope: \(message)\n".utf8))
+    exit(2)
+}
 
 func parse(_ argv: [String]) -> Options {
     var options = Options()
     var index = 0
+    var hasPositional = false
     let arguments = Array(argv.dropFirst())
+
+    func nextValue(_ option: String) -> String {
+        guard index + 1 < arguments.count else { fail("\(option) needs a value") }
+        index += 1
+        return arguments[index]
+    }
+
     while index < arguments.count {
         let argument = arguments[index]
         switch argument {
         case "-v", "--verbose": options.verbose = true
         case "--json": options.json = true
         case "--no-color": options.noColor = true
+        case "--events": options.events = true
         case "-h", "--help": print(usage()); exit(0)
         case "--version": print("usbscope \(version)"); exit(0)
+        case "--watch":
+            guard let seconds = Double(nextValue("--watch")) else { fail("--watch needs a number") }
+            options.watch = seconds
+        case "--interval":
+            guard let seconds = Double(nextValue("--interval")) else {
+                fail("--interval needs a number")
+            }
+            options.interval = seconds
+        case "--expect": options.expects.append(nextValue("--expect"))
+        case "--format":
+            let value = nextValue("--format")
+            guard value == "md" || value == "html" else { fail("--format must be md or html") }
+            options.format = value
+        case "--out": options.out = nextValue("--out")
         default:
-            if views.contains(argument) {
+            if !hasPositional {
+                guard views.contains(argument) || commands.contains(argument) else {
+                    fail("unknown argument \(argument)")
+                }
                 options.view = argument
+                hasPositional = true
             } else {
-                FileHandle.standardError.write(Data("usbscope: unknown argument \(argument)\n".utf8))
-                FileHandle.standardError.write(Data((usage() + "\n").utf8))
-                exit(2)
+                options.rest.append(argument)
             }
         }
         index += 1
@@ -380,9 +428,107 @@ func render(_ snapshot: Snapshot, options: Options) {
     print(parts.joined(separator: "\n"))
 }
 
+// MARK: - commands
+
+/// `usbscope check --expect …` — exit 0 when every expectation holds, 3 when one
+/// fails, 2 on a malformed expectation (a typo must not look like a failure).
+func runCheck(_ options: Options) -> Never {
+    guard !options.expects.isEmpty else {
+        FileHandle.standardError.write(Data("usbscope check: no --expect given (nothing to check)\n".utf8))
+        exit(2)
+    }
+    let expectations: [Expectation]
+    do {
+        expectations = try options.expects.map { try Assertions.parse($0) }
+    } catch {
+        FileHandle.standardError.write(Data("usbscope check: \(error)\n".utf8))
+        exit(2)
+    }
+    let report = Assertions.evaluate(SnapshotBuilder.collect(), expectations)
+    print(options.json ? Assertions.json(report) : Assertions.render(report))
+    exit(report.passed ? 0 : 3)
+}
+
+/// `usbscope watch --events` — one flushed JSON line per attach/detach.
+///
+/// Builds on `UsbHotplugWatcher`: `.automatic` arms real IOKit notifications and
+/// falls back to the watcher's polling differ when IOKit is unavailable, exactly
+/// as the app does.
+func runWatchEvents(_ options: Options) -> Never {
+    let watcher = UsbHotplugWatcher(mode: .automatic, pollInterval: max(options.interval, 0.2))
+    watcher.start { update in
+        for line in EventStream.lines(update.changes, at: update.snapshot.seenAt) {
+            FileHandle.standardOutput.write(Data((line + "\n").utf8))
+        }
+    }
+    dispatchMain()
+}
+
+/// `usbscope baseline save <file>` / `usbscope baseline check <file>`.
+func runBaseline(_ options: Options) -> Never {
+    guard options.rest.count == 2, ["save", "check"].contains(options.rest[0]) else {
+        FileHandle.standardError.write(
+            Data("usage: usbscope baseline save <file> | usbscope baseline check <file>\n".utf8)
+        )
+        exit(2)
+    }
+    let action = options.rest[0]
+    let path = options.rest[1]
+    if action == "save" {
+        do {
+            try Baseline.save(SnapshotBuilder.collect(), to: path)
+        } catch {
+            FileHandle.standardError.write(Data("usbscope baseline: \(error)\n".utf8))
+            exit(1)
+        }
+        print("baseline written: \(path)")
+        exit(0)
+    }
+    let previous: [String: Any]
+    do {
+        previous = try Baseline.load(path)
+    } catch {
+        FileHandle.standardError.write(Data("usbscope baseline: \(error)\n".utf8))
+        exit(2)
+    }
+    let diff = Baseline.compare(
+        previous: previous, current: Serialize.dict(SnapshotBuilder.collect())
+    )
+    print(options.json ? Baseline.json(diff) : Baseline.render(diff, path: path))
+    exit(diff.identical ? 0 : 3)
+}
+
+/// `usbscope report [--format md|html] [--out file]`.
+func runReport(_ options: Options) -> Never {
+    let snapshot = SnapshotBuilder.collect()
+    let (storage, _) = StorageSource().inventory()
+    let text = options.format == "html"
+        ? Report.html(snapshot, storage: storage)
+        : Report.markdown(snapshot, storage: storage)
+    if let out = options.out {
+        do {
+            try text.write(toFile: out, atomically: true, encoding: .utf8)
+        } catch {
+            FileHandle.standardError.write(Data("usbscope report: cannot write \(out): \(error)\n".utf8))
+            exit(1)
+        }
+        print("report written: \(out)")
+        exit(0)
+    }
+    FileHandle.standardOutput.write(Data(text.utf8))
+    exit(0)
+}
+
 // MARK: - main
 
 let options = parse(CommandLine.arguments)
 useColor = !options.noColor && isatty(fileno(stdout)) == 1
-let snapshot = SnapshotBuilder.collect()
-render(snapshot, options: options)
+switch options.view {
+case "check": runCheck(options)
+case "watch": runWatchEvents(options)
+case "baseline": runBaseline(options)
+case "report": runReport(options)
+default:
+    let snapshot = SnapshotBuilder.collect()
+    render(snapshot, options: options)
+}
