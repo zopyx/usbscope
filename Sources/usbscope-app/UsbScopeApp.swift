@@ -195,8 +195,20 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.summaryLine).font(.callout)
                 HStack(spacing: 6) {
-                    if state.isLoading { ProgressView().controlSize(.small) }
-                    Text(state.statusLine)
+                    if state.isLoading {
+                        // Determinate once the first stage reports, so the bar
+                        // advances through ports → buses → … → registry instead of
+                        // spinning without saying what is being read.
+                        if let fraction = state.progress?.fraction {
+                            ProgressView(value: fraction)
+                                .progressViewStyle(.linear)
+                                .frame(width: 90)
+                                .controlSize(.small)
+                        } else {
+                            ProgressView().controlSize(.small)
+                        }
+                    }
+                    Text(state.isLoading ? state.loadingLine : state.statusLine)
                         .font(.caption)
                         .foregroundStyle(state.errorMessage == nil ? Color.secondary : Color.orange)
                     Spacer()

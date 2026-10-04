@@ -29,6 +29,7 @@ script can call `./.build/debug/usbscope` directly instead of going through
 | --- | --- |
 | `-v`, `--verbose` | add raw detail (location IDs, plug orientation, TRM state, per-transport rate/signaling/lanes, CC hash status, SOP revision, sources, controller detail) |
 | `--json` | print the snapshot as JSON and exit (also as the `json` view) |
+| `--progress` | name each source as it is read, on stderr, so a slow collect is not a silent wait (stdout stays clean) |
 | `--no-color` | disable colours (also honoured when stdout is not a terminal) |
 | `--watch seconds` | redraw in place every *seconds* until `Ctrl-C` — see [Live mode](#live-mode-and-the-event-stream) |
 | `-h`, `--help` | print usage and exit |
@@ -157,6 +158,7 @@ system load, battery).
 | Notifications | One banner per device that appeared or disappeared — only from a bundled run (macOS refuses the request from a plain process) |
 | Preferences | `⌘,`: default view, interval, auto-refresh, notifications, appearance, language (DE/EN), grouping — persisted in the `com.zopyx.usbscope` defaults domain |
 | Status | Summary line (ports/connected/devices/cables) and a status bar with the read time, cadence, changes and warnings |
+| Loading | three states — idle → loading → loaded. While a read is in flight the status line names the source it is on (`collecting Charging · 5/6`) next to a determinate bar, so the ~1.3 s a collect takes is not a silent wait |
 | Screenshots | `usbscope-app --snapshot out.png [--view security]` renders the window offscreen and exits — no screen-recording permission needed |
 
 `usbscope-app --print-rows` is the headless check of the data path (row count per

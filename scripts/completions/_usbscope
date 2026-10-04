@@ -10,6 +10,7 @@ _arguments -s -S \
   '(-h --help)'{-h,--help}'[show help and exit]' \
   '(-v --verbose)'{-v,--verbose}'[show additional details]' \
   '--json[print the snapshot as JSON (check/baseline: their own document)]' \
+  '--progress[name each source as it is read, on stderr]' \
   '--watch=[redraw in place every N seconds; Ctrl-C quits]:seconds:' \
   '--no-color[disable colours]' \
   '--expect=[check: an expectation, e.g. device=0x1050:0x0407 or connected>=1]:expression:' \

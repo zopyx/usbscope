@@ -12,6 +12,7 @@ struct Options {
     var json = false
     var noColor = false
     var watch: Double?
+    var progress = false
     var rest: [String] = []
     var expects: [String] = []
     var events = false
@@ -43,6 +44,7 @@ func usage() -> String {
     options:
       -v, --verbose   show additional details
       --json          print the snapshot as JSON (check/baseline: their own document)
+      --progress      report each source as it is read, on stderr (keeps stdout clean)
       --watch S       redraw in place every S seconds until Ctrl-C
       --no-color      disable colours
       --expect EXPR   check: an expectation, e.g. device=0x1050:0x0407 (repeatable)
@@ -79,6 +81,7 @@ func parse(_ argv: [String]) -> Options {
         switch argument {
         case "-v", "--verbose": options.verbose = true
         case "--json": options.json = true
+        case "--progress": options.progress = true
         case "--no-color": options.noColor = true
         case "--events": options.events = true
         case "-h", "--help": print(usage()); exit(0)
@@ -426,6 +429,22 @@ func securityView(_ snapshot: Snapshot, report: SecurityReport, storage: [Storag
     return parts.joined(separator: "\n")
 }
 
+/// Collect one snapshot, naming each source as it is read when `--progress` is set.
+///
+/// The lines go to **stderr** on purpose: stdout stays a clean document for
+/// `--json` and a clean table for a pipe, while a human watching a collect that
+/// takes over a second still sees which source is being read. The wording comes
+/// from `ProgressPresentation`, the same type the app's status line uses.
+func collect(_ options: Options) -> Snapshot {
+    guard options.progress else { return SnapshotBuilder.collect() }
+    return SnapshotBuilder.collect(progress: { stage, index, total in
+        let line = ProgressPresentation.text(
+            SnapshotProgress(stage: stage, index: index, total: total), verb: "collecting"
+        )
+        FileHandle.standardError.write(Data("usbscope: \(line)\n".utf8))
+    })
+}
+
 func render(_ snapshot: Snapshot, options: Options) {
     if options.view == "security" {
         let report = Security.analyse(snapshot)
@@ -480,7 +499,7 @@ func runCheck(_ options: Options) -> Never {
         FileHandle.standardError.write(Data("usbscope check: \(error)\n".utf8))
         exit(2)
     }
-    let report = Assertions.evaluate(SnapshotBuilder.collect(), expectations)
+    let report = Assertions.evaluate(collect(options), expectations)
     print(options.json ? Assertions.json(report) : Assertions.render(report))
     exit(report.passed ? 0 : 3)
 }
@@ -512,7 +531,7 @@ func runBaseline(_ options: Options) -> Never {
     let path = options.rest[1]
     if action == "save" {
         do {
-            try Baseline.save(SnapshotBuilder.collect(), to: path)
+            try Baseline.save(collect(options), to: path)
         } catch {
             FileHandle.standardError.write(Data("usbscope baseline: \(error)\n".utf8))
             exit(1)
@@ -528,7 +547,7 @@ func runBaseline(_ options: Options) -> Never {
         exit(2)
     }
     let diff = Baseline.compare(
-        previous: previous, current: Serialize.dict(SnapshotBuilder.collect())
+        previous: previous, current: Serialize.dict(collect(options))
     )
     print(options.json ? Baseline.json(diff) : Baseline.render(diff, path: path))
     exit(diff.identical ? 0 : 3)
@@ -536,7 +555,7 @@ func runBaseline(_ options: Options) -> Never {
 
 /// `usbscope report [--format md|html] [--out file]`.
 func runReport(_ options: Options) -> Never {
-    let snapshot = SnapshotBuilder.collect()
+    let snapshot = collect(options)
     let (storage, _) = StorageSource().inventory()
     let text = options.format == "html"
         ? Report.html(snapshot, storage: storage)
@@ -569,7 +588,7 @@ func runWatch(_ options: Options, interval: Double) {
     let seconds = max(interval, 0.2)
     var frames = 0
     while true {
-        let snapshot = SnapshotBuilder.collect()
+        let snapshot = collect(options)
         if live {
             // Clear the screen and park the cursor at the top left, then draw.
             print("\u{1B}[2J\u{1B}[H", terminator: "")
@@ -596,6 +615,6 @@ default:
         // JSON in a live loop makes no sense: a pipe wants one parseable document.
         runWatch(options, interval: interval)
     }
-    let snapshot = SnapshotBuilder.collect()
+    let snapshot = collect(options)
     render(snapshot, options: options)
 }

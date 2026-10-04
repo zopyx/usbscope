@@ -12,7 +12,7 @@ _usbscope() {
     prev="${COMP_WORDS[COMP_CWORD - 1]}"
     local views="overview ports devices cables thunderbolt usb4 security json"
     local commands="check watch baseline report"
-    local opts="-v --verbose --json --watch --no-color --expect --events --interval --format --out -h --help --version"
+    local opts="-v --verbose --json --progress --watch --no-color --expect --events --interval --format --out -h --help --version"
 
     case "${prev}" in
         --watch | --interval)

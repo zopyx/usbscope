@@ -139,6 +139,13 @@ print the snapshot as JSON and exit. Combined with
 .B \-\-watch
 it prints one snapshot instead, because JSON in a live loop makes no sense.
 .TP
+.B \-\-progress
+name each source as it is read (ports, buses, thunderbolt, hardware, charging,
+registry) on standard error, so a collect that takes over a second is not a silent
+wait. Standard output stays clean, which keeps
+.B \-\-json
+parseable.
+.TP
 .BI \-\-watch " seconds"
 accepted for periodic refresh; the current CLI redraws the selected view in place
 until interrupted with Ctrl-C, appending frames instead of clearing the screen

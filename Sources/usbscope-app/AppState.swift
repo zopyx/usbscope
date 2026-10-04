@@ -46,6 +46,10 @@ final class AppState: ObservableObject {
     @Published private(set) var changes: ChangeSet?
     @Published private(set) var reads = 0
     @Published private(set) var isLoading = false
+    /// Which OS source the running `collect` is reading, or `nil` when idle.
+    /// `SnapshotBuilder` reports one value per stage, so the status line can name
+    /// the step instead of showing an opaque spinner for ~1.3 s.
+    @Published private(set) var progress: SnapshotProgress?
     @Published private(set) var errorMessage: String?
 
     @Published var view: AppView = .ports {
@@ -216,12 +220,20 @@ final class AppState: ObservableObject {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
-        Task {
+        progress = nil
+        Task { [weak self] in
             let (result, storage) = await Task.detached(priority: .userInitiated) {
-                (SnapshotBuilder.collect(), StorageSource().inventory().0)
+                // The callback fires on the collecting thread, once per stage; each
+                // value hops to the main actor, so the status line follows the
+                // collection instead of only changing when it is over.
+                let snapshot = SnapshotBuilder.collect(progress: { stage, index, total in
+                    let value = SnapshotProgress(stage: stage, index: index, total: total)
+                    Task { @MainActor [weak self] in self?.progress = value }
+                })
+                return (snapshot, StorageSource().inventory().0)
             }.value
-            self.storage = storage
-            apply(result)
+            self?.storage = storage
+            self?.apply(result)
         }
     }
 
@@ -241,6 +253,7 @@ final class AppState: ObservableObject {
         snapshot = fresh
         reads += 1
         isLoading = false
+        progress = nil
         history.record(fresh)
         if fresh.warnings.isEmpty {
             errorMessage = nil
@@ -285,8 +298,15 @@ final class AppState: ObservableObject {
         return selected.filter { row in terms.allSatisfy { row.searchText.contains($0) } }
     }
 
+    /// `collecting Charging · 5/6` while a read is in flight, `collecting …`
+    /// before the first stage reports.
+    var loadingLine: String {
+        ProgressPresentation.text(progress, verb: L(.collecting, language))
+    }
+
     var summaryLine: String {
-        snapshot.map(Presentation.summaryText) ?? L(.loading, language)
+        if let snapshot { return Presentation.summaryText(snapshot) }
+        return isLoading ? loadingLine : L(.loading, language)
     }
 
     var statusLine: String {

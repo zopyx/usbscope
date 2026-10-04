@@ -76,6 +76,7 @@ enum StringKey: String, CaseIterable {
     case languageEnglish
     case languageGerman
     case loading
+    case collecting
     case aboutMenuTitle
     case aboutDocs
     case aboutSource
@@ -217,6 +218,7 @@ enum Strings {
         case .languageEnglish: "English"
         case .languageGerman: "German"
         case .loading: "reading the USB subsystem…"
+        case .collecting: "collecting"
         case .aboutMenuTitle: "About usbscope"
         case .aboutDocs: "Documentation"
         case .aboutSource: "Source code"
@@ -297,6 +299,7 @@ enum Strings {
         case .languageEnglish: "Englisch"
         case .languageGerman: "Deutsch"
         case .loading: "USB-Subsystem wird gelesen…"
+        case .collecting: "sammle"
         case .aboutMenuTitle: "Über usbscope"
         case .aboutDocs: "Dokumentation"
         case .aboutSource: "Quellcode"
