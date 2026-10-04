@@ -143,6 +143,20 @@ public enum DiagnosticBundle {
                     "fields": device.fieldProvenance.mapValues(\.rawValue),
                 ]
             } ?? []
+            let errorPayload: [[String: Any]] = errors.map { error in
+                var value: [String: Any] = [
+                    "code": error.code.rawValue,
+                    "source": error.source,
+                    "operation": error.operation,
+                    "severity": error.severity,
+                    "user_message": error.userMessage,
+                    "technical_message": error.technicalMessage,
+                ]
+                if let recoveryAction = error.recoveryAction {
+                    value["recovery_action"] = recoveryAction
+                }
+                return value
+            }
             let payload: [String: Any] = [
                 "format_version": formatVersion,
                 "generated_at": ISO8601DateFormatter().string(from: Date()),
@@ -150,7 +164,7 @@ public enum DiagnosticBundle {
                 "os_version": ProcessInfo.processInfo.operatingSystemVersionString,
                 "architecture": architecture,
                 "warnings": safeWarnings,
-                "errors": errors,
+                "errors": errorPayload,
                 "timings": timings,
                 "redaction": [
                     "serials": policy.redactSerials, "host": policy.redactHost,
@@ -166,8 +180,12 @@ public enum DiagnosticBundle {
             }
             let eventPayload = events.map { redacted(event: $0, policy: policy) }
             try json(["events": eventPayload]).write(to: temporary.appendingPathComponent("events.json"), atomically: true, encoding: .utf8)
-            if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
-            try fm.moveItem(at: temporary, to: destination)
+            if fm.fileExists(atPath: destination.path) {
+                _ = try fm.replaceItemAt(destination, withItemAt: temporary,
+                                         backupItemName: nil, options: .usingNewMetadataOnly)
+            } else {
+                try fm.moveItem(at: temporary, to: destination)
+            }
             return destination
         } catch {
             try? fm.removeItem(at: temporary)

@@ -90,13 +90,22 @@ final class FixSpecTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: destination) }
         let snapshot = Fixtures.snapshot()
         try DiagnosticBundle.write(to: destination, snapshot: snapshot,
-                                   warnings: ["ioreg: locationID 17825792 failed"])
+                                   warnings: ["ioreg: locationID 17825792 failed"],
+                                   errors: [SourceError(code: .commandTimedOut, source: "ioreg",
+                                                        operation: "read", userMessage: "Timed out",
+                                                        technicalMessage: "deadline")])
         let metadata = try String(contentsOf: destination.appendingPathComponent("metadata.json"))
         let snapshotJSON = try String(contentsOf: destination.appendingPathComponent("snapshot.json"))
         XCTAssertTrue(FileManager.default.fileExists(atPath: destination.appendingPathComponent("events.json").path))
         XCTAssertFalse(metadata.contains("17825792"))
         XCTAssertFalse(snapshotJSON.contains("17825792"))
         XCTAssertTrue(metadata.contains("provenance"))
+        XCTAssertTrue(metadata.contains("commandTimedOut"))
+
+        try DiagnosticBundle.write(to: destination, snapshot: snapshot,
+                                   warnings: ["replacement succeeded"])
+        let replacement = try String(contentsOf: destination.appendingPathComponent("metadata.json"))
+        XCTAssertTrue(replacement.contains("replacement succeeded"))
     }
 
     func testSnapshotCoordinatorCoalescesAndKeepsStrongestReason() async {
