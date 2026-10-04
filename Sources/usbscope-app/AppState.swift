@@ -500,7 +500,7 @@ final class AppState: ObservableObject {
             errorMessage = sourceWarnings.joined(separator: " · ")
         }
         if notificationsEnabled, let changes, changes.deviceCount > 0 {
-            notifier?.notify(changes, enabled: true, detail: notificationDetail)
+            notifier?.notify(changes, enabled: true, detail: notificationDetail, language: language)
         }
         reconcileSelection()
     }

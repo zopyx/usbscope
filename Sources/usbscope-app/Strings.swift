@@ -162,6 +162,10 @@ enum StringKey: String, CaseIterable {
     case exportHelp
     case diagnosticsHelp
     case notificationDetail
+    case notificationConnected
+    case notificationDisconnected
+    case notificationConnectedTitle
+    case notificationDisconnectedTitle
     case currentStatus
     case staleStatus
     case loadingStatus
@@ -431,6 +435,10 @@ enum Strings {
         case .exportHelp: "Export"
         case .diagnosticsHelp: "Diagnostics"
         case .notificationDetail: "Notification detail"
+        case .notificationConnected: "A USB device connected."
+        case .notificationDisconnected: "A USB device disconnected."
+        case .notificationConnectedTitle: "Device connected"
+        case .notificationDisconnectedTitle: "Device disconnected"
         case .currentStatus: "Current"
         case .staleStatus: "Stale"
         case .loadingStatus: "Loading"
@@ -630,6 +638,10 @@ enum Strings {
         case .exportHelp: "Exportieren"
         case .diagnosticsHelp: "Diagnose"
         case .notificationDetail: "Mitteilungsdetails"
+        case .notificationConnected: "Ein USB-Gerät wurde verbunden."
+        case .notificationDisconnected: "Ein USB-Gerät wurde getrennt."
+        case .notificationConnectedTitle: "Gerät verbunden"
+        case .notificationDisconnectedTitle: "Gerät getrennt"
         case .currentStatus: "Aktuell"
         case .staleStatus: "Veraltet"
         case .loadingStatus: "Wird geladen"

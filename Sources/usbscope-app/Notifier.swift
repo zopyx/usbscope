@@ -39,15 +39,16 @@ final class DeviceNotifier {
     var available: Bool { supported }
 
     /// One notification per appeared or disappeared device.
-    func notify(_ changes: ChangeSet, enabled: Bool, detail: NotificationDetail = .full) {
+    func notify(_ changes: ChangeSet, enabled: Bool, detail: NotificationDetail = .full,
+                language: AppLanguage = .en) {
         guard supported, enabled, detail != .disabled, authorized else { return }
         for device in changes.added {
-            let body = detail == .full ? DeviceChangeText.describe(single(device, added: true)) : "A USB device connected."
-            post(body, subtitle: "Device connected")
+            let body = detail == .full ? DeviceChangeText.describe(single(device, added: true)) : L(.notificationConnected, language)
+            post(body, subtitle: L(.notificationConnectedTitle, language))
         }
         for device in changes.removed {
-            let body = detail == .full ? DeviceChangeText.describe(single(device, added: false)) : "A USB device disconnected."
-            post(body, subtitle: "Device disconnected")
+            let body = detail == .full ? DeviceChangeText.describe(single(device, added: false)) : L(.notificationDisconnected, language)
+            post(body, subtitle: L(.notificationDisconnectedTitle, language))
         }
     }
 
