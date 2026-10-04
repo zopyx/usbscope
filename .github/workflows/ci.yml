@@ -63,6 +63,9 @@ jobs:
       - name: Build
         run: swift build
 
+      - name: Localization static check
+        run: scripts/check-localization.sh
+
       - name: Test
         run: swift test
 

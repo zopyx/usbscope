@@ -152,6 +152,21 @@ enum StringKey: String, CaseIterable {
     case staleStatus
     case loadingStatus
     case capturedAt
+    case renameBaselineTitle
+    case renameAction
+    case cancel
+    case ejectVolume
+    case volume
+    case mountPoint
+    case mountedVolumesWarning
+    case exportRedactedDiagnostics
+    case exportIdentifierWarning
+    case exportRedactionNote
+    case diagnosticsWritten
+    case diagnosticsFailed
+    case exportWritten
+    case exportFailed
+    case ejected
 
     /// The key for an `AppView`.
     static func of(_ view: AppView) -> StringKey {
@@ -370,6 +385,21 @@ enum Strings {
         case .staleStatus: "Stale"
         case .loadingStatus: "Loading"
         case .capturedAt: "Captured"
+        case .renameBaselineTitle: "Rename baseline"
+        case .renameAction: "Rename"
+        case .cancel: "Cancel"
+        case .ejectVolume: "Eject %@?"
+        case .volume: "Volume"
+        case .mountPoint: "Mount point"
+        case .mountedVolumesWarning: "Mounted volumes may be unmounted."
+        case .exportRedactedDiagnostics: "Export redacted diagnostics"
+        case .exportIdentifierWarning: "Export may contain hardware identifiers"
+        case .exportRedactionNote: "The export is redacted by default where possible. Review the destination before sharing it."
+        case .diagnosticsWritten: "Diagnostics written"
+        case .diagnosticsFailed: "Diagnostics failed"
+        case .exportWritten: "Export written"
+        case .exportFailed: "Export failed"
+        case .ejected: "ejected"
         }
     }
 
@@ -519,6 +549,21 @@ enum Strings {
         case .staleStatus: "Veraltet"
         case .loadingStatus: "Wird geladen"
         case .capturedAt: "Erfasst"
+        case .renameBaselineTitle: "Vergleichsbasis umbenennen"
+        case .renameAction: "Umbenennen"
+        case .cancel: "Abbrechen"
+        case .ejectVolume: "%@ auswerfen?"
+        case .volume: "Volume"
+        case .mountPoint: "Einhängepunkt"
+        case .mountedVolumesWarning: "Eingehängte Volumes können ausgeworfen werden."
+        case .exportRedactedDiagnostics: "Geschwärzte Diagnose exportieren"
+        case .exportIdentifierWarning: "Export kann Hardware-Kennungen enthalten"
+        case .exportRedactionNote: "Der Export wird nach Möglichkeit standardmäßig geschwärzt. Prüfen Sie das Ziel vor dem Teilen."
+        case .diagnosticsWritten: "Diagnose geschrieben"
+        case .diagnosticsFailed: "Diagnose fehlgeschlagen"
+        case .exportWritten: "Export geschrieben"
+        case .exportFailed: "Export fehlgeschlagen"
+        case .ejected: "ausgeworfen"
         }
     }
 }
@@ -529,6 +574,45 @@ func L(_ key: StringKey, _ language: AppLanguage) -> String {
 }
 
 extension Strings {
+    /// Localized table headers. The identifiers passed by the views are stable
+    /// persistence keys; only the visible header is translated here.
+    static func columnLabel(_ identifier: String, _ language: AppLanguage) -> String {
+        guard language == .de else {
+            return identifier
+        }
+        switch identifier {
+        case "Port": return "Anschluss"
+        case "Type": return "Typ"
+        case "State": return "Status"
+        case "Mode": return "Modus"
+        case "Transports": return "Transporte"
+        case "Cable": return "Kabel"
+        case "Notes": return "Notizen"
+        case "CC authentication": return "CC-Authentifizierung"
+        case "Hash (CC / USB)": return "Hash (CC / USB)"
+        case "PD spec": return "PD-Spezifikation"
+        case "Power in": return "Eingangsleistung"
+        case "Contract": return "Vertrag"
+        case "Liquid": return "Flüssigkeit"
+        case "Controller fw": return "Controller-Firmware"
+        case "Device": return "Gerät"
+        case "Vendor": return "Hersteller"
+        case "VID:PID": return "VID:PID"
+        case "Class": return "Klasse"
+        case "Tier": return "Ebene"
+        case "Transport": return "Transport"
+        case "Serial": return "Seriennummer"
+        case "Restricted": return "Eingeschränkt"
+        case "Bus": return "Bus"
+        case "Receptacle": return "Buchse"
+        case "Link": return "Verbindung"
+        case "Host / vendor": return "Host / Hersteller"
+        case "Metric": return "Messgröße"
+        case "Value": return "Wert"
+        default: return identifier
+        }
+    }
+
     static func hostLabel(_ host: String, _ language: AppLanguage) -> String {
         "\(L(.host, language)): \(host)"
     }
@@ -612,5 +696,13 @@ extension Strings {
         formatter.dateStyle = .short
         formatter.timeStyle = .medium
         return "\(L(.capturedAt, language)): \(formatter.string(from: date))"
+    }
+
+    static func ejectTitle(_ identifier: String, _ language: AppLanguage) -> String {
+        String(format: L(.ejectVolume, language), identifier)
+    }
+
+    static func ejectDetails(name: String, mount: String, _ language: AppLanguage) -> String {
+        "\(L(.volume, language)): \(name)\n\(L(.mountPoint, language)): \(mount)\n\(L(.mountedVolumesWarning, language))"
     }
 }

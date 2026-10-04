@@ -327,7 +327,7 @@ struct PortsView: View {
     private func table(_ rows: [PortRow]) -> some View {
         Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
             if state.isColumnVisible(.ports, "Port") {
-                TableColumn("Port", value: \.nameSort) { row in
+                TableColumn(Strings.columnLabel("Port", state.language), value: \.nameSort) { row in
                     CellText(text: row.name, highlight: row.highlight)
                         .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
                                     identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
@@ -335,27 +335,27 @@ struct PortsView: View {
                     .width(min: 90, ideal: 110)
             }
             if state.isColumnVisible(.ports, "Type") {
-                TableColumn("Type", value: \.kindSort) { CellText(text: $0.kind) }
+                TableColumn(Strings.columnLabel("Type", state.language), value: \.kindSort) { CellText(text: $0.kind) }
                     .width(min: 70, ideal: 90)
             }
             if state.isColumnVisible(.ports, "State") {
-                TableColumn("State", value: \.stateSort) { CellText(text: $0.state) }
+                TableColumn(Strings.columnLabel("State", state.language), value: \.stateSort) { CellText(text: $0.state) }
                     .width(min: 90, ideal: 110)
             }
             if state.isColumnVisible(.ports, "Mode") {
-                TableColumn("Mode", value: \.modeSort) { CellText(text: $0.mode) }
+                TableColumn(Strings.columnLabel("Mode", state.language), value: \.modeSort) { CellText(text: $0.mode) }
                     .width(min: 160, ideal: 210)
             }
             if state.isColumnVisible(.ports, "Transports") {
-                TableColumn("Transports", value: \.transportsSort) { CellText(text: $0.transports) }
+                TableColumn(Strings.columnLabel("Transports", state.language), value: \.transportsSort) { CellText(text: $0.transports) }
                     .width(min: 120, ideal: 240)
             }
             if state.isColumnVisible(.ports, "Cable") {
-                TableColumn("Cable", value: \.cableSort) { CellText(text: $0.cable) }
+                TableColumn(Strings.columnLabel("Cable", state.language), value: \.cableSort) { CellText(text: $0.cable) }
                     .width(min: 70, ideal: 90)
             }
             if state.isColumnVisible(.ports, "Notes") {
-                TableColumn("Notes", value: \.notesSort) { CellText(text: $0.notes) }
+                TableColumn(Strings.columnLabel("Notes", state.language), value: \.notesSort) { CellText(text: $0.notes) }
                     .width(min: 160, ideal: 320)
             }
         }
@@ -396,7 +396,7 @@ struct CablesView: View {
             let rows = state.filtered(cableRows(snapshot, changes: state.changes))
             Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
                 if state.isColumnVisible(.cables, "Port") {
-                    TableColumn("Port", value: \.portSort) { row in
+                    TableColumn(Strings.columnLabel("Port", state.language), value: \.portSort) { row in
                         CellText(text: row.port, highlight: row.highlight)
                             .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
                                         identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
@@ -404,35 +404,35 @@ struct CablesView: View {
                         .width(min: 90, ideal: 110)
                 }
                 if state.isColumnVisible(.cables, "Cable") {
-                    TableColumn("Cable", value: \.cableSort) { CellText(text: $0.cable) }
+                    TableColumn(Strings.columnLabel("Cable", state.language), value: \.cableSort) { CellText(text: $0.cable) }
                         .width(min: 70, ideal: 100)
                 }
                 if state.isColumnVisible(.cables, "CC authentication") {
-                    TableColumn("CC authentication", value: \.authenticationSort) { CellText(text: $0.authentication) }
+                    TableColumn(Strings.columnLabel("CC authentication", state.language), value: \.authenticationSort) { CellText(text: $0.authentication) }
                         .width(min: 110, ideal: 150)
                 }
                 if state.isColumnVisible(.cables, "Hash (CC / USB)") {
-                    TableColumn("Hash (CC / USB)", value: \.hashSort) { CellText(text: $0.hash) }
+                    TableColumn(Strings.columnLabel("Hash (CC / USB)", state.language), value: \.hashSort) { CellText(text: $0.hash) }
                         .width(min: 110, ideal: 150)
                 }
                 if state.isColumnVisible(.cables, "PD spec") {
-                    TableColumn("PD spec", value: \.specSort) { CellText(text: $0.spec) }
+                    TableColumn(Strings.columnLabel("PD spec", state.language), value: \.specSort) { CellText(text: $0.spec) }
                         .width(min: 60, ideal: 70)
                 }
                 if state.isColumnVisible(.cables, "Power in") {
-                    TableColumn("Power in", value: \.powerSort) { CellText(text: $0.powerIn) }
+                    TableColumn(Strings.columnLabel("Power in", state.language), value: \.powerSort) { CellText(text: $0.powerIn) }
                         .width(min: 100, ideal: 200)
                 }
                 if state.isColumnVisible(.cables, "Contract") {
-                    TableColumn("Contract", value: \.contractSort) { CellText(text: $0.contract) }
+                    TableColumn(Strings.columnLabel("Contract", state.language), value: \.contractSort) { CellText(text: $0.contract) }
                         .width(min: 100, ideal: 160)
                 }
                 if state.isColumnVisible(.cables, "Liquid") {
-                    TableColumn("Liquid", value: \.liquidSort) { CellText(text: $0.liquid) }
+                    TableColumn(Strings.columnLabel("Liquid", state.language), value: \.liquidSort) { CellText(text: $0.liquid) }
                         .width(min: 60, ideal: 80)
                 }
                 if state.isColumnVisible(.cables, "Controller fw") {
-                    TableColumn("Controller fw", value: \.firmwareSort) { CellText(text: $0.firmware) }
+                    TableColumn(Strings.columnLabel("Controller fw", state.language), value: \.firmwareSort) { CellText(text: $0.firmware) }
                         .width(min: 90, ideal: 120)
                 }
             }
@@ -464,7 +464,7 @@ struct DevicesView: View {
     private func table(_ rows: [DeviceRow]) -> some View {
         Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
             if state.isColumnVisible(.devices, "Device") {
-                TableColumn("Device", value: \.nameSort) { row in
+                TableColumn(Strings.columnLabel("Device", state.language), value: \.nameSort) { row in
                     CellText(text: row.name, highlight: row.highlight)
                         .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
                                     identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
@@ -472,39 +472,39 @@ struct DevicesView: View {
                     .width(min: 140, ideal: 260)
             }
             if state.isColumnVisible(.devices, "Vendor") {
-                TableColumn("Vendor", value: \.vendorSort) { CellText(text: $0.vendor) }
+                TableColumn(Strings.columnLabel("Vendor", state.language), value: \.vendorSort) { CellText(text: $0.vendor) }
                     .width(min: 90, ideal: 130)
             }
             if state.isColumnVisible(.devices, "VID:PID") {
-                TableColumn("VID:PID", value: \.idSort) { CellText(text: $0.idString) }
+                TableColumn(Strings.columnLabel("VID:PID", state.language), value: \.idSort) { CellText(text: $0.idString) }
                     .width(min: 90, ideal: 110)
             }
             if state.isColumnVisible(.devices, "Mode") {
-                TableColumn("Mode", value: \.modeSort) { CellText(text: $0.mode) }
+                TableColumn(Strings.columnLabel("Mode", state.language), value: \.modeSort) { CellText(text: $0.mode) }
                     .width(min: 150, ideal: 200)
             }
             if state.isColumnVisible(.devices, "Class") {
-                TableColumn("Class", value: \.classSort) { CellText(text: $0.deviceClass) }
+                TableColumn(Strings.columnLabel("Class", state.language), value: \.classSort) { CellText(text: $0.deviceClass) }
                     .width(min: 110, ideal: 150)
             }
             if state.isColumnVisible(.devices, "Tier") {
-                TableColumn("Tier", value: \.tierSort) { CellText(text: $0.tier) }
+                TableColumn(Strings.columnLabel("Tier", state.language), value: \.tierSort) { CellText(text: $0.tier) }
                     .width(min: 40, ideal: 50)
             }
             if state.isColumnVisible(.devices, "Port") {
-                TableColumn("Port", value: \.portSort) { CellText(text: $0.port) }
+                TableColumn(Strings.columnLabel("Port", state.language), value: \.portSort) { CellText(text: $0.port) }
                     .width(min: 80, ideal: 100)
             }
             if state.isColumnVisible(.devices, "Transport") {
-                TableColumn("Transport", value: \.transportSort) { CellText(text: $0.transport) }
+                TableColumn(Strings.columnLabel("Transport", state.language), value: \.transportSort) { CellText(text: $0.transport) }
                     .width(min: 80, ideal: 100)
             }
             if state.isColumnVisible(.devices, "Serial") {
-                TableColumn("Serial", value: \.serialSort) { CellText(text: $0.serial) }
+                TableColumn(Strings.columnLabel("Serial", state.language), value: \.serialSort) { CellText(text: $0.serial) }
                     .width(min: 90, ideal: 140)
             }
             if state.isColumnVisible(.devices, "Restricted") {
-                TableColumn("Restricted", value: \.restrictedSort) { CellText(text: $0.restricted) }
+                TableColumn(Strings.columnLabel("Restricted", state.language), value: \.restrictedSort) { CellText(text: $0.restricted) }
                     .width(min: 70, ideal: 90)
             }
         }
@@ -546,7 +546,7 @@ struct ThunderboltView: View {
             let rows = state.filtered(thunderboltRows(snapshot))
             Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
                 if state.isColumnVisible(.thunderbolt, "Bus") {
-                    TableColumn("Bus", value: \.busSort) { row in
+                    TableColumn(Strings.columnLabel("Bus", state.language), value: \.busSort) { row in
                         CellText(text: row.bus)
                             .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
                                         identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
@@ -554,19 +554,19 @@ struct ThunderboltView: View {
                         .width(min: 140, ideal: 200)
                 }
                 if state.isColumnVisible(.thunderbolt, "Receptacle") {
-                    TableColumn("Receptacle", value: \.receptacleSort) { CellText(text: $0.receptacle) }
+                    TableColumn(Strings.columnLabel("Receptacle", state.language), value: \.receptacleSort) { CellText(text: $0.receptacle) }
                         .width(min: 70, ideal: 100)
                 }
                 if state.isColumnVisible(.thunderbolt, "State") {
-                    TableColumn("State", value: \.stateSort) { CellText(text: $0.state) }
+                    TableColumn(Strings.columnLabel("State", state.language), value: \.stateSort) { CellText(text: $0.state) }
                         .width(min: 90, ideal: 110)
                 }
                 if state.isColumnVisible(.thunderbolt, "Link") {
-                    TableColumn("Link", value: \.linkSort) { CellText(text: $0.link) }
+                    TableColumn(Strings.columnLabel("Link", state.language), value: \.linkSort) { CellText(text: $0.link) }
                         .width(min: 90, ideal: 140)
                 }
                 if state.isColumnVisible(.thunderbolt, "Host / vendor") {
-                    TableColumn("Host / vendor", value: \.hostSort) { CellText(text: $0.host) }
+                    TableColumn(Strings.columnLabel("Host / vendor", state.language), value: \.hostSort) { CellText(text: $0.host) }
                         .width(min: 120, ideal: 200)
                 }
             }
@@ -586,11 +586,11 @@ struct PowerView: View {
             // The power view has no natural order to sort by.
             Table(rows, selection: $state.selection) {
                 if state.isColumnVisible(.power, "Metric") {
-                    TableColumn("Metric") { CellText(text: $0.metric) }
+                    TableColumn(Strings.columnLabel("Metric", state.language)) { CellText(text: $0.metric) }
                         .width(min: 140, ideal: 220)
                 }
                 if state.isColumnVisible(.power, "Value") {
-                    TableColumn("Value") { CellText(text: $0.value) }
+                    TableColumn(Strings.columnLabel("Value", state.language)) { CellText(text: $0.value) }
                         .width(min: 200, ideal: 340)
                 }
             }

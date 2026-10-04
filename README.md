@@ -123,4 +123,5 @@ read duration, per-source status, warnings, and subprocess timings.
 
 Further contracts are documented in [the product brief](docs/product-brief.md),
 [the failure matrix](docs/failure-matrix.md), [the privacy inventory](docs/privacy-inventory.md),
-and [the hardware capture matrix](docs/capture-matrix.md).
+and [the hardware capture matrix](docs/capture-matrix.md). Performance and
+refresh caching policy is documented in [docs/performance.md](docs/performance.md).

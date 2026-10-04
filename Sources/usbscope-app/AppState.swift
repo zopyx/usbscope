@@ -558,12 +558,12 @@ final class AppState: ObservableObject {
     func renameBaseline() {
         guard baseline != nil else { return }
         let alert = NSAlert()
-        alert.messageText = "Rename baseline"
-        let field = NSTextField(string: baselineName ?? "Baseline")
+        alert.messageText = L(.renameBaselineTitle, language)
+        let field = NSTextField(string: baselineName ?? L(.baselineNone, language))
         field.frame.size = NSSize(width: 280, height: 24)
         alert.accessoryView = field
-        alert.addButton(withTitle: "Rename")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L(.renameAction, language))
+        alert.addButton(withTitle: L(.cancel, language))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         baselineName = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -584,10 +584,10 @@ final class AppState: ObservableObject {
     func confirmEject(_ row: StorageRow) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Eject \(row.identifier)?"
-        alert.informativeText = "Volume: \(row.name)\nMount point: \(row.mount)\nMounted volumes may be unmounted."
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Eject")
+        alert.messageText = Strings.ejectTitle(row.identifier, language)
+        alert.informativeText = Strings.ejectDetails(name: row.name, mount: row.mount, language)
+        alert.addButton(withTitle: L(.cancel, language))
+        alert.addButton(withTitle: L(.eject, language))
         alert.buttons.first?.keyEquivalent = "\u{1b}"
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         eject(row)
@@ -598,13 +598,14 @@ final class AppState: ObservableObject {
         ejecting = row.id
         ejectMessage = nil
         let failed = L(.ejectFailed, language)
+        let language = self.language
         let identifier = row.identifier
         // Same shape as `loadEventHistory`: the subprocess stays off the main actor,
         // the state change happens on it.
         Task { @MainActor [weak self] in
             let result = await Task.detached(priority: .userInitiated) { Shell.run(argv) }.value
             let message = result.ok
-                ? "\(identifier) ejected"
+                ? "\(identifier) \(L(.ejected, language))"
                 : "\(failed): \(identifier) (\(result.error ?? "exit \(result.returncode)"))"
             self?.ejecting = nil
             self?.ejectMessage = message
@@ -680,7 +681,7 @@ final class AppState: ObservableObject {
         let panel = NSSavePanel()
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = "usbscope-diagnostics"
-        panel.message = "Export redacted diagnostics"
+        panel.message = L(.exportRedactedDiagnostics, language)
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try DiagnosticBundle.write(to: url, snapshot: snapshot,
@@ -688,10 +689,10 @@ final class AppState: ObservableObject {
                                        timings: sourceTimings.merging(lastReadDuration.map { ["snapshot": $0] } ?? [:]) { current, _ in current },
                                        events: events, errors: storageErrors)
             reportFailed = false
-            reportMessage = "Diagnostics written: \(url.lastPathComponent)"
+            reportMessage = "\(L(.diagnosticsWritten, language)): \(url.lastPathComponent)"
         } catch {
             reportFailed = true
-            reportMessage = "Diagnostics failed: \(error.localizedDescription)"
+            reportMessage = "\(L(.diagnosticsFailed, language)): \(error.localizedDescription)"
         }
     }
 
@@ -724,10 +725,10 @@ final class AppState: ObservableObject {
                 try FileManager.default.moveItem(at: temporary, to: url)
             }
             reportFailed = false
-            reportMessage = "Export written: \(url.lastPathComponent)"
+            reportMessage = "\(L(.exportWritten, language)): \(url.lastPathComponent)"
         } catch {
             reportFailed = true
-            reportMessage = "Export failed: \(error.localizedDescription)"
+            reportMessage = "\(L(.exportFailed, language)): \(error.localizedDescription)"
         }
     }
 
@@ -786,10 +787,10 @@ final class AppState: ObservableObject {
         if UserDefaults.standard.bool(forKey: key) { return true }
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = "Export may contain hardware identifiers"
-        alert.informativeText = "The export is redacted by default where possible. Review the destination before sharing it."
-        alert.addButton(withTitle: "Continue")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L(.exportIdentifierWarning, language)
+        alert.informativeText = L(.exportRedactionNote, language)
+        alert.addButton(withTitle: L(.continueAction, language))
+        alert.addButton(withTitle: L(.cancel, language))
         guard alert.runModal() == .alertFirstButtonReturn else { return false }
         UserDefaults.standard.set(true, forKey: key)
         return true

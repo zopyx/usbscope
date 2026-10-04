@@ -36,6 +36,7 @@ public enum SnapshotStage: String, CaseIterable, Sendable {
 /// `usbscope/snapshot.py`.
 public enum SnapshotBuilder {
     static let orphanBus = "Port controller only (no bus entry)"
+    public static let stableMetadataCache = StableMetadataCache.shared
 
     /// Fill the gaps of `device` with values reported by `other`.
     static func merge(_ device: UsbDevice, with other: UsbDevice?) -> UsbDevice {
@@ -173,6 +174,7 @@ public enum SnapshotBuilder {
         osVersion: String? = nil,
         host: String? = nil,
         includeConflictWarnings: Bool = false,
+        metadataCache: StableMetadataCache? = nil,
         progress: ((SnapshotStage, Int, Int) -> Void)? = nil
     ) -> Snapshot {
         let stages = SnapshotStage.allCases
@@ -197,7 +199,19 @@ public enum SnapshotBuilder {
         let (thunderboltFabric, fabricWarnings) = fabric.fabric()
         warnings.append(contentsOf: fabricWarnings)
         report(.thunderbolt)
-        let hardware = profiler.hardware()
+        let metadataKey = "\(host ?? hostName())|\(osVersion ?? osVersionString())"
+        let hardware: (model: String?, chip: String?, warnings: [String])
+        if let metadataCache, let cached = metadataCache.value(for: metadataKey, at: clock()) {
+            hardware = (cached.model, cached.chip, [])
+        } else {
+            let fresh = profiler.hardware()
+            hardware = fresh
+            if let metadataCache, fresh.warnings.isEmpty,
+               fresh.model != nil || fresh.chip != nil {
+                metadataCache.insert(.init(model: fresh.model, chip: fresh.chip, capturedAt: clock()),
+                                     for: metadataKey)
+            }
+        }
         warnings.append(contentsOf: hardware.warnings)
         report(.hardware)
         let (power, powerWarnings) = charging.charging()

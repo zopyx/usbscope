@@ -116,4 +116,16 @@ final class FixSpecTests: XCTestCase {
         let result = await coordinator.request(.manual)
         XCTAssertNil(result)
     }
+
+    func testStableMetadataCacheExpiresAndInvalidates() {
+        let cache = StableMetadataCache(lifetime: 10)
+        let captured = Date(timeIntervalSince1970: 100)
+        cache.insert(.init(model: "Mac", chip: "Apple", capturedAt: captured), for: "host|os")
+        XCTAssertEqual(cache.value(for: "host|os", at: captured.addingTimeInterval(9))?.model, "Mac")
+        XCTAssertNil(cache.value(for: "host|os", at: captured.addingTimeInterval(11)))
+
+        cache.insert(.init(model: "Mac", chip: "Apple", capturedAt: captured), for: "host|os")
+        cache.invalidate()
+        XCTAssertNil(cache.value(for: "host|os", at: captured))
+    }
 }
