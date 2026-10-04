@@ -126,6 +126,14 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(rows.first?.value.style, .green)
     }
 
+    func testPowerRowsLocalizeStateValuesAndKeepLiveStyling() throws {
+        let rows = powerRows(snapshot(), language: .de)
+        let status = try XCTUnwrap(rows.first { $0.metric.text == "Status" })
+        XCTAssertTrue(status.value.text.hasPrefix("lädt ·"))
+        XCTAssertEqual(status.value.style, .green)
+        XCTAssertFalse(rows.contains { $0.value.text.contains("charging") })
+    }
+
     // MARK: - Details
 
     func testPortDetailsAndCableDetails() throws {

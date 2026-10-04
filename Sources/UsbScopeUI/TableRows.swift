@@ -337,13 +337,48 @@ public struct PowerRow: Identifiable, Hashable, Sendable {
     public let valueSort: String
 }
 
+private func chargingStateText(_ charging: Charging, language: AppLanguage) -> String? {
+    guard language == .de else { return Format.chargingState(charging) }
+
+    let state: String?
+    if charging.charging == true {
+        state = "lädt"
+    } else if charging.fullyCharged == true {
+        state = "voll geladen"
+    } else if charging.connected == true {
+        state = "angeschlossen, lädt nicht"
+    } else if charging.connected == false {
+        state = "Akkubetrieb"
+    } else {
+        state = nil
+    }
+    var parts: [String] = state.map { [$0] } ?? []
+    if let charge = charging.stateOfCharge { parts.append("\(charge) %") }
+    if let minutes = charging.timeRemainingMinutes, minutes > 0, charging.fullyCharged != true {
+        parts.append("\(minutes) Min. \(charging.charging == true ? "bis voll" : "verbleibend")")
+    }
+    return parts.isEmpty ? nil : parts.joined(separator: " · ")
+}
+
+private func chargerFlagsText(_ charging: Charging, language: AppLanguage) -> String? {
+    guard language == .de else { return Format.chargerFlags(charging) }
+
+    var flags: [String] = []
+    if let reason = charging.notChargingReason, reason != 0 { flags.append("lädt nicht: \(reason)") }
+    if let reason = charging.slowChargingReason, reason != 0 { flags.append("langsames Laden: \(reason)") }
+    if let seconds = charging.thermallyLimitedSeconds, seconds != 0 {
+        flags.append("thermisch begrenzt \(seconds) s")
+    }
+    return flags.isEmpty ? nil : flags.joined(separator: ", ")
+}
+
 /// The live charging metrics as one row each (`viewmodel._charging_pairs`).
 public func chargingPairs(_ charging: Charging, language: AppLanguage = .en) -> [(String, String)] {
     let labels = language == .de
         ? (status: "Status", adapter: "Adapter", fromAdapter: "Vom Adapter", load: "Systemlast", battery: "Batterie", loss: "Adapterverlust", charger: "Ladegerät")
         : (status: "Status", adapter: "Adapter", fromAdapter: "From adapter", load: "System load", battery: "Battery", loss: "Adapter loss", charger: "Charger")
     var items: [(String, String?)] = []
-    items.append((labels.status, Format.chargingState(charging)))
+    items.append((labels.status, chargingStateText(charging, language: language)))
     items.append((
         labels.adapter,
         Format.powerLine(
@@ -367,7 +402,7 @@ public func chargingPairs(_ charging: Charging, language: AppLanguage = .en) -> 
         )
     ))
     items.append((labels.loss, Format.watts(charging.adapterEfficiencyLossMw)))
-    items.append((labels.charger, Format.chargerFlags(charging)))
+    items.append((labels.charger, chargerFlagsText(charging, language: language)))
     return items.compactMap { label, value in
         guard let value, !value.isEmpty else { return nil }
         return (label, value)
