@@ -438,9 +438,11 @@ struct ContentView: View {
                 }
             }
         }
-        // Search, quick filter, baseline and the refresh controls share one group:
-        // `ToolbarContentBuilder` accepts at most ten top-level items.
-        ToolbarItemGroup {
+        // Search, quick filter, baseline and refresh controls share one stable,
+        // customizable toolbar item because ToolbarItemGroup has no identifier
+        // initializer on the minimum supported macOS SDK.
+        ToolbarItem(id: "monitoring-controls", placement: .automatic) {
+            HStack(spacing: 8) {
             TextField(L(.filter, lang), text: $state.search)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 170)
@@ -490,6 +492,7 @@ struct ContentView: View {
                 Text(verbatim: Strings.seconds(Int(state.interval), state.language))
             }
             .help(L(.intervalHelp, lang))
+            }
         }
         if !GroupField.fields(for: state.view).isEmpty {
             ToolbarItem(id: "grouping", placement: .automatic) {
@@ -526,7 +529,8 @@ struct ContentView: View {
                 .help(L(.columns, lang))
             }
         }
-        ToolbarItemGroup {
+        ToolbarItem(id: "action-controls", placement: .automatic) {
+            HStack(spacing: 8) {
             Menu {
                 Button(L(.copySelected, lang)) { state.copyTable(selected: true) }
                 Button(L(.copyWholeTable, lang)) { state.copyTable(selected: false) }
@@ -558,6 +562,7 @@ struct ContentView: View {
             }
             .disabled(state.selection.isEmpty)
             .help(L(.showDetails, lang) + " (⌘D)")
+            }
         }
     }
 
