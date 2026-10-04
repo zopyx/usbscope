@@ -16,7 +16,7 @@ CONFIG ?= debug
 VERSION := $(shell sed -n 's/^let version = "\([^"]*\)".*/\1/p' Sources/usbscope/main.swift | head -1)
 
 .PHONY: help doctor env build test check clean distclean version \
-        swift swift-build swift-test swift-run-app swift-app-check swift-app-bundle \
+        swift swift-build swift-test swift-golden swift-run-app swift-app-check swift-app-bundle \
         run watch snapshot checksums man completions
 
 ## ---------------------------------------------------------------------------
@@ -74,6 +74,13 @@ swift-build: ## build everything in the selected configuration (CONFIG=debug|rel
 
 swift-test: ## run the Swift suite (fixtures + frozen golden)
 	$(SWIFT) test
+
+swift-golden: ## re-record the golden from the fixtures (deliberate, env-gated)
+	@echo "recording SwiftTests/Golden/snapshot.json from the fixtures…"
+	@USBSCORE_REFRESH_GOLDEN=1 $(SWIFT) test --filter testFixtureSnapshotMatchesTheGolden 2>&1 \
+		| grep -E "golden refreshed|error:" || true
+	@git --no-pager diff --stat -- SwiftTests/Golden/snapshot.json
+	@echo "review the diff, then commit it — the golden pins the JSON shape."
 
 swift-run-app: swift-build ## run the SwiftUI app (usbscope-app)
 	./.build/$(CONFIG)/usbscope-app
