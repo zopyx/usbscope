@@ -179,7 +179,7 @@ struct PreferencesView: View {
     /// A short honest note about where banners are actually delivered.
     private var notificationNote: String {
         Bundle.main.bundleURL.pathExtension == "app"
-            ? "Banners are posted for connecting and disconnecting devices."
-            : "Silent in a checkout run: macOS only delivers notifications from an app bundle."
+            ? L(.notificationBundleNote, lang)
+            : L(.notificationCheckoutNote, lang)
     }
 }

@@ -156,6 +156,13 @@ enum StringKey: String, CaseIterable {
     case profileBalanced
     case profileLowPower
     case lowPowerNote
+    case sourceTimings
+    case scenario
+    case evidence
+    case noMeasuredValues
+    case observationHint
+    case notificationBundleNote
+    case notificationCheckoutNote
     case renameBaselineTitle
     case renameAction
     case cancel
@@ -393,6 +400,13 @@ enum Strings {
         case .profileBalanced: "Balanced"
         case .profileLowPower: "Low power"
         case .lowPowerNote: "Low-power monitoring skips Thunderbolt and charging reads; the status remains visibly partial."
+        case .sourceTimings: "Source timings"
+        case .scenario: "Scenario"
+        case .evidence: "Evidence"
+        case .noMeasuredValues: "No measured values"
+        case .observationHint: "Shows the port or device this observation describes"
+        case .notificationBundleNote: "Banners are posted for connecting and disconnecting devices."
+        case .notificationCheckoutNote: "Silent in a checkout run: macOS only delivers notifications from an app bundle."
         case .renameBaselineTitle: "Rename baseline"
         case .renameAction: "Rename"
         case .cancel: "Cancel"
@@ -561,6 +575,13 @@ enum Strings {
         case .profileBalanced: "Ausgewogen"
         case .profileLowPower: "Energiesparmodus"
         case .lowPowerNote: "Die energiesparende Überwachung überspringt Thunderbolt- und Ladevorgänge; der Status bleibt sichtbar unvollständig."
+        case .sourceTimings: "Quelllaufzeiten"
+        case .scenario: "Szenario"
+        case .evidence: "Beleg"
+        case .noMeasuredValues: "Keine Messwerte"
+        case .observationHint: "Zeigt den Anschluss oder das Gerät, auf das sich diese Beobachtung bezieht"
+        case .notificationBundleNote: "Mitteilungen werden beim Verbinden und Trennen von Geräten angezeigt."
+        case .notificationCheckoutNote: "Im Checkout-Lauf stumm: macOS zeigt Mitteilungen nur aus einem App-Bundle."
         case .renameBaselineTitle: "Vergleichsbasis umbenennen"
         case .renameAction: "Umbenennen"
         case .cancel: "Abbrechen"
@@ -716,5 +737,52 @@ extension Strings {
 
     static func ejectDetails(name: String, mount: String, _ language: AppLanguage) -> String {
         "\(L(.volume, language)): \(name)\n\(L(.mountPoint, language)): \(mount)\n\(L(.mountedVolumesWarning, language))"
+    }
+
+    static func scenarioLabel(_ scenario: DiagnosticScenario, _ language: AppLanguage) -> String {
+        if language == .en {
+            switch scenario {
+            case .slowConnection: return "Slow connection"
+            case .chargeOnlyConnection: return "Charge-only connection"
+            case .deviceMissing: return "Device missing"
+            case .restrictedDevice: return "Restricted device"
+            }
+        }
+        switch scenario {
+        case .slowConnection: return "Langsame Verbindung"
+        case .chargeOnlyConnection: return "Nur-Laden-Verbindung"
+        case .deviceMissing: return "Gerät fehlt"
+        case .restrictedDevice: return "Eingeschränktes Gerät"
+        }
+    }
+
+    static func detailExplanation(for label: String, _ language: AppLanguage) -> String? {
+        switch label {
+        case "USB link", "Mode (bit/s)", "Speed":
+            return language == .de
+                ? "Von macOS für diesen Lesevorgang gemeldeter Linkzustand; dies ist nicht die maximale Fähigkeit des Anschlusses oder Kabels."
+                : "Negotiated link state reported by macOS for this read; it is not the maximum capability the port or cable advertises."
+        case "Cable", "e-marker":
+            return language == .de
+                ? "Die Kabelfähigkeit stammt vom Anschlusscontroller und, falls vorhanden, aus den elektronisch markierten Kabeldaten. Sie beweist nicht die aktuelle Datenrate."
+                : "Cable capability comes from the port controller and, when present, its electronically marked cable data. It does not prove the current data rate."
+        case "Power contract", "PD menu":
+            return language == .de
+                ? "Der Vertrag ist das ausgewählte USB-Power-Delivery-Ergebnis. Das PD-Menü listet beworbene Optionen, nicht den ausgehandelten Wert."
+                : "The contract is the selected USB Power Delivery result. The PD menu lists advertised options; it is not the negotiated value."
+        case "Transports", "Transport":
+            return language == .de
+                ? "Dies sind die von macOS für den Anschluss gemeldeten Transportfunktionen. Aktiv bedeutet für die aktuelle Verbindung ausgewählt."
+                : "These are the transport functions macOS reports for the port. Active means selected for the current connection."
+        case "Restricted by macOS", "Authorization":
+            return language == .de
+                ? "Dies ist eine Beobachtung des macOS-Transport- oder Autorisierungsstatus, kein Malware- oder Sicherheitsurteil."
+                : "This is an observation from macOS transport or authorization state, not a malware or security verdict."
+        case "Liquid detected", "Liquid state":
+            return language == .de
+                ? "Der Flüssigkeitsstatus ist ein vom Controller gemeldetes Sicherheitssignal. Ein nicht verfügbarer Wert bedeutet, dass macOS das Feld nicht bereitgestellt hat."
+                : "Liquid status is a controller-reported safety signal. An unavailable value means macOS did not expose the field."
+        default: return nil
+        }
     }
 }

@@ -7,6 +7,8 @@ Automated checks run on every change:
 | Core and UI support | `swift test` | All tests pass; skips are explained |
 | App build | `swift build -c debug --product usbscope-app` | Build succeeds |
 | Bundle shape | `scripts/build-swift-app.sh --debug --no-archive --no-verify` | Bundle is signed and validated |
+| Localization | `scripts/check-localization.sh` | No user-visible SwiftUI/AppKit literals bypass the string table |
+| Large-data performance | `swift test --filter PerformanceTests` | 500-device report and 1,000-entry history stay within budgets |
 | Script safety | `bash -n scripts/*.sh` | No shell syntax errors |
 | Patch hygiene | `git diff --check` | No whitespace errors |
 
@@ -18,7 +20,7 @@ Credentialed/manual release gates:
 | App Store sandbox | Apple-issued application/installer signing, provisioning profile, and real hardware capture |
 | Intel and current macOS coverage | CI or physical Intel Mac plus the current supported macOS release |
 | VoiceOver | Follow `voiceover-test-plan.md` on the signed app |
-| Large-data performance | Run the large-fixture/performance suite and record time/memory budgets |
+| Large-data profiling | Instruments or a credentialed release job | Record memory and scrolling behavior on representative hardware |
 
 The local ad-hoc build cannot prove Apple certificate, provisioning, App Store,
 notarization, or hardware-specific behavior. Those gates remain explicitly

@@ -4,10 +4,17 @@ set -euo pipefail
 # Keep user-visible SwiftUI/AppKit chrome behind the typed string table. Stable
 # persistence identifiers (for example isColumnVisible(..., "Port")) are not
 # presentation strings and are intentionally not matched here.
-violations="$(rg -n \
-  --glob '*.swift' \
-  '(^|[.( ])(Text|Button|Label|Section|TableColumn)\("|\.(navigationTitle|help)\("|(messageText|informativeText) = "|addButton\(withTitle: "' \
-  Sources/usbscope-app || true)"
+violations=""
+for pattern in \
+  '(^|[[:space:](])(Text|Button|Label|Section|TableColumn|DisclosureGroup|Picker)\("[^" ]+' \
+  '\.(navigationTitle|help|accessibilityHint|accessibilityValue)\("[^" ]+' \
+  '(messageText|informativeText) = "[^" ]+' \
+  'addButton\(withTitle: "[^" ]+'; do
+  matches="$(rg -n --glob '*.swift' "$pattern" Sources/usbscope-app || true)"
+  if [[ -n "${matches}" ]]; then
+    violations+="${matches}\n"
+  fi
+done
 
 if [[ -n "${violations}" ]]; then
   echo "Hardcoded user-visible strings found in Sources/usbscope-app:" >&2

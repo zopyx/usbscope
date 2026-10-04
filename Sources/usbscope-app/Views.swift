@@ -133,7 +133,7 @@ struct DiagnosticsSheet: View {
                                         state.language))
                 .font(.caption).foregroundStyle(.secondary)
             if !state.sourceTimings.isEmpty {
-                DisclosureGroup("Source timings") {
+                DisclosureGroup(L(.sourceTimings, state.language)) {
                     ForEach(state.sourceTimings.keys.sorted(), id: \.self) { source in
                         HStack {
                             Text(source).font(.caption.monospaced())
@@ -162,9 +162,9 @@ struct DiagnosticsSheet: View {
             }
             Divider()
             Text(L(.guidedTroubleshooting, state.language)).font(.headline)
-            Picker("Scenario", selection: $scenario) {
+            Picker(L(.scenario, state.language), selection: $scenario) {
                 ForEach(DiagnosticScenario.allCases, id: \.self) { item in
-                    Text(item.rawValue.replacingOccurrences(of: "Connection", with: " connection").capitalized).tag(item)
+                    Text(Strings.scenarioLabel(item, state.language)).tag(item)
                 }
             }
             if let evaluation {
@@ -640,7 +640,7 @@ struct TimelineView: View {
                 .frame(height: 150)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
                 .accessibilityLabel(L(.chargingPowerChart, lang))
-                .accessibilityValue(geometry.rangeText ?? "No measured values")
+                .accessibilityValue(geometry.rangeText ?? L(.noMeasuredValues, lang))
                 if let times = geometry.timeRangeText() {
                     Text(times).font(.caption).foregroundStyle(.secondary)
                 }
@@ -808,10 +808,10 @@ struct SecurityView: View {
             if row.port != nil || row.device != nil || row.locationID != nil {
                 Button(L(.openSourceRow, lang)) { state.openFinding(row) }
                     .buttonStyle(.link)
-                    .accessibilityHint("Shows the port or device this observation describes")
+                    .accessibilityHint(L(.observationHint, lang))
             }
             if !row.evidence.isEmpty {
-                DisclosureGroup("Evidence") {
+                DisclosureGroup(L(.evidence, state.language)) {
                     ForEach(row.evidence.keys.sorted(), id: \.self) { key in
                         HStack(alignment: .top, spacing: 6) {
                             Text(key).font(.caption.monospaced()).foregroundStyle(.secondary)
@@ -1020,22 +1020,7 @@ struct DetailSheet: View {
     @EnvironmentObject private var state: AppState
 
     private func explanation(for label: String) -> String? {
-        switch label {
-        case "USB link", "Mode (bit/s)", "Speed":
-            return "Negotiated link state reported by macOS for this read; it is not the maximum capability the port or cable advertises."
-        case "Cable", "e-marker":
-            return "Cable capability comes from the port controller and, when present, its electronically marked cable data. It does not prove the current data rate."
-        case "Power contract", "PD menu":
-            return "The contract is the selected USB Power Delivery result. The PD menu lists advertised options; it is not the negotiated value."
-        case "Transports", "Transport":
-            return "These are the transport functions macOS reports for the port. Active means selected for the current connection."
-        case "Restricted by macOS", "Authorization":
-            return "This is an observation from macOS transport or authorization state, not a malware or security verdict."
-        case "Liquid detected", "Liquid state":
-            return "Liquid status is a controller-reported safety signal. An unavailable value means macOS did not expose the field."
-        default:
-            return nil
-        }
+        Strings.detailExplanation(for: label, state.language)
     }
 
     var body: some View {
