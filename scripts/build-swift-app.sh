@@ -84,6 +84,23 @@ if [ -z "$version" ]; then
   exit 1
 fi
 
+# Keep the marketing version (`CFBundleShortVersionString`) separate from the
+# numeric build submitted to Apple. CI supplies GITHUB_RUN_NUMBER; local builds
+# use the repository revision count, which is monotonic within that checkout.
+# An explicit BUILD_NUMBER is available to release automation.
+if [ -n "${BUILD_NUMBER:-}" ]; then
+  build_number="$BUILD_NUMBER"
+elif [ -n "${GITHUB_RUN_NUMBER:-}" ]; then
+  build_number="$GITHUB_RUN_NUMBER"
+elif command -v git >/dev/null 2>&1 && git -C "$ROOT" rev-list --count HEAD >/dev/null 2>&1; then
+  build_number="$(git -C "$ROOT" rev-list --count HEAD)"
+else
+  build_number="1"
+fi
+case "$build_number" in
+  ''|*[!0-9]*|0) echo "BUILD_NUMBER must be a positive integer (got '$build_number')" >&2; exit 2 ;;
+esac
+
 # Native-only by default; --universal adds both slices so the linker emits a fat
 # Mach-O. `--show-bin-path` accepts the same --arch flags and still names the one
 # output directory the fat binary lands in.
@@ -161,7 +178,7 @@ cat > "$bundle/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key>
   <string>$version</string>
   <key>CFBundleVersion</key>
-  <string>$version</string>
+  <string>$build_number</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_MACOS</string>
   <key>NSHighResolutionCapable</key>

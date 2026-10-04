@@ -25,6 +25,14 @@ binary and no Homebrew cask — and neither artifact is signed for distribution
 Tool versions on the machine this was written on: macOS 27.0.1 (build 26A434),
 `uname -m` = `arm64`, `xcrun notarytool --version` = `1.1.3 (42)` **[ran]**.
 
+### Version and build-number policy
+
+`CFBundleShortVersionString` follows the CLI marketing version (for example
+`0.9.0`). `CFBundleVersion` is a separate positive integer. Release CI uses
+`GITHUB_RUN_NUMBER`; credentialed release automation may provide `BUILD_NUMBER`.
+Local builds fall back to the Git revision count, and the bundle script rejects
+missing, zero, or non-numeric values before writing `Info.plist`.
+
 ---
 
 ## (a) What ships today
