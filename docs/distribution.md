@@ -3,9 +3,11 @@
 The honest state of how `usbscope` is (and is not) distributed. Nothing here
 pretends a step is done that has not been done.
 
-The project builds **one** artifact today: `dist/usbscope-swift.app`, produced by
-`scripts/build-swift-app.sh`. There is no published release, no DMG, no prebuilt
-CLI binary and no Homebrew cask.
+The project builds one artifact today: `dist/usbscope-swift.app`, produced by
+`scripts/build-swift-app.sh`, which also packs it into
+`dist/usbscope-swift-<version>-macos-<arch>.tar.gz` and writes `dist/SHA256SUMS`
+over that archive (`make checksums` re-verifies). There is no published release,
+no DMG, no prebuilt CLI binary and no Homebrew cask.
 
 **Legend used for every command below**
 
@@ -252,8 +254,11 @@ say exactly that.
 - [ ] universal2 or x86_64 builds (current output is arm64-only, verified with
       `file`).
 - [ ] A published release of any kind — no DMG, no tag, no binary is uploaded.
-- [ ] `SHA256SUMS` for a release artifact; `make checksums` only verifies a
-      `dist/SHA256SUMS` if one happens to exist, and nothing generated it.
+- [x] `SHA256SUMS` for a release artifact: `scripts/build-swift-app.sh` packs the
+      bundle into `dist/usbscope-swift-<version>-macos-<arch>.tar.gz` and writes
+      `dist/SHA256SUMS` over it; `make checksums` re-verifies (and fails on a
+      mismatch). It is a checksum over an *unsigned* archive, which is not what a
+      notarised release would ship.
 - [ ] Homebrew tap and cask published (a cask only makes sense once a notarised
       DMG exists in a GitHub Release).
 - [ ] The in-process IOKit reader (`Sources/UsbScopeCore/IORegistryReader.swift`)

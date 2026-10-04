@@ -100,8 +100,12 @@ snapshot: swift-build ## render the app window to docs/screenshots/app-<view>.pn
 		echo "docs/screenshots/app-$$view.png"; \
 	done
 
-checksums: ## verify the checksums of everything in dist/
-	@cd dist 2>/dev/null && shasum -a 256 -c SHA256SUMS || echo "no dist/SHA256SUMS yet"
+checksums: ## verify dist/SHA256SUMS (written by scripts/build-swift-app.sh)
+	@if [ -f dist/SHA256SUMS ]; then \
+		cd dist && shasum -a 256 -c SHA256SUMS; \
+	else \
+		echo "no dist/SHA256SUMS yet — run: make swift-app-bundle"; exit 1; \
+	fi
 
 ## ---------------------------------------------------------------------------
 ## Manual page & shell completions

@@ -9,10 +9,15 @@
 #
 # Usage
 # -----
-#   scripts/build-swift-app.sh              # build + bundle + sign + verify
+#   scripts/build-swift-app.sh              # build + bundle + sign + verify + tar
 #   scripts/build-swift-app.sh --no-sign    # skip the ad-hoc codesign
 #   scripts/build-swift-app.sh --debug      # debug configuration
 #   scripts/build-swift-app.sh --no-verify  # do not run the bundled binary
+#   scripts/build-swift-app.sh --no-archive # only the .app, no tarball/checksum
+#
+# On top of the bundle it writes the archive a release would hand out
+# (`dist/usbscope-swift-<version>-macos-<arch>.tar.gz`) and `dist/SHA256SUMS` for
+# it, which `make checksums` re-verifies.
 #
 # Like every bundle this repository builds, the signature is *ad-hoc*
 # (`codesign -s -`): a valid self-signature, but neither Developer-ID signed nor
@@ -35,6 +40,7 @@ name="usbscope-swift"
 icon="$ICON_SOURCE"
 sign=1
 verify=1
+archive=1
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -44,6 +50,7 @@ while [ $# -gt 0 ]; do
     --no-icon) icon=""; shift ;;
     --no-sign) sign=0; shift ;;
     --no-verify) verify=0; shift ;;
+    --no-archive) archive=0; shift ;;
     -h|--help) sed -n '2,22p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -173,3 +180,16 @@ fi
 size="$(du -sk "$bundle" | awk '{printf "%.1f", $1/1024}')"
 echo
 echo "${bundle#"$ROOT"/}  (${size} MiB, usbscope)"
+
+# A directory is not something you hand out, so the bundle is also packed into the
+# archive a release would ship, and that archive is what gets a checksum. `make
+# checksums` re-verifies it later; nothing else writes a SHA256SUMS.
+if [ "$archive" -eq 1 ]; then
+  arch="$(uname -m)"
+  tarball="$DIST/$name-$version-macos-$arch.tar.gz"
+  echo "\$ tar -czf ${tarball#"$ROOT"/} -C dist $name.app"
+  tar -czf "$tarball" -C "$DIST" "$name.app"
+  ( cd "$DIST" && shasum -a 256 "$(basename "$tarball")" > SHA256SUMS )
+  echo "$(basename "$tarball")  ($(awk -v b="$(stat -f%z "$tarball")" 'BEGIN {printf "%.1f", b/1048576}') MiB)"
+  cat "$DIST/SHA256SUMS"
+fi
