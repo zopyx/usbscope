@@ -135,6 +135,7 @@ final class AppState: ObservableObject {
     private let coordinator = SnapshotCoordinator()
     private var refreshGeneration: UInt64 = 0
     private var appliedAt: Date?
+    private var qaMetrics = LocalQAMetrics()
 
     var isIdle: Bool { snapshot == nil && !isLoading }
 
@@ -349,12 +350,14 @@ final class AppState: ObservableObject {
         if let generation, generation != refreshGeneration { return }
         if let appliedAt, fresh.seenAt < appliedAt { return }
         let sourceWarnings = fresh.warnings + storageWarnings
+        let currentHealth = health(for: fresh.warnings)
+        qaMetrics.record(snapshot: fresh, sourceStatuses: currentHealth)
         readWarnings = sourceWarnings
         let complete = sourceWarnings.isEmpty && storageStatus != .partial && storageStatus != .failed && storageStatus != .stale
         if !complete, lastSuccessfulSnapshot != nil {
             lastFailureAt = Date()
             dataFreshness = .stale
-            sourceHealth = health(for: fresh.warnings)
+            sourceHealth = currentHealth
             errorMessage = sourceWarnings.joined(separator: " · ")
             isLoading = false
             progress = nil
@@ -374,7 +377,7 @@ final class AppState: ObservableObject {
         previous = fresh
         snapshot = fresh
         if !complete { lastFailureAt = Date() }
-        sourceHealth = health(for: fresh.warnings)
+        sourceHealth = currentHealth
         reads += 1
         isLoading = false
         progress = nil
@@ -688,6 +691,7 @@ final class AppState: ObservableObject {
             "freshness": dataFreshness.rawValue, "storage_status": storageStatus.rawValue,
             "storage_warnings": storageWarnings, "warnings": readWarnings,
             "monitoring": isHotplugEventDriven ? "IOKit event-driven" : "polling/disabled",
+            "metrics": qaMetrics.dictionary(),
         ]
         if let snapshot {
             payload["snapshot"] = (try? JSONSerialization.jsonObject(
@@ -714,7 +718,7 @@ final class AppState: ObservableObject {
             try DiagnosticBundle.write(to: url, snapshot: snapshot,
                                        warnings: readWarnings,
                                        timings: sourceTimings.merging(lastReadDuration.map { ["snapshot": $0] } ?? [:]) { current, _ in current },
-                                       events: events, errors: storageErrors)
+                                       events: events, errors: storageErrors, metrics: qaMetrics)
             reportFailed = false
             reportMessage = "\(L(.diagnosticsWritten, language)): \(url.lastPathComponent)"
         } catch {

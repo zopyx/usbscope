@@ -71,6 +71,67 @@ public struct SourceError: Error, Codable, Sendable, Equatable, LocalizedError {
     public var errorDescription: String? { userMessage }
 }
 
+/// Non-invasive, local-only QA measurements. These values are kept in memory
+/// and are written only when a user explicitly exports or copies diagnostics;
+/// they are never transmitted or persisted as telemetry.
+public struct LocalQAMetrics: Codable, Sendable, Equatable {
+    public let launchedAt: Date
+    public private(set) var collectionAttempts: Int
+    public private(set) var sourceReads: Int
+    public private(set) var failedSourceReads: Int
+    public private(set) var firstSnapshotAt: Date?
+    public private(set) var firstDeviceAt: Date?
+
+    public init(launchedAt: Date = Date()) {
+        self.launchedAt = launchedAt
+        collectionAttempts = 0
+        sourceReads = 0
+        failedSourceReads = 0
+        firstSnapshotAt = nil
+        firstDeviceAt = nil
+    }
+
+    public var timeToFirstSnapshot: TimeInterval? {
+        firstSnapshotAt.map { max(0, $0.timeIntervalSince(launchedAt)) }
+    }
+
+    public var timeToIdentifyDevice: TimeInterval? {
+        firstDeviceAt.map { max(0, $0.timeIntervalSince(launchedAt)) }
+    }
+
+    public var failedSourceRate: Double? {
+        guard sourceReads > 0 else { return nil }
+        return Double(failedSourceReads) / Double(sourceReads)
+    }
+
+    /// Record one applied collection and the health reported by each source.
+    public mutating func record(snapshot: Snapshot, sourceStatuses: [String: SourceHealth]) {
+        collectionAttempts += 1
+        sourceReads += sourceStatuses.values.filter { $0 != .notApplicable }.count
+        failedSourceReads += sourceStatuses.values.filter {
+            switch $0 {
+            case .failed, .stale, .unsupported: true
+            case .healthy, .partial, .notApplicable: false
+            }
+        }.count
+        if firstSnapshotAt == nil { firstSnapshotAt = snapshot.seenAt }
+        if firstDeviceAt == nil, !snapshot.devices.isEmpty { firstDeviceAt = snapshot.seenAt }
+    }
+
+    /// Stable, redaction-free scalar fields for the local diagnostics document.
+    public func dictionary() -> [String: Any] {
+        [
+            "launched_at": ISO8601DateFormatter().string(from: launchedAt),
+            "collection_attempts": collectionAttempts,
+            "source_reads": sourceReads,
+            "failed_source_reads": failedSourceReads,
+            "time_to_first_snapshot_seconds": timeToFirstSnapshot ?? NSNull(),
+            "time_to_identify_device_seconds": timeToIdentifyDevice ?? NSNull(),
+            "failed_source_rate": failedSourceRate ?? NSNull(),
+        ]
+    }
+}
+
 /// Privacy policy shared by every support/export path.
 public struct RedactionPolicy: Sendable, Equatable {
     public var redactSerials: Bool
@@ -127,6 +188,7 @@ public enum DiagnosticBundle {
     public static func write(to destination: URL, snapshot: Snapshot?, warnings: [String],
                              timings: [String: Double] = [:], events: [UsbEvent] = [],
                              errors: [SourceError] = [],
+                             metrics: LocalQAMetrics? = nil,
                              policy: RedactionPolicy = RedactionPolicy()) throws -> URL {
         let fm = FileManager.default
         let parent = destination.deletingLastPathComponent()
@@ -173,7 +235,9 @@ public enum DiagnosticBundle {
                 ],
                 "provenance": provenance,
             ]
-            try json(payload).write(to: temporary.appendingPathComponent("metadata.json"), atomically: true, encoding: .utf8)
+            var completePayload = payload
+            if let metrics { completePayload["metrics"] = metrics.dictionary() }
+            try json(completePayload).write(to: temporary.appendingPathComponent("metadata.json"), atomically: true, encoding: .utf8)
             if let snapshot {
                 try redactedSnapshotJSON(snapshot, policy: policy)
                     .write(to: temporary.appendingPathComponent("snapshot.json"), atomically: true, encoding: .utf8)

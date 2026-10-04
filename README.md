@@ -118,8 +118,11 @@ schema version 1 for compatibility; loaders reject unsupported versions with a
 useful error. Diagnostic bundles use a separate format version and redact
 serials, host names, location IDs, paths, and event identities by default.
 
-The app records no network telemetry. Local diagnostic timing can include total
-read duration, per-source status, warnings, and subprocess timings.
+The app records no network telemetry. Local diagnostics can include total read
+duration, per-source status, warnings, subprocess timings, collection attempts,
+time-to-first-snapshot, failed-source rate, and time-to-identify-device. These
+QA metrics are held in memory until the user explicitly copies or exports
+diagnostics.
 The optional low-power monitoring profile skips Thunderbolt and charging reads
 and reports that reduction as a visible source warning.
 

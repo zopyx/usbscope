@@ -17,4 +17,6 @@ states are distinct.
 ## Product metrics
 
 Only local diagnostics record time-to-first-snapshot, per-source latency,
-failed-source rate, and time-to-identify-device. No metric is transmitted.
+failed-source rate, collection attempts, and time-to-identify-device. These
+metrics remain in memory until the user copies or exports diagnostics; no
+metric is transmitted or persisted as telemetry.

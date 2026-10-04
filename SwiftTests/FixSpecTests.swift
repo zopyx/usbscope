@@ -50,6 +50,29 @@ final class FixSpecTests: XCTestCase {
         XCTAssertFalse(text.contains("17825792"))
     }
 
+    func testLocalQAMetricsAreInMemoryAndDiagnosticReady() throws {
+        var metrics = LocalQAMetrics(launchedAt: Date(timeIntervalSince1970: 1))
+        metrics.record(snapshot: Fixtures.snapshot(), sourceStatuses: [
+            "ports": .healthy,
+            "storage": .failed,
+        ])
+        XCTAssertEqual(metrics.collectionAttempts, 1)
+        XCTAssertEqual(metrics.sourceReads, 2)
+        XCTAssertEqual(metrics.failedSourceReads, 1)
+        XCTAssertEqual(metrics.failedSourceRate, 0.5)
+        XCTAssertNotNil(metrics.timeToFirstSnapshot)
+        XCTAssertNotNil(metrics.timeToIdentifyDevice)
+        XCTAssertEqual(metrics.dictionary()["collection_attempts"] as? Int, 1)
+
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent("usbscope-metrics-(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+        try DiagnosticBundle.write(to: destination, snapshot: nil, warnings: [], metrics: metrics)
+        let metadata = try String(contentsOf: destination.appendingPathComponent("metadata.json"))
+        XCTAssertTrue(metadata.contains("collection_attempts"))
+        XCTAssertTrue(metadata.contains("failed_source_rate"))
+    }
+
     func testTroubleshootingReturnsEvidence() {
         let result = Troubleshooting.evaluate(.chargeOnlyConnection, snapshot: Fixtures.snapshot())
         XCTAssertFalse(result.recommendations.isEmpty)
