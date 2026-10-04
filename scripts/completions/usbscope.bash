@@ -10,12 +10,21 @@ _usbscope() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD - 1]}"
-    local views="overview ports devices cables thunderbolt json"
-    local opts="-v --verbose --json --watch --no-color -h --help --version"
+    local views="overview ports devices cables thunderbolt usb4 security json"
+    local commands="check watch baseline report"
+    local opts="-v --verbose --json --watch --no-color --expect --events --interval --format --out -h --help --version"
 
     case "${prev}" in
-        --watch)
+        --watch | --interval)
             # free-form number of seconds; no completion
+            return 0
+            ;;
+        --format)
+            COMPREPLY=($(compgen -W "md html" -- "${cur}"))
+            return 0
+            ;;
+        --out | save | check)
+            COMPREPLY=($(compgen -f -- "${cur}"))
             return 0
             ;;
     esac
@@ -25,15 +34,15 @@ _usbscope() {
         return 0
     fi
 
-    # only one view is accepted; offer the views until one is on the line
-    local word view_seen=0
+    # only one view or command is accepted; offer them until one is on the line
+    local word seen=0
     for word in "${COMP_WORDS[@]:1}"; do
-        case " ${views} " in
-            *" ${word} "*) view_seen=1 ;;
+        case " ${views} ${commands} " in
+            *" ${word} "*) seen=1 ;;
         esac
     done
-    if [[ ${view_seen} -eq 0 ]]; then
-        COMPREPLY=($(compgen -W "${views} ${opts}" -- "${cur}"))
+    if [[ ${seen} -eq 0 ]]; then
+        COMPREPLY=($(compgen -W "${views} ${commands} ${opts}" -- "${cur}"))
     else
         COMPREPLY=($(compgen -W "${opts}" -- "${cur}"))
     fi

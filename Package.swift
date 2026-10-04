@@ -23,7 +23,14 @@ let package = Package(
     targets: [
         .target(name: "UsbScopeCore", path: "Sources/UsbScopeCore"),
         .target(name: "UsbScopeUI", dependencies: ["UsbScopeCore"], path: "Sources/UsbScopeUI"),
-        .executableTarget(name: "usbscope", dependencies: ["UsbScopeCore"], path: "Sources/usbscope"),
+        .executableTarget(
+            name: "usbscope",
+            // UsbScopeUI is plain Swift (no SwiftUI): the CLI reuses its wording for
+            // the security, USB4 fabric, diff and preset rows, so a front end cannot
+            // drift from the other.
+            dependencies: ["UsbScopeCore", "UsbScopeUI"],
+            path: "Sources/usbscope"
+        ),
         .executableTarget(
             name: "usbscope-app",
             dependencies: ["UsbScopeCore", "UsbScopeUI"],

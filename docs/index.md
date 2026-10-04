@@ -74,6 +74,7 @@ The app has its own take on this: `⌘R` plus an auto-refresh toggle and a
 | `devices` | bus → device tree with VID/PID, link mode, serial, port/transport mapping |
 | `cables` | cable class (passive / e-marked / active / optical), CC authentication + hash status, SOP spec revision, LDCM liquid status, controller firmware; `-v` adds the port-controller USB mode plus a *Charging & adapter* panel |
 | `thunderbolt` | Thunderbolt/USB4 receptacles: state, link speed, host adapter |
+| `usb4` | the USB4 fabric as a tree: routers, their ports (with the raw link speed/width enumerations) and the PCIe/USB/DisplayPort tunnels on them |
 | `security` | security findings per device/port (severity + short reason) plus the USB mass-storage inventory |
 
 `-v/--verbose` adds raw detail (location IDs, plug orientation, TRM state,
@@ -108,6 +109,20 @@ toolbar segmented switcher and via `⌘1`–`⌘9`, a live search field, filter 
 grouping and a per-view column chooser:
 
 ![usbscope app](docs/screenshots/app-ports.png)
+
+Three of the newer views, captured with `usbscope-app --snapshot` (no screen
+recording permission is needed — the window is rendered offscreen):
+
+| Security | USB4 fabric | Diff |
+| --- | --- | --- |
+| ![security tab](docs/screenshots/app-security.png) | ![USB4 tab](docs/screenshots/app-usb4.png) | ![diff tab](docs/screenshots/app-diff.png) |
+
+The Diff tab above is compared against a snapshot of the *same machine* saved half
+an hour earlier: the cable that was still on USB-C@1 then is gone, so it reports
+one changed port. The Timeline tab fills up as the app runs (watts over time plus
+the hotplug log); its screenshot in `docs/screenshots/app-timeline.png` is the
+state before anything has been recorded. The CLI screenshots in the same folder
+are the older illustrations and carry their own captions.
 
 ```console
 swift run usbscope-app              # or: make swift-run-app
@@ -422,7 +437,7 @@ target runs `swift` or a shell command.
 | `make swift-app-check` | headless self test of the app's data path (row count per view) |
 | `make swift-app-bundle` | build `dist/usbscope-swift.app` (release, ad-hoc signed, verified) |
 | `make snapshot` | render the app window to `docs/screenshots/app-<view>.png` (offscreen) |
-| `make checksums` | verify the checksums of everything in `dist/` |
+| `make checksums` | verify `dist/SHA256SUMS`, which the bundle script writes for the tarball |
 | `make man` / `make completions` | install the CLI manual page / the zsh + bash completions into `~` (no sudo) |
 | `make version` | print the package version |
 | `make clean` / `make distclean` | build output / plus the package caches |

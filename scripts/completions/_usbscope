@@ -9,8 +9,14 @@
 _arguments -s -S \
   '(-h --help)'{-h,--help}'[show help and exit]' \
   '(-v --verbose)'{-v,--verbose}'[show additional details]' \
-  '--json[print the snapshot as JSON]' \
-  '--watch=[refresh continuously; Ctrl-C quits]:seconds:' \
+  '--json[print the snapshot as JSON (check/baseline: their own document)]' \
+  '--watch=[redraw in place every N seconds; Ctrl-C quits]:seconds:' \
   '--no-color[disable colours]' \
+  '--expect=[check: an expectation, e.g. device=0x1050:0x0407 or connected>=1]:expression:' \
+  '--events[watch: stream attach/detach events instead of the view]' \
+  '--interval=[watch --events: poll interval in seconds (default 2)]:seconds:' \
+  '--format=[report: output format]:format:(md html)' \
+  '--out=[report: write to FILE instead of stdout]:file:_files' \
   '(-)'--version'[print the version and exit]' \
-  '1:view:(overview ports devices cables thunderbolt json)'
+  '1:view or command:(overview ports devices cables thunderbolt usb4 security json check watch baseline report)' \
+  '*:argument:_files'

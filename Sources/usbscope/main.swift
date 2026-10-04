@@ -1,5 +1,6 @@
 import Foundation
 import UsbScopeCore
+import UsbScopeUI
 
 // usbscope — the CLI. One snapshot, one JSON schema, two front ends (this and the app).
 
@@ -29,6 +30,7 @@ func usage() -> String {
       devices      device tree with vendor/product IDs and link modes
       cables       cable, e-marker (SOP), CC authentication, power contract
       thunderbolt  Thunderbolt / USB4 receptacles
+      usb4         USB4 fabric: routers, their ports and the tunnels on them
       security     security findings per device/port plus USB mass storage
       json         machine readable snapshot (same as --json)
 
@@ -52,7 +54,7 @@ func usage() -> String {
     """
 }
 
-let views = ["overview", "ports", "devices", "cables", "thunderbolt", "security", "json"]
+let views = ["overview", "ports", "devices", "cables", "thunderbolt", "usb4", "security", "json"]
 let commands = ["check", "watch", "baseline", "report"]
 
 func fail(_ message: String) -> Never {
@@ -316,6 +318,36 @@ func thunderboltTable(_ snapshot: Snapshot) -> String {
     return table(["Bus", "Port", "State", "Link"], rows)
 }
 
+/// `usbscope usb4` — the USB4/Thunderbolt fabric as a tree.
+///
+/// The rows come from `FabricPresentation`, the same presentation the app's USB4
+/// tab draws, so the two front ends cannot describe a router, a port or a tunnel
+/// differently. The link speed/width enumerations are printed verbatim with the
+/// note that explains why they are not converted to Gbit/s.
+func usb4Tree(_ snapshot: Snapshot) -> String {
+    let fabric = snapshot.thunderboltFabric
+    guard !fabric.routers.isEmpty else { return "USB4 fabric: no routers reported" }
+    var lines: [String] = []
+    for row in FabricPresentation.rows(fabric) {
+        let indent = String(repeating: "  ", count: row.depth)
+        let marker: String
+        switch row.kind {
+        case .router: marker = paint("◆", .cyan) + " "
+        case .port: marker = paint("•", .dim) + " "
+        // A tunnel's title already carries its own "→ label" connector: a second
+        // arrow would read as "→ → pcie: …".
+        case .tunnel: marker = ""
+        }
+        var line = "\(indent)\(marker)\(row.title)"
+        if !row.detail.isEmpty { line += "  " + paint(row.detail, .dim) }
+        if let raw = row.rawLink { line += "\n\(indent)   " + paint(raw, .cyan) }
+        lines.append(line)
+    }
+    lines.append("")
+    lines.append(paint(FabricPresentation.rawLinkNote, .dim))
+    return lines.joined(separator: "\n")
+}
+
 func cablesTable(_ snapshot: Snapshot, verbose: Bool) -> String {
     var headers = ["Port", "Cable", "CC authentication", "Hash (CC / USB)", "PD spec"]
     if verbose { headers.append(contentsOf: ["USB mode", "Power in", "Contract", "Liquid"]) }
@@ -425,6 +457,9 @@ func render(_ snapshot: Snapshot, options: Options) {
     }
     if ["overview", "thunderbolt"].contains(options.view), !snapshot.thunderbolt.isEmpty {
         parts.append(thunderboltTable(snapshot))
+    }
+    if options.view == "usb4" {
+        parts.append(usb4Tree(snapshot))
     }
     print(parts.joined(separator: "\n"))
 }

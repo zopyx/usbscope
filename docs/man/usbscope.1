@@ -67,6 +67,11 @@ status, SOP specification revision and LDCM liquid status.
 .B thunderbolt
 Thunderbolt / USB4 receptacles with state and link speed.
 .TP
+.B usb4
+the USB4 fabric as a tree: routers, their ports with the raw link speed and width
+enumerations, and the PCIe/USB/DisplayPort tunnels on them. The enumerations are
+printed verbatim because macOS does not document their encoding.
+.TP
 .B security
 security findings per device/port (severity plus a short reason) and the USB
 mass\-storage inventory.
