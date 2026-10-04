@@ -14,6 +14,7 @@
 | `power.json` | real capture: `system_profiler SPPowerDataType -json`, reduced to the two entries the parser reads (`spbattery_information`, `sppower_ac_charger_information`) |
 | `battery.plist` | real capture: `ioreg -r -n AppleSmartBattery -a -l -w0`, reduced to the parsed keys (no serials, no battery model block, no `IOReportLegend` blobs) |
 | `usb_legacy_synthetic.json` | **synthetic**: hand-written payload using the legacy `SPUSBDataType` key names (`vendor_id`, `device_speed`, …). This macOS no longer produces that shape, so the fallback parser is pinned with a made-up payload instead of leaving it untested |
+| `usb_interfaces.plist` | real capture: `ioreg -a -c IOUSBHostInterface -r -l -w0` for the device in `usbplane.plist` (the composite keypad: two HID interfaces and one smart-card interface). Pruned from 696 KB to 3 KB — the raw dump carries `IORegistryEntryChildren` and the whole HID subtree, and the parser reads none of it |
 
 Do not add made-up values to the real captures; add a new `*_synthetic` file instead.
 
