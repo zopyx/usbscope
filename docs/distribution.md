@@ -3,11 +3,16 @@
 The honest state of how `usbscope` is (and is not) distributed. Nothing here
 pretends a step is done that has not been done.
 
-The project builds one artifact today: `dist/usbscope-swift.app`, produced by
-`scripts/build-swift-app.sh`, which also packs it into
-`dist/usbscope-swift-<version>-macos-<arch>.tar.gz` and writes `dist/SHA256SUMS`
-over that archive (`make checksums` re-verifies). There is no published release,
-no DMG, no prebuilt CLI binary and no Homebrew cask.
+The project builds one thing today — the app bundle `dist/usbscope-swift.app`,
+produced by `scripts/build-swift-app.sh` — and two ways to hand it out. The build
+script packs the bundle into `dist/usbscope-swift-<version>-macos-<arch>.tar.gz`;
+`scripts/build-swift-dmg.sh` (`make swift-app-dmg`) packs the same bundle into a
+compressed `dist/usbscope-swift-<version>-macos-<arch>.dmg`. Both artifacts get a
+line in `dist/SHA256SUMS`, which `make checksums` re-verifies. The build is
+native-only by default; `scripts/build-swift-app.sh --universal` optionally builds
+a fat arm64 + x86_64 bundle. There is still no published release, no prebuilt CLI
+binary and no Homebrew cask — and neither artifact is signed for distribution
+(both are ad hoc only).
 
 **Legend used for every command below**
 
@@ -26,14 +31,17 @@ Tool versions on the machine this was written on: macOS 27.0.1 (build 26A434),
 
 `scripts/build-swift-app.sh` — or `make swift-app-bundle` — compiles
 `usbscope-app` with `swift build -c release`, assembles the bundle, signs it
-ad hoc, verifies the signature and runs the bundled binary once. It is the only
-build path in the repository.
+ad hoc, verifies the signature and runs the bundled binary once. Add
+`--universal` for a fat arm64 + x86_64 build (see (c)). `scripts/build-swift-dmg.sh`
+— or `make swift-app-dmg` — then packs that bundle into a DMG (below).
 
 What the artifact is:
 
 * **ad-hoc signed** — `codesign --force --deep --sign -`, i.e. `Signature=adhoc`
   with `TeamIdentifier=not set`. It is a valid self-signature, not a certificate.
-* **arm64 only** — a single-slice binary, no x86_64 and no universal2.
+* **native by default** — a single-slice binary. On this arm64 machine that is
+  `arm64` (`Mach-O 64-bit executable arm64` below); `--universal` produces a fat
+  `x86_64` + `arm64` bundle instead, but it is not built or shipped by default.
 * **not notarised** — there is no Apple notarisation ticket stapled or online.
 * **not published** — nothing is uploaded anywhere; the app exists only under
   `dist/`, which is gitignored.
@@ -60,6 +68,52 @@ dist/usbscope-swift.app: satisfies its Designated Requirement
 $ spctl -a -vvv -t install dist/usbscope-swift.app
 dist/usbscope-swift.app: rejected                                                    # [ran, exit 3]
 ```
+
+### The DMG (`scripts/build-swift-dmg.sh`)
+
+`make swift-app-dmg` turns the bundle above into
+`dist/usbscope-swift-<version>-macos-<arch>.dmg` using `hdiutil` alone — no sudo,
+no Apple account, no `create-dmg`/`appdmg`. The volume is named `usbscope`, holds
+`usbscope-swift.app` next to an `/Applications` symlink (the usual drag-to-install
+layout), and is written as a compressed, read-only `UDZO` image. Everything is
+staged in a `mktemp -d` directory that a `trap` removes and the test mount is
+detached, so no staged file or loop device is left behind. The architecture in the
+name is read from the binary inside the bundle, so a `--universal` bundle yields a
+`...-universal2.dmg` automatically.
+
+Real output from this machine **[ran]**:
+
+```console
+$ scripts/build-swift-dmg.sh
++ hdiutil: /usr/bin/hdiutil
+$ ditto dist/usbscope-swift.app usbscope-swift.app
+$ hdiutil create -volname usbscope -srcfolder <staged> -ov -format UDZO dist/usbscope-swift-0.4.0-macos-arm64.dmg
+created: dist/usbscope-swift-0.4.0-macos-arm64.dmg
+$ hdiutil verify dist/usbscope-swift-0.4.0-macos-arm64.dmg
+hdiutil: verify: checksum of ".../usbscope-swift-0.4.0-macos-arm64.dmg" is VALID
+$ hdiutil attach dist/usbscope-swift-0.4.0-macos-arm64.dmg -nobrowse -readonly -mountpoint <staged mount>
+  mounted volume contents: Applications usbscope-swift.app
+  mounted copy --version → usbscope-app 0.4.0
+$ hdiutil detach <staged mount>
+"disk12" ejected.
+
+dist/usbscope-swift-0.4.0-macos-arm64.dmg  (1.3 MiB)
+```
+
+`hdiutil create` / `attach` / `detach` print a deprecation warning pointing at
+`diskutil image`, but they work **[ran]**. The image's sha256 is appended to the
+same `dist/SHA256SUMS`, so `make checksums` covers both artifacts:
+
+```console
+$ make checksums
+usbscope-swift-0.4.0-macos-arm64.tar.gz: OK
+usbscope-swift-0.4.0-macos-arm64.dmg: OK
+```
+
+`--no-verify` skips the mount/run test. The DMG passes `hdiutil verify` and mounts
+with the app inside, but it is **unsigned packaging of an ad-hoc signed app** — no
+Developer ID, no notarisation — so it is an installable *shape*, not a
+distributable release. The steps that would make it one are section (b).
 
 ### Why Gatekeeper refuses and how a user still opens it
 
@@ -180,8 +234,10 @@ verified]**.
 *"UDIF disk images, code-signed executable bundles, and signed flat installer
 packages"* **[ran: `xcrun stapler` usage]** — so the bundle must travel inside a
 `.zip`/`.dmg`/`.pkg`. `ditto -c -k --keepParent dist/usbscope-swift.app
-dist/usbscope-swift.zip` produces such a container. **No packaging step exists
-yet** (see the checklist); the build script stops at the `.app`.
+dist/usbscope-swift.zip` produces such a container, and `scripts/build-swift-dmg.sh`
+already builds a `.dmg`. What does **not** exist yet is a container built from a
+*Developer-ID signed* bundle: the DMG today wraps the ad-hoc bundle, which is not
+what a notarised release would ship.
 
 ### 6. Staple the ticket
 
@@ -209,31 +265,51 @@ in `xcrun stapler`'s usage **[ran]**.
 
 ## (c) universal2 builds
 
-Today's build is the **host** architecture only: `swift build -c release` builds
-one slice, and on this arm64 machine that is exactly the `Mach-O 64-bit
+The default build is the **host** architecture only: `swift build -c release`
+builds one slice, and on this arm64 machine that is exactly the `Mach-O 64-bit
 executable arm64` shown in section (a).
 
-A universal2 app would need a build with both slices plus `lipo`. The Swift
-route — untested here:
+`scripts/build-swift-app.sh --universal` opts into a fat build. It adds
+`--arch arm64 --arch x86_64` to the `swift build` (so the linker emits a fat
+Mach-O), checks the result with `lipo` and fails loudly if the binary came out
+thin, and names the archive `...-macos-universal2.tar.gz` instead of the host
+architecture. Run on this machine **[ran]**:
 
 ```console
-swift build -c release --product usbscope-app --arch arm64 --arch x86_64   # [untested]
-lipo -info .build/release/usbscope-app                                    # expect: x86_64 arm64
+$ scripts/build-swift-app.sh --universal
+...
+$ lipo -info dist/usbscope-swift.app/Contents/MacOS/usbscope-app
+Architectures in the fat file: dist/usbscope-swift.app/Contents/MacOS/usbscope-app are: x86_64 arm64
+
+$ file dist/usbscope-swift.app/Contents/MacOS/usbscope-app
+dist/usbscope-swift.app/Contents/MacOS/usbscope-app: Mach-O universal binary with 2 architectures: [x86_64:Mach-O 64-bit executable x86_64] [arm64]
+dist/usbscope-swift.app/Contents/MacOS/usbscope-app (for architecture x86_64):	Mach-O 64-bit executable x86_64
+dist/usbscope-swift.app/Contents/MacOS/usbscope-app (for architecture arm64):	Mach-O 64-bit executable arm64
+
+$ codesign -dvvv dist/usbscope-swift.app 2>&1 | grep -E 'Format|Signature|Team|Identifier'
+Identifier=com.zopyx.usbscope
+Format=app bundle with Mach-O universal (x86_64 arm64)
+Signature=adhoc
+TeamIdentifier=not set
 ```
 
-Because the app has no embedded native dependencies, the slices come from the
-same source and compiler; the usual "one thin dependency spoils the build"
-problem of the former PyInstaller path does not apply. That said, Intel macOS
-support is winding down, so arm64-only is a defensible choice to state plainly
-rather than a bug to hide, and **no universal2 build has been attempted**.
+Because the app has no embedded native dependencies, both slices come from the
+same source and compiler — nothing has to be built twice by hand and no thin
+dependency spoils the link. `--universal` does **not** remove the caveat: the fat
+bundle is still only *ad-hoc* signed (the `Format` / `Signature` lines above), so
+it is neither Developer-ID signed nor notarised, exactly like the native build.
+The default stays native-only, and no universal artifact is shipped — only the
+`--universal` run changes the bundle, the archive name and (via
+`scripts/build-swift-dmg.sh`) the `...-universal2.dmg` name.
 
 ---
 
 ## (d) What a real release still needs — explicit checklist
 
-None of the items below exist yet. Until they do, `dist/usbscope-swift.app` stays
-**ad-hoc signed, arm64-only and not notarised**, and `docs/index.md` / this file
-say exactly that.
+None of the distribution items below exist yet. Until they do, the artifacts under
+`dist/` stay **ad-hoc signed, native-only by default and not notarised** — a
+tarball and a DMG are produced, but both wrap the ad-hoc bundle and neither is a
+release. `docs/index.md` / this file say exactly that.
 
 - [ ] Developer ID Application certificate issued and installed (only Apple
       Development certs exist on this machine **[ran]**).
@@ -242,7 +318,10 @@ say exactly that.
       hard-coded to `-`.
 - [ ] Hardened Runtime (`--options runtime`) and a secure timestamp
       (`--timestamp`).
-- [ ] A container to notarise (DMG or zip) — the script produces only the `.app`.
+- [ ] A container to *notarise*, built from a Developer-ID signed bundle —
+      *unsigned packaging exists*: `scripts/build-swift-dmg.sh` (`make swift-app-dmg`)
+      builds a verified, compressed DMG and `ditto -c -k --keepParent` makes a zip,
+      but both wrap the ad-hoc bundle, so neither is notarisation-ready.
 - [ ] `xcrun notarytool submit` wired into the build, and `xcrun stapler staple`
       after it.
 - [ ] A release pipeline (tag → build → sign → notarise → staple → upload);
@@ -251,14 +330,18 @@ say exactly that.
       `swift build` + `swift test` and, on `main`, builds/uploads the *unsigned*
       ad-hoc bundle with **no** signing secrets. Distribution signing does not
       happen in CI at all.
-- [ ] universal2 or x86_64 builds (current output is arm64-only, verified with
-      `file`).
-- [ ] A published release of any kind — no DMG, no tag, no binary is uploaded.
-- [x] `SHA256SUMS` for a release artifact: `scripts/build-swift-app.sh` packs the
-      bundle into `dist/usbscope-swift-<version>-macos-<arch>.tar.gz` and writes
-      `dist/SHA256SUMS` over it; `make checksums` re-verifies (and fails on a
-      mismatch). It is a checksum over an *unsigned* archive, which is not what a
-      notarised release would ship.
+- [ ] universal2 in a *shipped* artifact — `scripts/build-swift-app.sh --universal`
+      builds a fat arm64 + x86_64 bundle (verified with `lipo`/`file`, section (c)),
+      but the default output stays arm64-only (verified with `file`) and no
+      universal artifact is published.
+- [ ] A published release of any kind — nothing is tagged or uploaded; the tarball
+      and the DMG exist only under `dist/`.
+- [x] `SHA256SUMS` for the release artifacts: `scripts/build-swift-app.sh` packs the
+      bundle into `dist/usbscope-swift-<version>-macos-<arch>.tar.gz`,
+      `scripts/build-swift-dmg.sh` packs it into the matching `.dmg`, and
+      `dist/SHA256SUMS` carries a line for each; `make checksums` re-verifies both
+      (and fails on a mismatch). These are checksums over *unsigned* artifacts,
+      which is not what a notarised release would ship.
 - [ ] Homebrew tap and cask published (a cask only makes sense once a notarised
       DMG exists in a GitHub Release).
 - [ ] The in-process IOKit reader (`Sources/UsbScopeCore/IORegistryReader.swift`)

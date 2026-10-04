@@ -17,6 +17,7 @@ VERSION := $(shell sed -n 's/^let version = "\([^"]*\)".*/\1/p' Sources/usbscope
 
 .PHONY: help doctor env build test check clean distclean version \
         swift swift-build swift-test swift-run-app swift-app-check swift-app-bundle \
+        swift-app-dmg \
         run watch snapshot checksums man completions
 
 ## ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ doctor: ## check the tools this repo needs (swift, codesign, plutil, hdiutil)
 	@command -v $(SWIFT) >/dev/null && echo "swift      $$($(SWIFT) --version 2>/dev/null | grep -o 'Apple Swift version [^)]*)' | head -1)" || echo "swift      MISSING (install Xcode or the command line tools)"
 	@command -v codesign >/dev/null && echo "codesign   ok (ad-hoc app signature)" || echo "codesign   missing"
 	@command -v plutil >/dev/null && echo "plutil     ok (Info.plist validation)" || echo "plutil     missing"
-	@command -v hdiutil >/dev/null && echo "hdiutil    ok (DMG packaging, not wired yet)" || echo "hdiutil    missing"
+	@command -v hdiutil >/dev/null && echo "hdiutil    ok (DMG packaging: make swift-app-dmg)" || echo "hdiutil    missing"
 	@[ -f assets/icon/usbscope.icns ] && echo "icon       assets/icon/usbscope.icns present" || echo "icon       missing (the app bundle is built without one)"
 	@[ -f SwiftTests/Golden/snapshot.json ] && echo "golden     frozen regression reference present" || echo "golden     MISSING"
 
@@ -84,6 +85,9 @@ swift-app-check: swift-build ## headless self test of the app's data path (row c
 swift-app-bundle: ## build dist/usbscope-swift.app (release, ad-hoc signed, verified)
 	scripts/build-swift-app.sh
 
+swift-app-dmg: ## pack the app into a compressed DMG (hdiutil, unsigned) + SHA256SUMS
+	scripts/build-swift-dmg.sh
+
 run: swift-build ## run the CLI (overview)
 	./.build/$(CONFIG)/usbscope
 
@@ -100,7 +104,7 @@ snapshot: swift-build ## render the app window to docs/screenshots/app-<view>.pn
 		echo "docs/screenshots/app-$$view.png"; \
 	done
 
-checksums: ## verify dist/SHA256SUMS (written by scripts/build-swift-app.sh)
+checksums: ## verify dist/SHA256SUMS (written by scripts/build-swift-app.sh + build-swift-dmg.sh)
 	@if [ -f dist/SHA256SUMS ]; then \
 		cd dist && shasum -a 256 -c SHA256SUMS; \
 	else \

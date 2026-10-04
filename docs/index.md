@@ -438,8 +438,9 @@ target runs `swift` or a shell command.
 | `make swift-run-app` | run the SwiftUI app (`usbscope-app`) |
 | `make swift-app-check` | headless self test of the app's data path (row count per view) |
 | `make swift-app-bundle` | build `dist/usbscope-swift.app` (release, ad-hoc signed, verified) |
+| `make swift-app-dmg` | pack the app into a compressed, read-only DMG (`hdiutil`, unsigned) |
 | `make snapshot` | render the app window to `docs/screenshots/app-<view>.png` (offscreen) |
-| `make checksums` | verify `dist/SHA256SUMS`, which the bundle script writes for the tarball |
+| `make checksums` | verify `dist/SHA256SUMS`, written over the tarball and the DMG |
 | `make man` / `make completions` | install the CLI manual page / the zsh + bash completions into `~` (no sudo) |
 | `make version` | print the package version |
 | `make clean` / `make distclean` | build output / plus the package caches |
@@ -494,12 +495,16 @@ bundle:
    `--print-rows` exercises the data path when a window server is available.
 
 The script prints every command it runs. Options: `--configuration release|debug`,
-`--debug`, `--name NAME`, `--no-icon`, `--no-sign`, `--no-verify`.
+`--debug`, `--name NAME`, `--no-icon`, `--no-sign`, `--no-verify`, `--no-archive`,
+`--universal` (build arm64 + x86_64 as a fat Mach-O; native-only otherwise).
 
 The result is a single Mach-O with **no embedded frameworks** (macOS 14+ ships the
-Swift runtime), so the whole bundle is about 3 MiB. The signature is ad hoc only
-— what a real release still needs (Developer ID, hardened runtime, `notarytool`,
-`stapler`) is in [distribution.md](distribution.md).
+Swift runtime), so the whole bundle is about 3 MiB; `--universal` makes it a fat
+arm64 + x86_64 Mach-O instead. The signature is ad hoc only either way. On top of
+the bundle the script writes the tarball, and `scripts/build-swift-dmg.sh` (`make
+swift-app-dmg`) packs the same bundle into a compressed DMG — both ad hoc only.
+What a real release still needs (Developer ID, hardened runtime, `notarytool`,
+`stapler`, notarisation) is in [distribution.md](distribution.md).
 
 `usbscope-app --snapshot out.png [--view cables] [--baseline file.json]` renders
 the **whole window** offscreen (no screen, no screen-recording permission) and
@@ -520,9 +525,11 @@ swift build -c release
 ./.build/release/usbscope --version
 ```
 
-What a real release still needs — Developer ID, hardened runtime, notarisation,
-stapling, a universal2 slice, a DMG and checksums — is listed in
-[distribution.md](distribution.md). Nothing there exists yet.
+There is no *published* release, but the build does produce hand-out artifacts: a
+tarball and a DMG, both checksummed in `dist/SHA256SUMS` and both ad hoc signed
+only. What a real release still needs — Developer ID, hardened runtime,
+notarisation, stapling and a signed, notarised DMG — is in
+[distribution.md](distribution.md).
 
 ## Screenshots
 

@@ -14,10 +14,18 @@
 #   scripts/build-swift-app.sh --debug      # debug configuration
 #   scripts/build-swift-app.sh --no-verify  # do not run the bundled binary
 #   scripts/build-swift-app.sh --no-archive # only the .app, no tarball/checksum
+#   scripts/build-swift-app.sh --universal  # build arm64 + x86_64 (fat), not native-only
+#
+# `--universal` adds `--arch arm64 --arch x86_64` to the `swift build`, so the
+# produced executable is a fat Mach-O (checked with `lipo`); without it the build
+# stays *native-only*, exactly as before. The archive name then says `universal2`
+# instead of the host architecture. A universal bundle is still signed *ad hoc*
+# (`codesign -s -`), so it is neither Developer-ID signed nor notarised either.
 #
 # On top of the bundle it writes the archive a release would hand out
 # (`dist/usbscope-swift-<version>-macos-<arch>.tar.gz`) and `dist/SHA256SUMS` for
-# it, which `make checksums` re-verifies.
+# it, which `make checksums` re-verifies. `scripts/build-swift-dmg.sh` packs the
+# same bundle into a DMG.
 #
 # Like every bundle this repository builds, the signature is *ad-hoc*
 # (`codesign -s -`): a valid self-signature, but neither Developer-ID signed nor
@@ -41,6 +49,7 @@ icon="$ICON_SOURCE"
 sign=1
 verify=1
 archive=1
+universal=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -51,7 +60,8 @@ while [ $# -gt 0 ]; do
     --no-sign) sign=0; shift ;;
     --no-verify) verify=0; shift ;;
     --no-archive) archive=0; shift ;;
-    -h|--help) sed -n '2,22p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    --universal) universal=1; shift ;;
+    -h|--help) sed -n '10,28p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -63,11 +73,19 @@ if [ -z "$version" ]; then
   exit 1
 fi
 
-echo "usbscope-swift $version ($configuration)"
-echo "\$ swift build -c $configuration --product $PRODUCT"
-swift build -c "$configuration" --product "$PRODUCT"
+# Native-only by default; --universal adds both slices so the linker emits a fat
+# Mach-O. `--show-bin-path` accepts the same --arch flags and still names the one
+# output directory the fat binary lands in.
+build_args=(build -c "$configuration" --product "$PRODUCT")
+if [ "$universal" -eq 1 ]; then
+  build_args+=(--arch arm64 --arch x86_64)
+fi
 
-bin_path="$(swift build -c "$configuration" --show-bin-path | tail -1)"
+echo "usbscope-swift $version ($configuration)"
+echo "\$ swift ${build_args[*]}"
+swift "${build_args[@]}"
+
+bin_path="$(swift "${build_args[@]}" --show-bin-path | tail -1)"
 binary="$bin_path/$EXECUTABLE"
 if [ ! -x "$binary" ]; then
   echo "swift build did not produce an executable at $binary" >&2
@@ -82,6 +100,18 @@ echo "+ copy $binary -> ${bundle#"$ROOT"/}/Contents/MacOS/$EXECUTABLE"
 cp -p "$binary" "$bundle/Contents/MacOS/$EXECUTABLE"
 chmod +x "$bundle/Contents/MacOS/$EXECUTABLE"
 
+# A universal build that came out thin is a broken artifact, not a warning: say
+# which architectures are actually inside and fail if the fat binary is missing.
+if [ "$universal" -eq 1 ]; then
+  echo "\$ lipo -info ${bundle#"$ROOT"/}/Contents/MacOS/$EXECUTABLE"
+  lipo -info "$bundle/Contents/MacOS/$EXECUTABLE"
+  archs="$(lipo -archs "$bundle/Contents/MacOS/$EXECUTABLE" 2>/dev/null || true)"
+  case "$archs" in
+    *x86_64*arm64*|*arm64*x86_64*) echo "  universal: $archs" ;;
+    *) echo "universal build did not produce a fat binary (lipo -archs: ${archs:-<none>})" >&2; exit 1 ;;
+  esac
+fi
+
 icon_name=""
 if [ -n "$icon" ] && [ -f "$icon" ]; then
   echo "+ copy ${icon#"$ROOT"/} -> ${bundle#"$ROOT"/}/Contents/Resources/$(basename "$icon")"
@@ -91,10 +121,11 @@ else
   echo "+ no icon (assets/icon/usbscope.icns not found)"
 fi
 
+# Two indented lines (empty when there is no icon, which leaves a blank line).
 icon_entry=""
 if [ -n "$icon_name" ]; then
-  icon_entry="	<key>CFBundleIconFile</key>
-	<string>$icon_name</string>"
+  icon_entry="  <key>CFBundleIconFile</key>
+  <string>$icon_name</string>"
 fi
 
 # ITSAppUsesNonExemptEncryption: App Store Connect asks about export compliance on
@@ -104,32 +135,32 @@ cat > "$bundle/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key>
-	<string>usbscope</string>
-	<key>CFBundleDisplayName</key>
-	<string>usbscope</string>
-	<key>CFBundleExecutable</key>
-	<string>$EXECUTABLE</string>
-	<key>CFBundleIdentifier</key>
-	<string>$BUNDLE_ID</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$version</string>
-	<key>CFBundleVersion</key>
-	<string>$version</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>$MIN_MACOS</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.utilities</string>
-	<key>NSHumanReadableCopyright</key>
-	<string>MIT licensed</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
+  <key>CFBundleName</key>
+  <string>usbscope</string>
+  <key>CFBundleDisplayName</key>
+  <string>usbscope</string>
+  <key>CFBundleExecutable</key>
+  <string>$EXECUTABLE</string>
+  <key>CFBundleIdentifier</key>
+  <string>$BUNDLE_ID</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$version</string>
+  <key>CFBundleVersion</key>
+  <string>$version</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>$MIN_MACOS</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.utilities</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>MIT licensed</string>
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
 $icon_entry
 </dict>
 </plist>
@@ -185,7 +216,11 @@ echo "${bundle#"$ROOT"/}  (${size} MiB, usbscope)"
 # archive a release would ship, and that archive is what gets a checksum. `make
 # checksums` re-verifies it later; nothing else writes a SHA256SUMS.
 if [ "$archive" -eq 1 ]; then
-  arch="$(uname -m)"
+  if [ "$universal" -eq 1 ]; then
+    arch="universal2"
+  else
+    arch="$(uname -m)"
+  fi
   tarball="$DIST/$name-$version-macos-$arch.tar.gz"
   echo "\$ tar -czf ${tarball#"$ROOT"/} -C dist $name.app"
   tar -czf "$tarball" -C "$DIST" "$name.app"
