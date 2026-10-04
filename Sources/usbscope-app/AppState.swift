@@ -94,6 +94,11 @@ final class AppState: ObservableObject {
     /// The row whose detail sheet is open, if any.
     @Published var detailRowKey: String?
 
+    /// The outcome line of the last report export (a written file or a failure),
+    /// shown in the status footer; `nil` before the first export.
+    @Published private(set) var reportMessage: String?
+    @Published private(set) var reportFailed = false
+
     private var previous: Snapshot?
     private var timer: Timer?
     private let store: PreferencesStore
@@ -469,5 +474,53 @@ final class AppState: ObservableObject {
             ? Presentation.csv(for: view, snapshot: snapshot)
             : Serialize.json(snapshot)
         try? text.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    /// Ask for a destination (a save panel with a Markdown/HTML popup), render
+    /// the report through UsbScopeCore's generator — the very bytes
+    /// `usbscope report` writes — and save it.
+    ///
+    /// A write failure lands in the status footer instead of vanishing into
+    /// `try?`, so a read-only volume or a full disk is visible rather than a
+    /// save panel that silently did nothing.
+    func exportReport() {
+        guard let snapshot else { return }
+        let language = self.language
+
+        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+        for format in ReportFormat.allCases {
+            popup.addItem(withTitle: L(.of(format), language))
+        }
+        popup.selectItem(at: 0)
+        let label = NSTextField(labelWithString: L(.reportFormat, language))
+        let accessory = NSStackView(views: [label, popup])
+        accessory.orientation = .horizontal
+        accessory.spacing = 8
+        accessory.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        accessory.frame = NSRect(x: 0, y: 0, width: 360, height: 34)
+
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.message = L(.exportReport, language)
+        panel.allowedContentTypes = ReportFormat.allCases.map(\.contentType)
+        panel.nameFieldStringValue = ReportFormat.markdown.suggestedFilename
+        panel.accessoryView = accessory
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let index = min(max(popup.indexOfSelectedItem, 0), ReportFormat.allCases.count - 1)
+        let format = ReportFormat.allCases[index]
+        // `storage` is filled by `StorageSource().inventory().0` in `refresh()` —
+        // the same call the CLI's `report` makes, so both list the same mass
+        // storage as the snapshot they belong to.
+        let text = ReportExport.text(format, snapshot: snapshot, storage: storage)
+        let destination = format.replacingExtension(of: url)
+        do {
+            try text.write(to: destination, atomically: true, encoding: .utf8)
+            reportFailed = false
+            reportMessage = "\(L(.reportWritten, language)): \(destination.lastPathComponent)"
+        } catch {
+            reportFailed = true
+            reportMessage = "\(L(.reportFailed, language)): \(error.localizedDescription)"
+        }
     }
 }

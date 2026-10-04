@@ -32,6 +32,12 @@ enum StringKey: String, CaseIterable {
     case copyJSON
     case exportJSON
     case exportCSV
+    case exportReport
+    case reportFormat
+    case reportFormatMarkdown
+    case reportFormatHTML
+    case reportWritten
+    case reportFailed
     case showDetails
     case toggleAutoRefresh
     case intervalHelp
@@ -96,6 +102,14 @@ enum StringKey: String, CaseIterable {
         case .security: .viewSecurity
         case .usb4: .viewUsb4
         case .diff: .viewDiff
+        }
+    }
+
+    /// The key for a `ReportFormat`.
+    static func of(_ format: ReportFormat) -> StringKey {
+        switch format {
+        case .markdown: .reportFormatMarkdown
+        case .html: .reportFormatHTML
         }
     }
 
@@ -174,6 +188,12 @@ enum Strings {
         case .copyJSON: "Snapshot (JSON)"
         case .exportJSON: "Export JSON…"
         case .exportCSV: "Export CSV…"
+        case .exportReport: "Export report…"
+        case .reportFormat: "Format"
+        case .reportFormatMarkdown: "Markdown"
+        case .reportFormatHTML: "HTML"
+        case .reportWritten: "Report written"
+        case .reportFailed: "Report could not be written"
         case .showDetails: "Show details"
         case .toggleAutoRefresh: "Auto-refresh"
         case .intervalHelp: "Auto-refresh interval"
@@ -255,6 +275,12 @@ enum Strings {
         case .copyJSON: "Momentaufnahme (JSON)"
         case .exportJSON: "JSON exportieren…"
         case .exportCSV: "CSV exportieren…"
+        case .exportReport: "Bericht exportieren…"
+        case .reportFormat: "Format"
+        case .reportFormatMarkdown: "Markdown"
+        case .reportFormatHTML: "HTML"
+        case .reportWritten: "Bericht geschrieben"
+        case .reportFailed: "Bericht konnte nicht geschrieben werden"
         case .showDetails: "Details anzeigen"
         case .toggleAutoRefresh: "Automatisch aktualisieren"
         case .intervalHelp: "Intervall der automatischen Aktualisierung"
