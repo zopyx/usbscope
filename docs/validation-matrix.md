@@ -7,7 +7,7 @@ Automated checks run on every change:
 | Core and UI support | `swift test` | All tests pass; skips are explained |
 | App build | `swift build -c debug --product usbscope-app` | Build succeeds |
 | Bundle shape | `scripts/build-swift-app.sh --debug --no-archive --no-verify` | Bundle is signed and validated |
-| Installed-bundle smoke | `scripts/smoke-swift-app.sh dist/usbscope-swift.app` | Exact bundle executable reports version, rows, offscreen views, and signature |
+| Installed-bundle smoke | `scripts/smoke-swift-app.sh dist/usbscope-swift.app` | Exact bundle executable reports version, first-read rows, atomic JSON/CSV exports, a diagnostic bundle, watcher start/stop, all ten offscreen views, and signature |
 | Localization | `scripts/check-localization.sh` | No user-visible SwiftUI/AppKit literals bypass the string table |
 | Large-data performance | `swift test --filter PerformanceTests` | 500-device report and 1,000-entry history stay within budgets |
 | Parser robustness | `swift test --filter ParserFuzzTests` | Malformed and deeply nested source trees do not crash adapters |

@@ -130,6 +130,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--print-rows") {
             SelfTest.runAndExit()
         }
+        if CommandLine.arguments.contains("--smoke") {
+            SelfTest.runBundleSmokeAndExit()
+        }
         // `--snapshot out.png [--view security]` renders the window offscreen and
         // exits — the same mode the Python app has (and the build script uses).
         if let request = SnapshotRenderer.requested() {
@@ -203,6 +206,42 @@ enum SelfTest {
             print("warnings: \(snapshot.warnings.joined(separator: " · "))")
         }
         exit(0)
+    }
+
+    /// Exercise the installed bundle's non-visual release surface: a first
+    /// collection, atomic table exports, a redacted diagnostic bundle, and
+    /// watcher start/stop. This intentionally avoids save panels and the
+    /// notification centre, which require an interactive user session.
+    static func runBundleSmokeAndExit() -> Never {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("usbscope-bundle-smoke-(UUID().uuidString)", isDirectory: true)
+        do {
+            let snapshot = SnapshotBuilder.collect(includeConflictWarnings: true)
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            try AtomicFile.write(Serialize.json(snapshot), to: root.appendingPathComponent("snapshot.json"))
+            try AtomicFile.write(Presentation.csv(for: .ports, snapshot: snapshot),
+                                 to: root.appendingPathComponent("ports.csv"))
+            try DiagnosticBundle.write(to: root.appendingPathComponent("diagnostics", isDirectory: true),
+                                       snapshot: snapshot, warnings: snapshot.warnings,
+                                       storage: [])
+
+            let watcher = UsbHotplugWatcher(mode: .polling, pollInterval: 0.1, collect: { snapshot })
+            watcher.start { _ in }
+            watcher.stop()
+
+            let files = try FileManager.default.contentsOfDirectory(atPath: root.path)
+            guard files.contains("snapshot.json"), files.contains("ports.csv"),
+                  files.contains("diagnostics") else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+            print("bundle smoke: snapshot, exports, diagnostics, watcher passed")
+            try? FileManager.default.removeItem(at: root)
+            exit(0)
+        } catch {
+            FileHandle.standardError.write(Data("bundle smoke failed: \(error)\n".utf8))
+            try? FileManager.default.removeItem(at: root)
+            exit(1)
+        }
     }
 }
 

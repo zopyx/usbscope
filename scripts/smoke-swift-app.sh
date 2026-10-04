@@ -25,6 +25,15 @@ else
     exit 1
 fi
 
+if smoke="$(timeout 120 "$EXE" --smoke 2>&1)" && [ -n "$smoke" ]; then
+    echo "$smoke"
+elif [ -n "${CI:-}" ]; then
+    echo "--smoke: skipped (CI cannot launch the bundle in this runner)"
+else
+    echo "--smoke failed" >&2
+    exit 1
+fi
+
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/usbscope-smoke.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
 for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do
