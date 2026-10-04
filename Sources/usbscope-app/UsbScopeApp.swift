@@ -92,6 +92,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--print-rows") {
             SelfTest.runAndExit()
         }
+        // `--snapshot out.png [--view security]` renders the window offscreen and
+        // exits — the same mode the Python app has (and the build script uses).
+        if let request = SnapshotRenderer.requested() {
+            MainActor.assumeIsolated {
+                SnapshotRenderer.run(path: request.path, view: request.view, baseline: request.baseline)
+            }
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -110,7 +117,7 @@ enum SelfTest {
         let snapshot = SnapshotBuilder.collect()
         print(Presentation.headerText(snapshot))
         print(Presentation.summaryText(snapshot))
-        for view in AppView.allCases {
+        for view in AppView.tableViews {
             let rows = Presentation.tableRows(for: view, snapshot: snapshot)
             print("  \(view.rawValue): \(rows.count) row(s), \(Presentation.headers(for: view).count) columns")
         }
@@ -176,6 +183,10 @@ struct ContentView: View {
                 case .devices: DevicesView()
                 case .thunderbolt: ThunderboltView()
                 case .power: PowerView()
+                case .timeline: TimelineView()
+                case .security: SecurityView()
+                case .usb4: Usb4View()
+                case .diff: DiffView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -235,15 +246,32 @@ struct ContentView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .help(L(.viewMenu, lang) + " (⌘1–⌘5)")
+            .help(L(.viewMenu, lang) + " (⌘1–⌘9)")
         }
-        ToolbarItem {
+        // Search, quick filter, baseline and the refresh controls share one group:
+        // `ToolbarContentBuilder` accepts at most ten top-level items.
+        ToolbarItemGroup {
             TextField(L(.filter, lang), text: $state.search)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 170)
                 .help("Filter every column (all terms must match)")
-        }
-        ToolbarItem {
+            Menu {
+                Picker(L(.filterPresets, lang), selection: $state.filterPreset) {
+                    ForEach(FilterPreset.allCases) { preset in
+                        Text(L(.of(preset), lang)).tag(preset)
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Image(systemName: state.filterPreset == .all
+                    ? "line.3.horizontal.decrease.circle"
+                    : "line.3.horizontal.decrease.circle.fill")
+            }
+            .help(L(.filterPresets, lang))
+            Button { state.pickBaseline() } label: {
+                Image(systemName: "square.on.square.dashed")
+            }
+            .help(L(.compareWith, lang))
             Button {
                 state.refresh()
             } label: {
@@ -251,16 +279,12 @@ struct ContentView: View {
             }
             .disabled(state.isLoading)
             .help(L(.refreshNow, lang) + " (⌘R)")
-        }
-        ToolbarItem {
             Toggle(
                 isOn: Binding(get: { state.autoRefresh }, set: { state.setAutoRefresh($0) })
             ) {
                 Image(systemName: "timer")
             }
             .help(L(.toggleAutoRefresh, lang))
-        }
-        ToolbarItem {
             Menu {
                 ForEach(PREFERENCE_INTERVALS, id: \.self) { value in
                     Button("\(Int(value)) s") { state.setInterval(value) }
@@ -285,25 +309,27 @@ struct ContentView: View {
                 .help(L(.groupBy, lang))
             }
         }
-        ToolbarItem {
-            Menu {
-                ForEach(Presentation.headers(for: state.view), id: \.self) { header in
-                    Toggle(
-                        header,
-                        isOn: Binding(
-                            get: { state.isColumnVisible(state.view, header) },
-                            set: { _ in state.toggleColumn(state.view, header) }
+        if AppView.tableViews.contains(state.view) {
+            ToolbarItem {
+                Menu {
+                    ForEach(Presentation.headers(for: state.view), id: \.self) { header in
+                        Toggle(
+                            header,
+                            isOn: Binding(
+                                get: { state.isColumnVisible(state.view, header) },
+                                set: { _ in state.toggleColumn(state.view, header) }
+                            )
                         )
-                    )
+                    }
+                    Divider()
+                    Button(L(.showAllColumns, lang)) { state.showAllColumns(state.view) }
+                } label: {
+                    Image(systemName: "tablecells")
                 }
-                Divider()
-                Button(L(.showAllColumns, lang)) { state.showAllColumns(state.view) }
-            } label: {
-                Image(systemName: "tablecells")
+                .help(L(.columns, lang))
             }
-            .help(L(.columns, lang))
         }
-        ToolbarItem {
+        ToolbarItemGroup {
             Menu {
                 Button(L(.copySelected, lang)) { state.copyTable(selected: true) }
                 Button(L(.copyWholeTable, lang)) { state.copyTable(selected: false) }
@@ -312,8 +338,6 @@ struct ContentView: View {
                 Image(systemName: "doc.on.doc")
             }
             .help("Copy")
-        }
-        ToolbarItem {
             Menu {
                 Button(L(.exportJSON, lang)) { state.export(format: "json") }
                 Button(L(.exportCSV, lang)) { state.export(format: "csv") }
@@ -321,8 +345,6 @@ struct ContentView: View {
                 Image(systemName: "square.and.arrow.up")
             }
             .help("Export")
-        }
-        ToolbarItem {
             Button {
                 if let key = state.selection.first { state.detailRowKey = key }
             } label: {

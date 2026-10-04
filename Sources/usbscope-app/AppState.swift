@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 import UsbScopeCore
 import UsbScopeUI
 
@@ -62,6 +63,27 @@ final class AppState: ObservableObject {
     @Published var groupField: GroupField = .none { didSet { persist() } }
     @Published private(set) var hiddenColumns: [AppView: Set<String>] = [:] { didSet { persist() } }
 
+    /// The quick filter on top of the search text (session only, not persisted).
+    @Published var filterPreset: FilterPreset = .all
+
+    /// The USB mass-storage inventory of the last read (the Security tab).
+    @Published private(set) var storage: [StorageDevice] = []
+
+    /// The recorded hotplug events (newest first), for the Timeline tab.
+    @Published private(set) var events: [UsbEvent] = []
+
+    /// The snapshot the Diff tab compares against, and where it came from.
+    @Published private(set) var baseline: Snapshot?
+    @Published private(set) var baselineName: String?
+    @Published private(set) var baselineError: String?
+
+    /// The device being ejected right now, and the outcome of the last eject.
+    @Published private(set) var ejecting: String?
+    @Published private(set) var ejectMessage: String?
+
+    /// How many hotplug events the Timeline keeps in memory.
+    static let eventLimit = 500
+
     /// Selected rows of the current view (row ids).
     @Published var selection = Set<String>()
 
@@ -94,7 +116,8 @@ final class AppState: ObservableObject {
 
     init(
         store: PreferencesStore = PreferencesStore(backend: UserDefaultsBackend()),
-        notifier: DeviceNotifier? = DeviceNotifier()
+        notifier: DeviceNotifier? = DeviceNotifier(),
+        monitoring: Bool = true
     ) {
         self.store = store
         self.notifier = notifier
@@ -111,8 +134,18 @@ final class AppState: ObservableObject {
         }
         // Own the IOKit notifications for the lifetime of the app; the watcher
         // collects its own baseline off the main thread, so launch is not blocked.
-        startMonitoring()
+        if monitoring { startMonitoring() }
         if preferences.autoRefresh { startTimer() }
+        loadEventHistory()
+    }
+
+    /// Read the tail of the hotplug log into memory for the Timeline tab.
+    private func loadEventHistory() {
+        guard let eventLog else { return }
+        Task.detached(priority: .utility) { [weak self] in
+            let loaded = (try? eventLog.read()) ?? []
+            await MainActor.run { self?.events = Array(loaded.suffix(Self.eventLimit).reversed()) }
+        }
     }
 
     // MARK: - Hotplug monitoring
@@ -138,6 +171,8 @@ final class AppState: ObservableObject {
             let events = update.events
             // The log is I/O; keep it off the main thread.
             Task.detached(priority: .utility) { try? eventLog.append(events) }
+            // Newest first, so the Timeline shows the latest edge on top.
+            self.events = Array((Array(events.reversed()) + self.events).prefix(Self.eventLimit))
         }
         apply(update.snapshot)
     }
@@ -182,11 +217,22 @@ final class AppState: ObservableObject {
         isLoading = true
         errorMessage = nil
         Task {
-            let result = await Task.detached(priority: .userInitiated) {
-                SnapshotBuilder.collect()
+            let (result, storage) = await Task.detached(priority: .userInitiated) {
+                (SnapshotBuilder.collect(), StorageSource().inventory().0)
             }.value
+            self.storage = storage
             apply(result)
         }
+    }
+
+    /// Collect one snapshot on the calling (main) thread and apply it.
+    ///
+    /// Only the offscreen `--snapshot` render uses this: it must have a snapshot
+    /// before it draws, and it has no run loop to wait on a `Task` for.
+    func loadSynchronously() {
+        isLoading = true
+        storage = StorageSource().inventory().0
+        apply(SnapshotBuilder.collect())
     }
 
     private func apply(_ fresh: Snapshot) {
@@ -230,11 +276,13 @@ final class AppState: ObservableObject {
 
     // MARK: - Current rows
 
-    /// The rows of the current view, filtered by the search text.
-    func filtered<T: Searchable>(_ rows: [T]) -> [T] {
+    /// The rows of the current view, filtered by the quick preset and then by
+    /// the search text (both filters must pass; the preset is applied first).
+    func filtered<T: Searchable & PresetFilterable>(_ rows: [T]) -> [T] {
+        let selected = rows.filter { filterPreset.matches($0) }
         let terms = search.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
-        guard !terms.isEmpty else { return rows }
-        return rows.filter { row in terms.allSatisfy { row.searchText.contains($0) } }
+        guard !terms.isEmpty else { return selected }
+        return selected.filter { row in terms.allSatisfy { row.searchText.contains($0) } }
     }
 
     var summaryLine: String {
@@ -275,6 +323,82 @@ final class AppState: ObservableObject {
     var detailPairs: [(String, String)] {
         guard let snapshot, let key = detailRowKey else { return [] }
         return Presentation.details(snapshot, view: view, rowKey: key)
+    }
+
+    // MARK: - Security, timeline, USB4 fabric & diff
+
+    /// The security report of the current snapshot (the Security tab).
+    var securityReport: SecurityReport? { snapshot.map(Security.analyse) }
+
+    /// The storage inventory as rows, each with its eject state.
+    var storageInventory: [StorageRow] { SecurityPresentation.storageRows(storage) }
+
+    /// The USB4/Thunderbolt fabric of the current snapshot as tree rows.
+    var fabricRows: [FabricRow] {
+        FabricPresentation.rows(snapshot?.thunderboltFabric ?? ThunderboltFabric())
+    }
+
+    /// The power sparkline geometry of the recorded history.
+    var timelineGeometry: TimelineGeometry { TimelineGeometry(powerTimeline) }
+
+    /// The recorded hotplug events, newest first.
+    var hotplugRows: [EventRow] { eventRows(events) }
+
+    /// The live machine against the loaded baseline (`nil` without one).
+    var baselineDiff: ChangeSet? {
+        guard let baseline, let snapshot else { return nil }
+        return diffSnapshots(previous: baseline, current: snapshot)
+    }
+
+    /// Load a snapshot JSON as the comparison baseline.
+    func loadBaseline(_ url: URL) {
+        do {
+            baseline = try SnapshotLoading.snapshot(from: url)
+            baselineName = url.lastPathComponent
+            baselineError = nil
+        } catch {
+            baseline = nil
+            baselineName = nil
+            baselineError = "\(error)"
+        }
+    }
+
+    func clearBaseline() {
+        baseline = nil
+        baselineName = nil
+        baselineError = nil
+    }
+
+    /// Ask for a snapshot JSON (a save panel) and load it as the baseline.
+    func pickBaseline() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.message = L(.compareWith, language)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        loadBaseline(url)
+    }
+
+    /// Run `diskutil eject` for a storage device, then refresh the inventory.
+    func eject(_ row: StorageRow) {
+        guard let argv = row.ejectCommand, ejecting == nil else { return }
+        ejecting = row.id
+        ejectMessage = nil
+        let failed = L(.ejectFailed, language)
+        let identifier = row.identifier
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let result = Shell.run(argv)
+            let message = result.ok
+                ? "\(identifier) ejected"
+                : "\(failed): \(identifier) (\(result.error ?? "exit \(result.returncode)"))"
+            await MainActor.run {
+                self?.ejecting = nil
+                self?.ejectMessage = message
+                self?.refresh()
+            }
+        }
     }
 
     // MARK: - Clipboard & export
