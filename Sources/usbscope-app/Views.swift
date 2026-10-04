@@ -409,7 +409,7 @@ struct PortsView: View {
 
     var body: some View {
         if let snapshot = state.snapshot {
-            let rows = state.filtered(portRows(snapshot, changes: state.changes))
+            let rows = state.filtered(portRows(snapshot, changes: state.changes, language: state.language))
             if state.groupField == .none {
                 table(rows)
             } else {
@@ -507,7 +507,7 @@ struct CablesView: View {
 
     var body: some View {
         if let snapshot = state.snapshot {
-            let rows = state.filtered(cableRows(snapshot, changes: state.changes))
+            let rows = state.filtered(cableRows(snapshot, changes: state.changes, language: state.language))
             Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
                 if state.isColumnVisible(.cables, "Port") {
                     TableColumn(Strings.columnLabel("Port", state.language), value: \.portSort) { row in
@@ -575,7 +575,7 @@ struct DevicesView: View {
 
     var body: some View {
         if let snapshot = state.snapshot {
-            let rows = state.filtered(deviceRows(snapshot, changes: state.changes))
+            let rows = state.filtered(deviceRows(snapshot, changes: state.changes, language: state.language))
             if state.groupField == .none {
                 table(rows)
             } else {
@@ -686,7 +686,7 @@ struct ThunderboltView: View {
 
     var body: some View {
         if let snapshot = state.snapshot {
-            let rows = state.filtered(thunderboltRows(snapshot))
+            let rows = state.filtered(thunderboltRows(snapshot, language: state.language))
             Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
                 if state.isColumnVisible(.thunderbolt, "Bus") {
                     TableColumn(Strings.columnLabel("Bus", state.language), value: \.busSort) { row in
@@ -738,7 +738,7 @@ struct PowerView: View {
 
     var body: some View {
         if let snapshot = state.snapshot {
-            let rows = state.filtered(powerRows(snapshot))
+            let rows = state.filtered(powerRows(snapshot, language: state.language))
             Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
                 if state.isColumnVisible(.power, "Metric") {
                     TableColumn(Strings.columnLabel("Metric", state.language)) { CellText(text: $0.metric) }

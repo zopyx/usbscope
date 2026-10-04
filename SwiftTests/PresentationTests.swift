@@ -54,6 +54,20 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(hdmi?.kind.style, .dim)
     }
 
+    func testCommonTableStatesCanBeLocalizedWithoutChangingDefaultCLIText() throws {
+        let germanPorts = portRows(snapshot(), language: .de)
+        let connected = try XCTUnwrap(germanPorts.first { $0.id == "port:USB-C@3" })
+        XCTAssertEqual(connected.state.text, "● verbunden")
+        XCTAssertTrue(connected.notes.text.contains("Gerät(e)"))
+
+        let germanCables = cableRows(snapshot(), language: .de)
+        let cable = try XCTUnwrap(germanCables.first { $0.id == "port:USB-C@3" })
+        XCTAssertEqual(cable.liquid.text, "sauber")
+
+        let germanDevices = deviceRows(snapshot(), language: .de)
+        XCTAssertEqual(germanDevices.first?.restricted.text, "nein")
+    }
+
     // MARK: - Cables
 
     func testCableRows() {

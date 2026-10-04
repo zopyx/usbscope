@@ -24,23 +24,29 @@ private func modeStyle(_ mode: UsbMode) -> CellStyle {
     }
 }
 
-private func stateCell(connected: Bool) -> (StyledText, Int) {
-    connected ? (StyledText("● connected", .green), 1) : (StyledText("○ free", .dim), 0)
+private func stateCell(connected: Bool, language: AppLanguage = .en) -> (StyledText, Int) {
+    if connected {
+        return (StyledText(language == .de ? "● verbunden" : "● connected", .green), 1)
+    }
+    return (StyledText(language == .de ? "○ frei" : "○ free", .dim), 0)
 }
 
-private func modeCell(_ port: UsbPort) -> (StyledText, Int) {
+private func modeCell(_ port: UsbPort, language: AppLanguage = .en) -> (StyledText, Int) {
     guard let transport = port.usbTransport, transport.active else {
-        return port.connected ? (StyledText("no USB data", .yellow), -1) : (dash, -2)
+        return port.connected
+            ? (StyledText(language == .de ? "keine USB-Daten" : "no USB data", .yellow), -1)
+            : (dash, -2)
     }
     return (StyledText(transport.mode.label, modeStyle(transport.mode)), transport.mode.rank)
 }
 
-private func transportsCell(_ port: UsbPort) -> StyledText {
+private func transportsCell(_ port: UsbPort, language: AppLanguage = .en) -> StyledText {
     guard !port.transports.isEmpty else { return dash }
     let active = port.transports.filter(\.active).map { "\($0.kind) ●" }
     let idle = port.transports.filter { !$0.active }.map(\.kind)
-    var text = active.isEmpty ? "idle" : active.joined(separator: " · ")
-    if !idle.isEmpty { text += "  (\(idle.joined(separator: ", ")) idle)" }
+    let idleLabel = language == .de ? "inaktiv" : "idle"
+    var text = active.isEmpty ? idleLabel : active.joined(separator: " · ")
+    if !idle.isEmpty { text += language == .de ? "  (\(idle.joined(separator: ", ")) inaktiv)" : "  (\(idle.joined(separator: ", ")) idle)" }
     return StyledText(text, active.isEmpty ? .dim : .cyan)
 }
 
@@ -50,27 +56,27 @@ private func cableCell(_ port: UsbPort) -> (StyledText, Int) {
     return (StyledText(cable.kind, cable.emarker ? .cyan : .dim), cable.emarker ? 2 : 1)
 }
 
-private func notesCell(_ port: UsbPort) -> StyledText {
+private func notesCell(_ port: UsbPort, language: AppLanguage = .en) -> StyledText {
     var notes: [(String, CellStyle)] = []
     if !port.devices.isEmpty {
         let names = port.devices.map(\.name).joined(separator: ", ")
-        notes.append(("\(port.devices.count) device(s): \(names)", .default))
+        notes.append((language == .de ? "\(port.devices.count) Gerät(e): \(names)" : "\(port.devices.count) device(s): \(names)", .default))
     }
     if let displayport = port.transport("DisplayPort"), displayport.active {
         let detail = displayport.rateText ?? ""
-        notes.append(("DP alt mode" + (detail.isEmpty ? "" : " \(detail)"), .cyan))
+        notes.append(((language == .de ? "DP-Alternativmodus" : "DP alt mode") + (detail.isEmpty ? "" : " \(detail)"), .cyan))
     }
     if !port.powerIn.isEmpty {
-        notes.append(("power in: " + port.powerIn.joined(separator: ", "), .cyan))
+        notes.append(((language == .de ? "Eingangsleistung: " : "power in: ") + port.powerIn.joined(separator: ", "), .cyan))
     }
     if port.connected && port.usbTransport == nil {
-        notes.append(("charger/accessory only", .yellow))
+        notes.append((language == .de ? "nur Ladegerät/Zubehör" : "charger/accessory only", .yellow))
     }
     if port.liquidDetected == true {
-        notes.append(("liquid detected", .red))
+        notes.append((language == .de ? "Flüssigkeit erkannt" : "liquid detected", .red))
     }
     if port.transports.contains(where: { $0.restricted == true && $0.active }) {
-        notes.append(("restricted by macOS", .yellow))
+        notes.append((language == .de ? "von macOS eingeschränkt" : "restricted by macOS", .yellow))
     }
     if notes.isEmpty { return dash }
     let styles = Set(notes.map(\.1))
@@ -104,19 +110,20 @@ public struct PortRow: Identifiable, Hashable, Sendable {
     public let notesSort: String
 }
 
-public func portRows(_ snapshot: Snapshot, changes: ChangeSet? = nil) -> [PortRow] {
+public func portRows(_ snapshot: Snapshot, changes: ChangeSet? = nil,
+                     language: AppLanguage = .en) -> [PortRow] {
     snapshot.ports.map { port in
-        let state = stateCell(connected: port.connected)
-        let mode = modeCell(port)
+        let state = stateCell(connected: port.connected, language: language)
+        let mode = modeCell(port, language: language)
         let cable = cableCell(port)
-        let notes = notesCell(port)
+        let notes = notesCell(port, language: language)
         return PortRow(
             id: portKey(port),
             name: StyledText(port.name, .bold),
             kind: StyledText(port.kind, ["HDMI", "SD Card"].contains(port.kind) ? .dim : .default),
             state: state.0,
             mode: mode.0,
-            transports: transportsCell(port),
+            transports: transportsCell(port, language: language),
             cable: cable.0,
             notes: notes,
             attachedClass: port.devices.first?.classText ?? "",
@@ -125,7 +132,7 @@ public func portRows(_ snapshot: Snapshot, changes: ChangeSet? = nil) -> [PortRo
             kindSort: port.kind.lowercased(),
             stateSort: state.1,
             modeSort: mode.1,
-            transportsSort: transportsCell(port).text.lowercased(),
+            transportsSort: transportsCell(port, language: language).text.lowercased(),
             cableSort: cable.1,
             notesSort: notes.text.lowercased()
         )
@@ -173,7 +180,8 @@ private func hashCell(_ port: UsbPort) -> StyledText {
     return StyledText(parts.isEmpty ? "–" : parts.joined(separator: " / "), .dim)
 }
 
-public func cableRows(_ snapshot: Snapshot, changes: ChangeSet? = nil) -> [CableRow] {
+public func cableRows(_ snapshot: Snapshot, changes: ChangeSet? = nil,
+                      language: AppLanguage = .en) -> [CableRow] {
     snapshot.ports.map { port in
         let cable = port.cable
         let contract = contractCell(port)
@@ -189,7 +197,9 @@ public func cableRows(_ snapshot: Snapshot, changes: ChangeSet? = nil) -> [Cable
             spec: cable.pdSpecRevision.map { StyledText(String($0), .default) } ?? dash,
             powerIn: power.isEmpty ? dash : StyledText(power.joined(separator: ", "), .cyan),
             contract: contract.0,
-            liquid: liquidDetected ? StyledText("detected", .red) : StyledText("clean", .dim),
+            liquid: liquidDetected
+                ? StyledText(language == .de ? "erkannt" : "detected", .red)
+                : StyledText(language == .de ? "sauber" : "clean", .dim),
             firmware: port.firmware.map { StyledText($0, .dim) } ?? dash,
             highlight: changes.flatMap { highlight(for: $0.tag(portKey(port))) },
             portSort: port.number ?? 999,
@@ -235,7 +245,8 @@ public struct DeviceRow: Identifiable, Hashable, Sendable {
     public let restrictedSort: Int
 }
 
-public func deviceRows(_ snapshot: Snapshot, changes: ChangeSet? = nil) -> [DeviceRow] {
+public func deviceRows(_ snapshot: Snapshot, changes: ChangeSet? = nil,
+                       language: AppLanguage = .en) -> [DeviceRow] {
     snapshot.devices.map { device in
         let restricted = device.restricted == true
         return DeviceRow(
@@ -250,7 +261,9 @@ public func deviceRows(_ snapshot: Snapshot, changes: ChangeSet? = nil) -> [Devi
             transport: device.transport.map { StyledText($0, .cyan) } ?? dash,
             bus: device.bus.map { StyledText($0, .dim) } ?? dash,
             serial: device.serial.map { StyledText($0, .dim) } ?? dash,
-            restricted: restricted ? StyledText("yes", .yellow) : StyledText("no", .dim),
+            restricted: restricted
+                ? StyledText(language == .de ? "ja" : "yes", .yellow)
+                : StyledText(language == .de ? "nein" : "no", .dim),
             highlight: changes.flatMap { highlight(for: $0.tag(deviceKey(device))) },
             nameSort: device.name.lowercased(),
             vendorSort: (device.vendor ?? "").lowercased(),
@@ -293,9 +306,9 @@ public struct ThunderboltRow: Identifiable, Hashable, Sendable {
     public let hostSort: String
 }
 
-public func thunderboltRows(_ snapshot: Snapshot) -> [ThunderboltRow] {
+public func thunderboltRows(_ snapshot: Snapshot, language: AppLanguage = .en) -> [ThunderboltRow] {
     snapshot.thunderbolt.map { port in
-        let state = stateCell(connected: port.connected)
+        let state = stateCell(connected: port.connected, language: language)
         let host = [port.device, port.vendor].compactMap { $0 }.joined(separator: " · ")
         return ThunderboltRow(
             id: thunderboltKey(port),
@@ -325,42 +338,45 @@ public struct PowerRow: Identifiable, Hashable, Sendable {
 }
 
 /// The live charging metrics as one row each (`viewmodel._charging_pairs`).
-public func chargingPairs(_ charging: Charging) -> [(String, String)] {
+public func chargingPairs(_ charging: Charging, language: AppLanguage = .en) -> [(String, String)] {
+    let labels = language == .de
+        ? (status: "Status", adapter: "Adapter", fromAdapter: "Vom Adapter", load: "Systemlast", battery: "Batterie", loss: "Adapterverlust", charger: "Ladegerät")
+        : (status: "Status", adapter: "Adapter", fromAdapter: "From adapter", load: "System load", battery: "Battery", loss: "Adapter loss", charger: "Charger")
     var items: [(String, String?)] = []
-    items.append(("Status", Format.chargingState(charging)))
+    items.append((labels.status, Format.chargingState(charging)))
     items.append((
-        "Adapter",
+        labels.adapter,
         Format.powerLine(
             powerMw: charging.adapterPowerMw, voltageMv: charging.adapterVoltageMv,
             currentMa: charging.adapterCurrentMa, compact: true
         )
     ))
     items.append((
-        "From adapter",
+        labels.fromAdapter,
         Format.powerLine(
             powerMw: charging.systemPowerInMw, voltageMv: charging.systemVoltageInMv,
             currentMa: charging.systemCurrentInMa
         )
     ))
-    items.append(("System load", Format.watts(charging.systemLoadMw)))
+    items.append((labels.load, Format.watts(charging.systemLoadMw)))
     items.append((
-        "Battery",
+        labels.battery,
         Format.powerLine(
             powerMw: charging.batteryPowerMw, voltageMv: charging.batteryVoltageMv,
             currentMa: charging.batteryCurrentMa
         )
     ))
-    items.append(("Adapter loss", Format.watts(charging.adapterEfficiencyLossMw)))
-    items.append(("Charger", Format.chargerFlags(charging)))
+    items.append((labels.loss, Format.watts(charging.adapterEfficiencyLossMw)))
+    items.append((labels.charger, Format.chargerFlags(charging)))
     return items.compactMap { label, value in
         guard let value, !value.isEmpty else { return nil }
         return (label, value)
     }
 }
 
-public func powerRows(_ snapshot: Snapshot) -> [PowerRow] {
+public func powerRows(_ snapshot: Snapshot, language: AppLanguage = .en) -> [PowerRow] {
     guard let charging = snapshot.charging else { return [] }
-    return chargingPairs(charging).map { label, value in
+    return chargingPairs(charging, language: language).map { label, value in
         let live = label == "Status" && charging.charging == true
         return PowerRow(
             id: powerKey(label),
