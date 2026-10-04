@@ -1,9 +1,9 @@
 import Foundation
 import UsbScopeCore
 
-// usbscope — Swift CLI twin of the Python tool. Same data, same JSON schema.
+// usbscope — the CLI. One snapshot, one JSON schema, two front ends (this and the app).
 
-let version = "0.4.0-swift"
+let version = "0.4.0"
 
 struct Options {
     var view = "overview"
@@ -41,6 +41,7 @@ func usage() -> String {
     options:
       -v, --verbose   show additional details
       --json          print the snapshot as JSON (check/baseline: their own document)
+      --watch S       redraw in place every S seconds until Ctrl-C
       --no-color      disable colours
       --expect EXPR   check: an expectation, e.g. device=0x1050:0x0407 (repeatable)
       --events        watch: stream attach/detach events
@@ -521,6 +522,33 @@ func runReport(_ options: Options) -> Never {
 
 // MARK: - main
 
+/// Live mode: redraw on the spot until interrupted.
+///
+/// The escape sequence only makes sense on a terminal — when stdout is a pipe or a
+/// file the frames are written one after the other instead, which is what makes
+/// `usbscope --watch 1 | grep -c usbscope` a usable check. Ctrl-C ends the loop;
+/// nothing is buffered across frames, so the last frame on screen is always a real
+/// reading and never a mix of two.
+func runWatch(_ options: Options, interval: Double) {
+    let live = isatty(fileno(stdout)) == 1
+    let seconds = max(interval, 0.2)
+    var frames = 0
+    while true {
+        let snapshot = SnapshotBuilder.collect()
+        if live {
+            // Clear the screen and park the cursor at the top left, then draw.
+            print("\u{1B}[2J\u{1B}[H", terminator: "")
+        } else if frames > 0 {
+            print("")
+        }
+        frames += 1
+        print("usbscope — live · every \(Format.g(seconds)) s · frame \(frames) · Ctrl-C to stop")
+        render(snapshot, options: options)
+        fflush(stdout)
+        Thread.sleep(forTimeInterval: seconds)
+    }
+}
+
 let options = parse(CommandLine.arguments)
 useColor = !options.noColor && isatty(fileno(stdout)) == 1
 switch options.view {
@@ -529,6 +557,10 @@ case "watch": runWatchEvents(options)
 case "baseline": runBaseline(options)
 case "report": runReport(options)
 default:
+    if let interval = options.watch, !options.json {
+        // JSON in a live loop makes no sense: a pipe wants one parseable document.
+        runWatch(options, interval: interval)
+    }
     let snapshot = SnapshotBuilder.collect()
     render(snapshot, options: options)
 }

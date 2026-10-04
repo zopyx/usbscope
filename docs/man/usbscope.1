@@ -1,7 +1,7 @@
 .\" usbscope(1) — manual page for the usbscope CLI
-.\" Kept in sync by hand with `usbscope --help` (src/usbscope/cli.py and
-.\" Sources/usbscope/main.swift); update both when the interface changes.
-.TH USBSCOPE 1 "2026-10-03" "usbscope 0.4.0" "usbscope manual"
+.\" Kept in sync by hand with `usbscope --help` (Sources/usbscope/main.swift);
+.\" update it when the interface changes.
+.TH USBSCOPE 1 "2026-10-04" "usbscope 0.4.0" "usbscope manual"
 .SH NAME
 usbscope \- inspect USB buses, USB-C ports, cables and negotiated link modes on macOS
 .SH SYNOPSIS
@@ -9,27 +9,46 @@ usbscope \- inspect USB buses, USB-C ports, cables and negotiated link modes on 
 .RI [ view ]
 .RB [ \-v | \-\-verbose ]
 .RB [ \-\-json ]
+.RB [ \-\-no\-color ]
 .RB [ \-\-watch
 .IR seconds ]
-.RB [ \-\-no\-color ]
 .RB [ \-\-version ]
+.PP
+.B usbscope check
+.RB [ \-\-expect
+.IR expr ]
+.RI [ \-\-json ]
+.PP
+.B usbscope watch \-\-events
+.RB [ \-\-interval
+.IR seconds ]
+.PP
+.B usbscope baseline
+.RI save | check
+.IR file
+.PP
+.B usbscope report
+.RB [ \-\-format
+.IR md | html ]
+.RB [ \-\-out
+.IR file ]
 .SH DESCRIPTION
 .B usbscope
 renders what macOS already knows about the machine's USB subsystem: the
 receptacles of the hardware port manager, the negotiated USB modes, the attached
-devices and the cable/port-controller facts the system publishes. It reads two
-system tools
-.RB ( system_profiler (8)
-and
-.BR ioreg (8))
+devices and the cable/port-controller facts the system publishes. The
+.B IOPort
+registry plane is read in\-process through IOKit by default, with
+.BR ioreg (8)
+kept as a fallback; the other sources are
+.BR system_profiler (8)
 and the
 .B AppleSmartBattery
-registry node, and it never needs sudo, private frameworks or entitlements.
+registry node. It never needs sudo, private frameworks or entitlements.
 .PP
-The command is available as a Python tool (this document) and as a Swift twin
-with the same views and the same
-.B \-\-json
-schema; both read the same sources and must produce the same document.
+The command is a single Swift program
+.RB ( Sources/usbscope/main.swift );
+there is no second implementation.
 .SH VIEWS
 .TP
 .B overview
@@ -48,12 +67,62 @@ status, SOP specification revision and LDCM liquid status.
 .B thunderbolt
 Thunderbolt / USB4 receptacles with state and link speed.
 .TP
+.B security
+security findings per device/port (severity plus a short reason) and the USB
+mass\-storage inventory.
+.TP
 .B json
 machine\-readable snapshot; identical to
 .BR \-\-json .
+.SH COMMANDS
+Four commands turn the inspector into something a script can use.
+.TP
+.B check \-\-expect
+assert facts about the current machine and set the exit code:
+.B 0
+when every expectation holds,
+.B 3
+when one fails,
+.B 2
+on a malformed expectation. Repeat
+.B \-\-expect
+for several assertions; the forms are
+.IR device=vid:pid|name ,
+.IR port=name ,
+.IR connected>=N ,
+.IR devices>=N
+and
+.IR warning=0 .
+.TP
+.B watch \-\-events
+print one flushed JSON line per attach/detach
+.RI ( kind ,
+.IR timestamp ,
+name, VID/PID, serial, location id, port) so it can be piped. It is driven by
+IOKit notifications and falls back to a polling differ;
+.B \-\-interval
+sets that poll interval (default 2 seconds).
+.TP
+.B baseline save \fIfile\fR | baseline check \fIfile\fR
+store a snapshot as the known\-good baseline or compare the live machine against
+it: appeared, disappeared and changed ports; exit
+.B 0
+when identical,
+.B 3
+when different and
+.B 2
+when the baseline cannot be read.
+.TP
+.B report
+print a human\-readable report (machine, ports, devices with class/tier, cables,
+power contract, security findings, warnings). Markdown by default; a
+self\-contained styled HTML page with
+.BR \-\-format\ html ;
+.B \-\-out
+writes it to a file instead of stdout.
 .SH OPTIONS
 .TP
-.BR \-v ", " \-\-verbose
+.BR \-v \", \" \-\-verbose
 show additional details: raw controller enumerations, plug orientation, pin
 assignment, power contract, per\-transport rate and signaling, TRM state, and the
 system\-wide charging panel in the
@@ -66,15 +135,15 @@ print the snapshot as JSON and exit. Combined with
 it prints one snapshot instead, because JSON in a live loop makes no sense.
 .TP
 .BI \-\-watch " seconds"
-refresh continuously every
-.I seconds
-on the terminal's alternate screen (Ctrl\-C quits and restores the screen). The
-sleep is shortened by the collection time so the cadence stays even.
+accepted for periodic refresh; the current CLI redraws the selected view in place
+until interrupted with Ctrl-C, appending frames instead of clearing the screen
+when stdout is a pipe or a file. With the JSON option it prints a single snapshot
+instead, because a stream cannot be read as one JSON document.
 .TP
 .B \-\-no\-color
 disable colours (also honoured when stdout is not a terminal).
 .TP
-.BR \-h ", " \-\-help
+.BR \-h \", \" \-\-help
 print usage and exit.
 .TP
 .B \-\-version
@@ -82,16 +151,24 @@ print the version and exit.
 .SH EXIT STATUS
 .TP
 .B 0
-success, or an interrupted
-.B \-\-watch
-session.
+success, or
+.B check
+/
+.B baseline
+found no difference.
 .TP
 .B 1
-unexpected failure (a missing data source is a warning, not a failure).
+unexpected failure (a report that cannot be written, a baseline that cannot be
+saved; a missing data source is a warning, not a failure).
 .TP
-.B 130
-terminated by
-.BR Ctrl\-C .
+.B 2
+usage or parse error, a malformed expectation, or a baseline that cannot be read.
+.TP
+.B 3
+.B check
+or
+.B baseline
+found a mismatch.
 .SH EXAMPLES
 .TP
 .B usbscope
@@ -103,9 +180,21 @@ the port table with the raw per\-transport detail.
 .B usbscope cables
 cable, e\-marker and CC authentication information.
 .TP
-.B usbscope \-\-json | jq .summary
-the machine summary as JSON, piped to
+.B usbscope check \-\-expect 'connected>=1'
+assert at least one connected receptacle; exits 0 or 3.
+.TP
+.B usbscope baseline save ~/known\-good.json
+store the current machine as a baseline.
+.TP
+.B usbscope report \-\-format html \-\-out report.html
+a self\-contained HTML report on disk.
+.TP
+.B usbscope watch \-\-events | jq \-c .
+one JSON event per attach/detach, piped to
 .BR jq (1).
+.TP
+.B usbscope \-\-json | jq .summary
+the machine summary as JSON.
 .TP
 .B usbscope devices \-\-watch 2
 the device tree, refreshed every two seconds.
@@ -114,6 +203,9 @@ the device tree, refreshed every two seconds.
 .B system_profiler SPUSBHostDataType \-json
 bus tree, devices, link speed, VID/PID and serial.
 .TP
+.B system_profiler SPUSBDataType \-json
+fallback for machines that only expose the legacy device list.
+.TP
 .B system_profiler SPThunderboltDataType \-json
 Thunderbolt / USB4 receptacles.
 .TP
@@ -121,7 +213,8 @@ Thunderbolt / USB4 receptacles.
 adapter watt, charger state, state of charge.
 .TP
 .B ioreg \-a \-l \-w0 \-p IOPort
-port controller: ports, transports, cable/CC/SOP data, power contract, LDCM, TRM.
+port controller: ports, transports, cable/CC/SOP data, power contract, LDCM, TRM
+(read in\-process through IOKit by default).
 .TP
 .B ioreg \-a \-l \-w0 \-p IOUSB
 USB device tree: descriptors, enumeration speed code, hub tier.
@@ -149,10 +242,12 @@ the signing, notarisation and App Store status in
 and
 .IR docs/app-store.md .
 .SH NOTES
-The prebuilt artifacts are signed
+The app bundle built by
+.I scripts/build-swift-app.sh
+is signed
 .B ad hoc
 .RB ( "codesign \-s \-" ),
 not with a Developer ID and not notarised, so a download is still stopped by
 Gatekeeper until it is opened once from the Finder or the quarantine flag is
-removed. See
+removed. No prebuilt binary is published yet. See
 .IR docs/distribution.md .
