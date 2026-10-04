@@ -8,7 +8,7 @@ APP="${1:-$ROOT/dist/usbscope-swift.app}"
 EXE="$APP/Contents/MacOS/usbscope-app"
 [ -x "$EXE" ] || { echo "app executable not found: $EXE" >&2; exit 1; }
 
-"$EXE" --version
+timeout 120 "$EXE" --version
 if rows="$(timeout 120 "$EXE" --print-rows 2>/dev/null)" && [ -n "$rows" ]; then
     echo "--print-rows: $(printf '%s\n' "$rows" | wc -l | tr -d ' ') lines"
 elif [ -n "${CI:-}" ]; then
