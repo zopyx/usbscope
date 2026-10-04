@@ -565,7 +565,7 @@ final class AppState: ObservableObject {
     }
 
     var summaryLine: String {
-        if let snapshot { return Presentation.summaryText(snapshot) }
+        if let snapshot { return Presentation.summaryText(snapshot, language: language) }
         return isLoading ? loadingLine : L(.loading, language)
     }
 
@@ -573,12 +573,12 @@ final class AppState: ObservableObject {
         guard let snapshot else { return L(.loading, language) }
         return Presentation.statusText(
             snapshot, interval: autoRefresh ? interval : nil, reads: reads,
-            changes: changes, filterQuery: search
+            changes: changes, filterQuery: search, language: language
         )
     }
 
     var title: String {
-        snapshot.map(Presentation.headerText) ?? "usbscope"
+        snapshot.map { Presentation.headerText($0, language: language) } ?? "usbscope"
     }
 
     /// The compact menu bar title: `connected/ports`, plus a warning symbol.
@@ -602,7 +602,7 @@ final class AppState: ObservableObject {
     /// Detail pairs for the row whose sheet is open.
     var detailPairs: [(String, String)] {
         guard let snapshot, let key = detailRowKey else { return [] }
-        return Presentation.details(snapshot, view: view, rowKey: key)
+        return Presentation.details(snapshot, view: view, rowKey: key, language: language)
     }
 
     // MARK: - Security, timeline, USB4 fabric & diff

@@ -7,7 +7,7 @@ public enum Presentation {
     // MARK: - Header & status
 
     /// Window title: model, chip and macOS version.
-    public static func headerText(_ snapshot: Snapshot) -> String {
+    public static func headerText(_ snapshot: Snapshot, language: AppLanguage = .en) -> String {
         var parts = [snapshot.model, snapshot.chip].compactMap { $0 }
         if !snapshot.osVersion.isEmpty { parts.append("macOS \(snapshot.osVersion)") }
         let tail = parts.isEmpty ? snapshot.host : parts.joined(separator: " · ")
@@ -15,8 +15,13 @@ public enum Presentation {
     }
 
     /// One line of headline facts below the toolbar.
-    public static func summaryText(_ snapshot: Snapshot) -> String {
-        "\(snapshot.ports.count) ports · \(snapshot.connectedPorts.count) connected · "
+    public static func summaryText(_ snapshot: Snapshot, language: AppLanguage = .en) -> String {
+        if language == .de {
+            return "\(snapshot.ports.count) Anschlüsse · \(snapshot.connectedPorts.count) verbunden · "
+                + "\(snapshot.devices.count) Gerät(e) · \(snapshot.emarkedCables.count) e-markierte Kabel · "
+                + "\(snapshot.thunderbolt.count) USB4-Anschlüsse"
+        }
+        return "\(snapshot.ports.count) ports · \(snapshot.connectedPorts.count) connected · "
             + "\(snapshot.devices.count) device(s) · \(snapshot.emarkedCables.count) e-marked cable(s) · "
             + "\(snapshot.thunderbolt.count) USB4 receptacle(s)"
     }
@@ -27,9 +32,23 @@ public enum Presentation {
         interval: Double?,
         reads: Int,
         changes: ChangeSet?,
-        filterQuery: String = ""
+        filterQuery: String = "",
+        language: AppLanguage = .en
     ) -> String {
-        var parts = ["Read at \(timeFormatter.string(from: snapshot.seenAt)) (read #\(reads))"]
+        let time = timeFormatter.string(from: snapshot.seenAt)
+        if language == .de {
+            var parts = ["Gelesen um \(time) (Lesevorgang Nr. \(reads))"]
+            parts.append(interval.map { "automatisch \(Format.g($0)) s" } ?? "automatisch aus")
+            parts.append("system_profiler + ioreg (IOPort, AppleSmartBattery)")
+            if let changes, !changes.isEmpty { parts.append("geändert: \(changes.summary)") }
+            if !filterQuery.isEmpty { parts.append("Filter: '\(filterQuery)'") }
+            if !snapshot.warnings.isEmpty {
+                parts.append("\(snapshot.warnings.count) Warnung(en): \(snapshot.warnings[0])")
+            }
+            return parts.joined(separator: "  ·  ")
+        }
+
+        var parts = ["Read at \(time) (read #\(reads))"]
         parts.append(interval.map { "auto-refresh \(Format.g($0))s" } ?? "auto-refresh off")
         parts.append("system_profiler + ioreg (IOPort, AppleSmartBattery)")
         if let changes, !changes.isEmpty { parts.append("changed: \(changes.summary)") }
@@ -258,7 +277,8 @@ public enum Presentation {
     }
 
     /// Detail pairs for the object a table row stands for (keyed by the row id).
-    public static func details(_ snapshot: Snapshot, view: AppView, rowKey: String) -> [(String, String)] {
+    public static func details(_ snapshot: Snapshot, view: AppView, rowKey: String,
+                               language: AppLanguage = .en) -> [(String, String)] {
         switch view {
         case .cables:
             let name = String(rowKey.dropFirst("port:".count))
@@ -267,7 +287,7 @@ public enum Presentation {
         case .power:
             let label = String(rowKey.dropFirst("power:".count))
             guard let charging = snapshot.charging else { return [] }
-            return chargingPairs(charging).filter { $0.0 == label }.map { ($0.0, $0.1) }
+            return chargingPairs(charging, language: language).filter { $0.0 == label }.map { ($0.0, $0.1) }
         default:
             if rowKey.hasPrefix("device:") {
                 return snapshot.devices.first { deviceKey($0) == rowKey }.map(deviceDetails) ?? []

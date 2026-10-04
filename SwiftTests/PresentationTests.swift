@@ -179,6 +179,17 @@ final class PresentationTests: XCTestCase {
         XCTAssertTrue(Presentation.statusText(snapshot, interval: nil, reads: 2, changes: nil).contains("auto-refresh off"))
     }
 
+    func testStatusChromeCanBeLocalizedWithoutChangingDefaultText() {
+        let snapshot = snapshot()
+        XCTAssertEqual(
+            Presentation.summaryText(snapshot, language: .de),
+            "6 Anschlüsse · 2 verbunden · 1 Gerät(e) · 0 e-markierte Kabel · 3 USB4-Anschlüsse"
+        )
+        XCTAssertTrue(Presentation.statusText(snapshot, interval: 5, reads: 1, changes: nil, language: .de)
+            .contains("automatisch 5 s"))
+        XCTAssertTrue(Presentation.headerText(snapshot, language: .de).hasPrefix("usbscope —"))
+    }
+
     // MARK: - Text exports
 
     func testTSVAndCSV() {
