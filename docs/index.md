@@ -47,6 +47,26 @@ optional port-controller details (USB mode, USB-C pin assignment, power contract
 LDCM state). The summary panel then also carries the live `Charging`/`Power` rows
 and `usbscope cables -v` adds the charging panel.
 
+## Beyond the views: `check`, `watch --events`, `baseline`, `report`
+
+Four commands that turn the inspector into something a script or a test rig can
+use. They exist in **both** implementations with the same semantics and the same
+exit codes.
+
+| Command | What it does |
+| --- | --- |
+| `usbscope check --expect …` | asserts facts about the current machine and sets the exit code — `0` every expectation holds, `3` one fails, `2` a malformed expectation. Forms: `device=<vid:pid\|name>`, `port=<name>`, `connected>=N`, `devices>=N`, `warning=0` |
+| `usbscope watch --events [--interval S]` | one flushed JSON line per attach/detach (`kind`, `timestamp`, name, VID/PID, serial, location id, port) so it can be piped. The Swift CLI is driven by IOKit notifications, the Python CLI polls (no IOKit without PyObjC) |
+| `usbscope baseline save <file>` / `check <file>` | store a snapshot as *known good* and compare the live machine against it: appeared / disappeared / changed ports, exit `0` identical, `3` different, `2` unreadable. The files are interchangeable between the two implementations |
+| `usbscope report [--format md\|html] [--out file]` | a human readable report (machine, ports, devices with class/tier, cables, power contract, security findings, warnings). Markdown by default, a self-contained styled HTML page with `--format html` — byte-identical from either implementation |
+
+```console
+uv run usbscope check --expect 'connected>=1' --expect 'device=0x1050:0x0407'
+uv run usbscope baseline save ~/known-good.json && uv run usbscope baseline check ~/known-good.json
+uv run usbscope report --format html --out usbscope-report.html
+./.build/debug/usbscope watch --events | jq -c .
+```
+
 ## Columns of the port table
 
 | Column | Meaning |
@@ -589,19 +609,33 @@ make swift-app-check                # headless: row count of every view, then ex
 
 | Feature | Behaviour |
 | --- | --- |
-| Views | Segmented switcher in the toolbar plus `⌘1`–`⌘5` |
+| Tabs | Nine views in the toolbar segmented switcher and via `⌘1`–`⌘9`: **Ports · Cables · Devices · Thunderbolt · Power · Timeline · Security · USB4 · Diff** |
 | Search | Toolbar field, live filter over every column (all terms must match) |
+| Presets | Quick filters next to the search field: all / HID only / storage only / connected only |
 | Sorting | Click a column header; the sort keys mirror the Python `Cell.sort_value` (a mode rank, a port number) so `USB 1.1` sorts below `USB 3.2 Gen 2` |
+| Grouping | Toolbar "Group by" for bus / class / speed |
+| Columns | A per-view column chooser; the layout is remembered per view |
 | Detail sheet | **Details** button / `⌘D` shows every field of the selected row (port, cable, device or charging metric) |
 | Refresh | `⌘R`, plus an auto-refresh toggle and a 2/5/10/30 s interval menu |
+| Timeline tab | Sparkline of the live charging watts over time plus the hotplug log (attach/detach with timestamps), newest first |
+| Security tab | The `security` findings with a severity badge, the rule, the subject and the reason, the storage inventory, and the same honest-limits wording the CLI prints |
+| USB4 tab | Routers → ports → tunnels from the USB4 switch, with the raw link speed/width enumerations shown verbatim |
+| Diff tab | "Compare with…" loads a snapshot JSON (e.g. one written by `usbscope baseline save`) and shows appeared / disappeared / changed against the live machine |
+| Storage | Mount point, read-only flag and an **Eject** button per USB storage device (disabled with a reason when it is not possible) |
 | Changes | Rows that appeared, disappeared or changed colour green/red/orange after a refresh; the status line names them |
 | Copy / export | `⌘C`/`⇧⌘C` (TSV), `⇧⌘J` (snapshot JSON) to the clipboard; `⌘S`/`⇧⌘S` write JSON/CSV through a save panel |
+| Menu bar extra | `connected/ports` (plus `⚠` when a source warns), view switching, "Refresh now", a notifications switch and quit |
+| Notifications | One banner per device that appeared or disappeared — only from a bundled run (macOS refuses the request from a plain process) |
+| Preferences | `⌘,`: default view, interval, auto-refresh, notifications, appearance, language (DE/EN), grouping — persisted in the `com.zopyx.usbscope` defaults domain |
 | Status | Summary line (ports/connected/devices/cables) and a status bar with the read time, cadence, changes and warnings |
+| Screenshots | `usbscope-app --snapshot out.png [--view security]` renders the window offscreen and exits — no screen-recording permission needed |
 
-**Not ported (yet):** the menu bar extra, the notification banners, the persisted
-preferences and the per-row tooltips of the Python app. The window itself needs
-no such state to run; `usbscope-app --print-rows` is the headless check the
-Python app has as `--snapshot`.
+`usbscope-app --print-rows` is the headless check of the data path (row count per
+view), `--show-about` opens the About window straight away.
+
+**Not ported:** the Python app's per-row tooltips and its DMG packaging. The
+About window, the preferences, the menu bar extra and the notification banners
+now exist on the Swift side too.
 
 The SwiftUI app also needs an app bundle before macOS will show it as a regular
 app with a Dock entry and a proper menu bar; run from the checkout it calls
