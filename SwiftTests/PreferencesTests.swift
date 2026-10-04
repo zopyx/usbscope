@@ -125,6 +125,15 @@ final class NotificationTextTests: XCTestCase {
         XCTAssertEqual(DeviceChangeText.describe(ChangeSet()), "No device changes.")
     }
 
+    func testDescribeCanBeLocalizedForTheApp() {
+        var changes = ChangeSet()
+        changes.added = [device("Tastatur", vendor: "Beispiel")]
+        XCTAssertEqual(
+            DeviceChangeText.describe(changes, language: .de),
+            "1 Gerät verbunden: Tastatur (Beispiel)."
+        )
+    }
+
     func testLabelFallsBackToUnknownDevice() {
         XCTAssertEqual(DeviceChangeText.label(UsbDevice(name: "")), "Unknown device")
     }

@@ -43,11 +43,11 @@ final class DeviceNotifier {
                 language: AppLanguage = .en) {
         guard supported, enabled, detail != .disabled, authorized else { return }
         for device in changes.added {
-            let body = detail == .full ? DeviceChangeText.describe(single(device, added: true)) : L(.notificationConnected, language)
+            let body = detail == .full ? DeviceChangeText.describe(single(device, added: true), language: language) : L(.notificationConnected, language)
             post(body, subtitle: L(.notificationConnectedTitle, language))
         }
         for device in changes.removed {
-            let body = detail == .full ? DeviceChangeText.describe(single(device, added: false)) : L(.notificationDisconnected, language)
+            let body = detail == .full ? DeviceChangeText.describe(single(device, added: false), language: language) : L(.notificationDisconnected, language)
             post(body, subtitle: L(.notificationDisconnectedTitle, language))
         }
     }
