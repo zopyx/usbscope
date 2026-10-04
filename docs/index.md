@@ -162,7 +162,8 @@ system load, battery).
 | Screenshots | `usbscope-app --snapshot out.png [--view security]` renders the window offscreen and exits — no screen-recording permission needed; Timeline also exposes its measured values as an accessible text table |
 
 `usbscope-app --print-rows` is the headless check of the data path (row count per
-view), `--show-about` opens the About window straight away.
+view), `--smoke` checks the bundled export, diagnostics, and watcher lifecycle,
+and `--show-about` opens the About window straight away.
 
 Run from the checkout the app calls `NSApplication.setActivationPolicy(.regular)`
 to bring the window to the front; a real bundle gives it a Dock entry and a proper
@@ -508,8 +509,10 @@ bundle:
    `plutil -lint`.
 3. **Sign**: `codesign --force --deep --sign - --identifier com.zopyx.usbscope`
    (ad hoc), followed by `codesign --verify`. The verification is not optional.
-4. **Self test**: the *bundled* app is executed — `--version` must print, and
-   `--print-rows` exercises the data path when a window server is available.
+4. **Self test**: the *bundled* app is executed — `--version` must print,
+   `--smoke` exercises first-read, atomic exports, diagnostics, and watcher
+   lifecycle, and `--print-rows` exercises the data path when a window server
+   is available.
 
 The script prints every command it runs. Options: `--configuration release|debug`,
 `--debug`, `--name NAME`, `--no-icon`, `--no-sign`, `--no-verify`, `--no-archive`,
