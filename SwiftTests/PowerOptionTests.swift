@@ -4,7 +4,7 @@ import XCTest
 @testable import UsbScopeUI
 
 /// Power-delivery depth: PDO types, option identity and the PD menu summary —
-/// the twin of `tests/test_power_options.py`.
+/// the PDO kinds and identity the controller reports.
 final class PowerOptionTests: XCTestCase {
     func testPdoClassesAreDecoded() {
         XCTAssertEqual(IOReg.powerOptionKind("IOPortFeaturePowerSourceOptionFixed"), "fixed")

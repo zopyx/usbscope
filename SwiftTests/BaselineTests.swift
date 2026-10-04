@@ -3,7 +3,7 @@ import XCTest
 
 @testable import UsbScopeCore
 
-/// `usbscope baseline` — the twin of `tests/test_baseline.py`.
+/// `usbscope baseline` — the save/compare rules.
 final class BaselineTests: XCTestCase {
     private let when = Date(timeIntervalSince1970: 1_790_000_000)
 

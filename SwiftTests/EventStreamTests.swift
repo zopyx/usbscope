@@ -3,7 +3,7 @@ import XCTest
 
 @testable import UsbScopeCore
 
-/// `usbscope watch --events` — the twin of `tests/test_events.py`.
+/// `usbscope watch --events` — the event differ and its JSON lines.
 final class EventStreamTests: XCTestCase {
     private let when = Date(timeIntervalSince1970: 1_790_000_000)
     private let later = Date(timeIntervalSince1970: 1_790_000_002)

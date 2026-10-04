@@ -3,7 +3,7 @@ import XCTest
 @testable import UsbScopeCore
 
 /// The shape of the port/charging payload at the JSON level, mirroring the
-/// assertions of the Python suite (`tests/test_serialize.py`). These pin the
+/// assertions carried over from the original tool. These pin the
 /// numbers the two implementations must agree on — including the integers `0`
 /// and `1` that a naive `is Bool` test would drop.
 final class PortPayloadTests: XCTestCase {

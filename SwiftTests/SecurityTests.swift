@@ -2,9 +2,9 @@ import Foundation
 import XCTest
 
 @testable import UsbScopeCore
+import UsbScopeUI
 
-/// The security posture analyser and the storage inventory — the twin of
-/// `tests/test_security.py` and `tests/test_storage.py`.
+/// The security posture analyser and the storage inventory.
 final class SecurityTests: XCTestCase {
     private let when = Date(timeIntervalSince1970: 1_790_000_000)
 
@@ -320,5 +320,17 @@ final class SecurityTests: XCTestCase {
         let (devices, warnings) = source.inventory()
         XCTAssertTrue(devices.isEmpty)
         XCTAssertTrue(warnings.isEmpty)
+    }
+
+    /// `readOnly` is optional: a controller that did not say must read as `–`, and
+    /// the switch has to stay exhaustive on every toolchain — Swift 6.1.2 (Xcode
+    /// 16.4) rejects `case true` / `case false` over an `Optional<Bool>`.
+    func testStorageModeTextCoversTheUnknownCase() {
+        let device = { (readOnly: Bool?) in
+            StorageDevice(identifier: "disk9", readOnly: readOnly)
+        }
+        XCTAssertEqual(SecurityPresentation.modeText(device(true)), "read-only")
+        XCTAssertEqual(SecurityPresentation.modeText(device(false)), "read/write")
+        XCTAssertEqual(SecurityPresentation.modeText(device(nil)), "–")
     }
 }

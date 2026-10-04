@@ -83,12 +83,17 @@ public enum SecurityPresentation {
         }
     }
 
-    /// Read-only state as the CLI words it.
+    /// Read-only state as the CLI words it (`–` when the controller did not say).
+    ///
+    /// Matched as `.some(true)` / `.some(false)` / `.none` rather than `true` /
+    /// `false` / `nil`: over an `Optional<Bool>` an older toolchain (Swift 6.1.2,
+    /// Xcode 16.4) does not treat the bare `true`/`false` patterns as covering the
+    /// optional, and rejects the switch as non-exhaustive.
     public static func modeText(_ device: StorageDevice) -> String {
         switch device.readOnly {
-        case true: "read-only"
-        case false: "read/write"
-        case nil: "–"
+        case .some(true): "read-only"
+        case .some(false): "read/write"
+        case .none: "–"
         }
     }
 

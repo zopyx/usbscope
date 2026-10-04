@@ -2,8 +2,8 @@ import Foundation
 import XCTest
 @testable import UsbScopeCore
 
-/// Unit tests of the pure core, mirroring `tests/test_format.py` and the mode
-/// classification of `tests/test_models.py`.
+/// Unit tests of the pure core: the unit formatting and the link-mode
+/// classification.
 final class CoreTests: XCTestCase {
     // MARK: - PlistValue (regression: the NSNumber→Bool bridge)
 
@@ -71,7 +71,7 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(UsbMode.unknown.rank, 0)
     }
 
-    // MARK: - Format (rules carried over from the Python tool's test_format.py)
+    // MARK: - Format
 
     func testUnitsAreRenderedFromTheRawValues() {
         XCTAssertNil(Format.watts(nil))

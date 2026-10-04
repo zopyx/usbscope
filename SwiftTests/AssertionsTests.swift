@@ -3,7 +3,7 @@ import XCTest
 
 @testable import UsbScopeCore
 
-/// `usbscope check` — the twin of `tests/test_assertions.py`.
+/// `usbscope check` — the assertion engine and its exit codes.
 final class AssertionsTests: XCTestCase {
     private let when = Date(timeIntervalSince1970: 1_790_000_000)
 

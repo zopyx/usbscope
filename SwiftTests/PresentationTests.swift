@@ -8,9 +8,9 @@ import XCTest
 final class PresentationTests: XCTestCase {
     private func snapshot() -> Snapshot { Fixtures.snapshot() }
 
-    // MARK: - Columns (must match the Python column titles)
+    // MARK: - Columns (must match the column titles the CLI prints)
 
-    func testColumnTitlesMatchThePythonTables() {
+    func testColumnTitlesMatchTheCLITables() {
         XCTAssertEqual(Presentation.headers(for: .ports), ["Port", "Type", "State", "Mode", "Transports", "Cable", "Notes"])
         XCTAssertEqual(
             Presentation.headers(for: .cables),

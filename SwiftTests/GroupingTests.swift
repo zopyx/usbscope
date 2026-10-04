@@ -4,7 +4,7 @@ import XCTest
 @testable import UsbScopeUI
 
 /// The grouping helpers: pure functions, so they are verified without a window
-/// server. The fixtures are the same ones the Python suite uses.
+/// server. The fixtures are the shared captures in `Fixtures`.
 final class GroupingTests: XCTestCase {
     private func snapshot() -> Snapshot { Fixtures.snapshot() }
 
