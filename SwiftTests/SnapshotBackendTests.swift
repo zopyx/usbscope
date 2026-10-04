@@ -82,28 +82,44 @@ final class SnapshotBackendTests: XCTestCase {
         )
     }
 
-    /// The order the reader gives the set derived `PowerSourceOptions` must be a
-    /// property of the *values*, not of the process' random hash seed — otherwise two
-    /// reads of an unchanged machine differ and `baseline check` reports changes that
-    /// never happened. This pins the canonical order.
-    func testSetDerivedOptionsAreInCanonicalOrder() throws {
-        let dict = Serialize.dict(liveSnapshot(.inProcess))
-        let ports = try XCTUnwrap(dict["ports"] as? [[String: Any]])
-        var checked = 0
-        for port in ports {
-            for source in port["power_sources"] as? [[String: Any]] ?? [] {
-                guard let options = source["options"] as? [[String: Any]], options.count > 1 else {
-                    continue
-                }
-                XCTAssertEqual(
-                    options.map(key), options.map(key).sorted(),
-                    "the option array is not in canonical order (process dependent sort?)"
-                )
-                checked += 1
-            }
+    /// The canonical order must be a property of the *values*, not of the input order
+    /// or the process' hash seed — otherwise two reads of an unchanged machine differ
+    /// and `baseline check` reports changes that never happened. Tested on the ordering
+    /// function itself, so it needs no registry: a machine may hand the list over as a
+    /// plain array, which has a real order and is left alone.
+    func testCanonicalOrderIsIndependentOfInputOrder() {
+        let members: [Any] = [
+            ["watts": 45, "voltage_mv": 15000],
+            ["watts": 27, "voltage_mv": 9000],
+            ["watts": 60, "voltage_mv": 20000],
+        ]
+        let canonical = IORegistryReader.canonicalOrder(members).map { key($0) }
+        for permutation in [members, members.reversed(), [members[1], members[2], members[0]]] {
+            XCTAssertEqual(
+                IORegistryReader.canonicalOrder(permutation).map { key($0) }, canonical,
+                "the order depends on the input order"
+            )
         }
-        if checked == 0 {
-            throw XCTSkip("no port with a multi-option power source on this machine")
+    }
+
+    /// Two consecutive reads of the same machine must produce the same option order.
+    /// That is the property `baseline save` / `baseline check` relies on; the order
+    /// itself is the controller's, so nothing about it is asserted.
+    func testConsecutiveLiveReadsAgreeOnTheOptionOrder() throws {
+        let first = try optionOrders(liveSnapshot(.inProcess))
+        if first.isEmpty { throw XCTSkip("no power source options on this machine") }
+        let second = try optionOrders(liveSnapshot(.inProcess))
+        XCTAssertEqual(first, second, "two reads of the same machine disagreed")
+    }
+
+    /// The option order per power source, as a comparable description.
+    private func optionOrders(_ snapshot: Snapshot) throws -> [String] {
+        let dict = Serialize.dict(snapshot)
+        let ports = try XCTUnwrap(dict["ports"] as? [[String: Any]])
+        return ports.flatMap { port in
+            (port["power_sources"] as? [[String: Any]] ?? []).map { source in
+                (source["options"] as? [[String: Any]] ?? []).map { key($0) }.joined(separator: "|")
+            }
         }
     }
 

@@ -215,7 +215,16 @@ public enum IORegistryReader {
             guard let pointer else { return nil }
             return sanitize(Unmanaged<CFTypeRef>.fromOpaque(pointer).takeUnretainedValue())
         }
-        return members.sorted { canonicalKey($0) < canonicalKey($1) }
+        return canonicalOrder(members)
+    }
+
+    /// The canonical order of already-sanitized set members.
+    ///
+    /// Split out from `sanitizeSet` so the guarantee is testable without a registry:
+    /// the same members in *any* input order must produce the same sequence, which is
+    /// what keeps two processes from disagreeing.
+    static func canonicalOrder(_ members: [Any]) -> [Any] {
+        members.sorted { canonicalKey($0) < canonicalKey($1) }
     }
 
     /// A key that orders two set members the same way in *every* process.
