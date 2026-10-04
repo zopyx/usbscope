@@ -72,6 +72,7 @@ $ make                            # list the tasks (self documenting)
 $ make doctor                     # swift, codesign, plutil, hdiutil, icon?
 $ make check                      # the gates: swift build + swift test
 $ make swift-app-bundle           # dist/usbscope-swift.app (release, ad-hoc signed, verified)
+$ make swift-app-dmg              # → dist/usbscope-swift-<version>-macos-<arch>.dmg (hdiutil, unsigned)
 ```
 
 CI (`.github/workflows/ci.yml`) runs `swift build` + `swift test` on every push
