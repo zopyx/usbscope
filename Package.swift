@@ -10,7 +10,7 @@ import PackageDescription
 //   UsbScopeUI     the presentation layer (table rows, details, diffing) — no
 //                  SwiftUI, so it is unit-testable without a window server
 //   usbscope       the CLI
-//   usbscope-app   the SwiftUI app (nine views)
+//   usbscope-app   the SwiftUI app (ten views, including data-quality warnings)
 let package = Package(
     name: "usbscope",
     platforms: [.macOS("14.4")],
