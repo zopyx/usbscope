@@ -106,7 +106,10 @@ struct UsbScopeApp: App {
 /// `usbscope-app --print-rows` collects one snapshot, prints the row count of
 /// every view and exits — the headless self test of the app's data path (the
 /// Python app has `--snapshot` for the same reason).
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("usbscope.main-window")
+
     weak var state: AppState?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -135,11 +138,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        installWindowObservers()
         DispatchQueue.main.async {
             guard let window = NSApp.windows.first(where: { $0.canBecomeMain }) else { return }
+            window.identifier = Self.mainWindowIdentifier
             window.setFrameAutosaveName("usbscope-main-window")
             window.minSize = NSSize(width: 900, height: 460)
         }
+    }
+
+    private func installWindowObservers() {
+        let center = NotificationCenter.default
+        center.addObserver(
+            self,
+            selector: #selector(mainWindowWillClose(_:)),
+            name: NSWindow.willCloseNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(mainWindowDidBecomeMain(_:)),
+            name: NSWindow.didBecomeMainNotification,
+            object: nil
+        )
+    }
+
+    @objc private func mainWindowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window.identifier == Self.mainWindowIdentifier else { return }
+        state?.setMainWindowVisible(false)
+    }
+
+    @objc private func mainWindowDidBecomeMain(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window.identifier == Self.mainWindowIdentifier else { return }
+        state?.setMainWindowVisible(true)
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

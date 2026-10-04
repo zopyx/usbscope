@@ -115,6 +115,10 @@ final class AppState: ObservableObject {
     @Published private(set) var dataFreshness: DataFreshness = .unavailable
     @Published private(set) var lastReadDuration: TimeInterval?
     @Published private(set) var sourceTimings: [String: TimeInterval] = [:]
+    /// Whether the main window is currently on screen. Menu-bar-only mode keeps
+    /// event-driven monitoring alive but avoids the periodic and timeline work
+    /// that is only useful while the dashboard is visible.
+    @Published private(set) var mainWindowVisible = true
 
     private var previous: Snapshot?
     private var timer: Timer?
@@ -208,6 +212,21 @@ final class AppState: ObservableObject {
     func stopMonitoring() {
         watcher?.stop()
         watcher = nil
+    }
+
+    /// Switch between dashboard and menu-bar-only resource policies.
+    ///
+    /// The watcher remains active in both modes so hotplug notifications and
+    /// the compact status item stay current. The timer and power timeline are
+    /// dashboard work, so they pause while the main window is closed.
+    func setMainWindowVisible(_ visible: Bool) {
+        guard mainWindowVisible != visible else { return }
+        mainWindowVisible = visible
+        timer?.invalidate()
+        timer = nil
+        guard visible else { return }
+        if autoRefresh { startTimer() }
+        if snapshot != nil, !isLoading { refresh() }
     }
 
     /// Idempotent lifecycle stop used by the app delegate and tests.
@@ -381,7 +400,9 @@ final class AppState: ObservableObject {
         reads += 1
         isLoading = false
         progress = nil
-        history.record(fresh)
+        if mainWindowVisible {
+            history.record(fresh)
+        }
         if sourceWarnings.isEmpty {
             errorMessage = nil
         } else {
