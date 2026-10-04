@@ -4,67 +4,149 @@ import UsbScopeUI
 /// The `⌘,` preferences window: default view, refresh cadence, notifications,
 /// appearance, language and the default grouping. Every change is persisted
 /// immediately through `AppState`.
+///
+/// Deliberately not a `Form`: the grouped macOS form style packs its rows
+/// tightly. A hand-laid card gives every row a full-width control, a fixed
+/// label column and room to breathe.
 struct PreferencesView: View {
     @EnvironmentObject private var state: AppState
 
     private var lang: AppLanguage { state.language }
 
     var body: some View {
-        Form {
-            Section(L(.prefGeneral, lang)) {
-                Picker(L(.prefDefaultView, lang), selection: $state.view) {
-                    ForEach(AppView.allCases) { view in
-                        Text(L(.of(view), lang)).tag(view)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                section(L(.prefGeneral, lang)) {
+                    row(L(.prefDefaultView, lang)) {
+                        Picker("", selection: $state.view) {
+                            ForEach(AppView.allCases) { view in
+                                Text(L(.of(view), lang)).tag(view)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+                    row(L(.prefLanguage, lang)) {
+                        Picker("", selection: $state.language) {
+                            ForEach(AppLanguage.allCases) { language in
+                                Text(language.label).tag(language)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+                    row(L(.prefAppearance, lang)) {
+                        Picker("", selection: $state.appearance) {
+                            ForEach(Appearance.allCases) { appearance in
+                                Text(L(.of(appearance), lang)).tag(appearance)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
                     }
                 }
-                Picker(L(.prefLanguage, lang), selection: $state.language) {
-                    ForEach(AppLanguage.allCases) { language in
-                        Text(language.label).tag(language)
+                section(L(.prefAutoRefresh, lang)) {
+                    row(L(.prefAutoRefresh, lang)) {
+                        Toggle("", isOn: Binding(
+                            get: { state.autoRefresh },
+                            set: { state.setAutoRefresh($0) }
+                        ))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                    }
+                    row(L(.prefInterval, lang)) {
+                        Picker("", selection: Binding(
+                            get: { state.interval },
+                            set: { state.setInterval($0) }
+                        )) {
+                            ForEach(PREFERENCE_INTERVALS, id: \.self) { value in
+                                Text("\(Int(value)) s").tag(value)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
                     }
                 }
-                Picker(L(.prefAppearance, lang), selection: $state.appearance) {
-                    ForEach(Appearance.allCases) { appearance in
-                        Text(L(.of(appearance), lang)).tag(appearance)
+                section(L(.prefNotifications, lang)) {
+                    row(L(.prefNotifications, lang)) {
+                        Toggle("", isOn: Binding(
+                            get: { state.notificationsEnabled },
+                            set: { state.setNotifications($0) }
+                        ))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                    }
+                    Text(notificationNote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                section(L(.prefGrouping, lang)) {
+                    row(L(.prefGrouping, lang)) {
+                        Picker("", selection: $state.groupField) {
+                            ForEach([GroupField.none, .bus, .deviceClass, .speed]) { field in
+                                Text(L(.of(field), lang)).tag(field)
+                            }
+                        }
+                        .labelsHidden()
                     }
                 }
             }
+            .padding(.horizontal, 32)
+            .padding(.vertical, 28)
+        }
+        .frame(width: 560)
+        .frame(minHeight: 460)
+    }
 
-            Section(L(.prefAutoRefresh, lang)) {
-                Toggle(
-                    L(.prefAutoRefresh, lang),
-                    isOn: Binding(get: { state.autoRefresh }, set: { state.setAutoRefresh($0) })
-                )
-                Picker(
-                    L(.prefInterval, lang),
-                    selection: Binding(get: { state.interval }, set: { state.setInterval($0) })
-                ) {
-                    ForEach(PREFERENCE_INTERVALS, id: \.self) { value in
-                        Text("\(Int(value)) s").tag(value)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
+    // MARK: - Pieces
 
-            Section(L(.prefNotifications, lang)) {
-                Toggle(
-                    L(.prefNotifications, lang),
-                    isOn: Binding(get: { state.notificationsEnabled }, set: { state.setNotifications($0) })
-                )
-                Text(notificationNote)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    /// Icon, name and version, so the window is recognisable at a glance.
+    private var header: some View {
+        HStack(spacing: 14) {
+            if let icon = AboutIcon.image {
+                Image(nsImage: icon).resizable().interpolation(.high).frame(width: 46, height: 46)
             }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(AboutInfo.name).font(.title3.weight(.semibold))
+                Text("Version \(AboutIcon.version)")
+                    .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
 
-            Section(L(.prefGrouping, lang)) {
-                Picker(L(.prefGrouping, lang), selection: $state.groupField) {
-                    ForEach([GroupField.none, .bus, .deviceClass, .speed]) { field in
-                        Text(L(.of(field), lang)).tag(field)
-                    }
-                }
-            }
+    /// A titled card with generous internal spacing.
+    private func section<Content: View>(
+        _ title: String, @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 14) { content() }
         }
         .padding(20)
-        .frame(width: 440)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.regularMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.separator.opacity(0.5), lineWidth: 1)
+        )
+    }
+
+    /// One setting: a fixed label column, then the control, full width.
+    private func row<Content: View>(
+        _ label: String, @ViewBuilder control: () -> Content
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            Text(label)
+                .frame(width: 170, alignment: .leading)
+            control()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     /// A short honest note about where banners are actually delivered.

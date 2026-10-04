@@ -50,6 +50,12 @@ enum StringKey: String, CaseIterable {
     case languageEnglish
     case languageGerman
     case loading
+    case aboutMenuTitle
+    case aboutDocs
+    case aboutSource
+    case aboutCopy
+    case aboutCopied
+    case aboutWaiting
 
     /// The key for an `AppView`.
     static func of(_ view: AppView) -> StringKey {
@@ -136,6 +142,12 @@ enum Strings {
         case .languageEnglish: "English"
         case .languageGerman: "German"
         case .loading: "reading the USB subsystem…"
+        case .aboutMenuTitle: "About usbscope"
+        case .aboutDocs: "Documentation"
+        case .aboutSource: "Source code"
+        case .aboutCopy: "Copy diagnostics"
+        case .aboutCopied: "Copied"
+        case .aboutWaiting: "Reading this Mac…"
         }
     }
 
@@ -184,6 +196,12 @@ enum Strings {
         case .languageEnglish: "Englisch"
         case .languageGerman: "Deutsch"
         case .loading: "USB-Subsystem wird gelesen…"
+        case .aboutMenuTitle: "Über usbscope"
+        case .aboutDocs: "Dokumentation"
+        case .aboutSource: "Quellcode"
+        case .aboutCopy: "Diagnose kopieren"
+        case .aboutCopied: "Kopiert"
+        case .aboutWaiting: "Dieser Mac wird gelesen…"
         }
     }
 }

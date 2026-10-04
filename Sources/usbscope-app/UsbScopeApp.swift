@@ -36,6 +36,9 @@ struct UsbScopeApp: App {
 
     @CommandsBuilder
     private var commands: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button(L(.aboutMenuTitle, state.language)) { AboutPanel.show(state: state) }
+        }
         CommandGroup(after: .newItem) {
             Button(L(.refreshNow, state.language)) { state.refresh() }
                 .keyboardShortcut("r", modifiers: .command)
@@ -202,6 +205,16 @@ struct ContentView: View {
         }
         .onAppear {
             if state.isIdle { state.refresh() }
+            // `--show-about` opens the panel straight away: a checkout run cannot
+            // be clicked from a script, so this is how the About window is
+            // smoke-tested (the same idea as `--print-rows`).
+            if CommandLine.arguments.contains("--show-about") {
+                AboutPanel.show(state: state)
+                // stderr, so the smoke test sees it without waiting for a flush
+                FileHandle.standardError.write(
+                    Data("about panel opened — \(AboutInfo.name) \(AboutIcon.version)\n".utf8)
+                )
+            }
         }
     }
 
