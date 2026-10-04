@@ -591,11 +591,11 @@ final class AppState: ObservableObject {
     var menuBarTooltip: String {
         guard let snapshot else { return "usbscope — \(L(.loading, language))" }
         var parts = [
-            "\(snapshot.ports.count) port(s)",
-            "\(snapshot.connectedPorts.count) connected",
-            "\(snapshot.devices.count) device(s)",
+            Strings.connectedPortsLabel(connected: snapshot.connectedPorts.count,
+                                        total: snapshot.ports.count, language),
+            Strings.deviceCountLabel(snapshot.devices.count, language),
         ]
-        if !readWarnings.isEmpty { parts.append("\(readWarnings.count) warning(s)") }
+        if !readWarnings.isEmpty { parts.append(Strings.warningCountLabel(readWarnings.count, language)) }
         return parts.joined(separator: " · ")
     }
 
