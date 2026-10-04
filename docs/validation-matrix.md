@@ -9,6 +9,7 @@ Automated checks run on every change:
 | Bundle shape | `scripts/build-swift-app.sh --debug --no-archive --no-verify` | Bundle is signed and validated |
 | Localization | `scripts/check-localization.sh` | No user-visible SwiftUI/AppKit literals bypass the string table |
 | Large-data performance | `swift test --filter PerformanceTests` | 500-device report and 1,000-entry history stay within budgets |
+| Parser robustness | `swift test --filter ParserFuzzTests` | Malformed and deeply nested source trees do not crash adapters |
 | Script safety | `bash -n scripts/*.sh` | No shell syntax errors |
 | Patch hygiene | `git diff --check` | No whitespace errors |
 
