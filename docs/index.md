@@ -105,7 +105,7 @@ swift run usbscope report --format html --out usbscope-report.html
 
 ## The macOS app
 
-The same data as a native SwiftUI window (`usbscope-app`) — nine views in a
+The same data as a native SwiftUI window (`usbscope-app`) — ten views in a
 toolbar segmented switcher and via `⌘1`–`⌘9`, a live search field, filter presets,
 grouping and a per-view column chooser:
 
@@ -430,7 +430,7 @@ The whole project is this one Swift package (`Package.swift`,
 | Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, `ioreg`, `system_profiler`, charging, snapshot, JSON serialiser, formatting, the hotplug watcher, the event log and history |
 | Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, `Highlight`, detail pairs, TSV/CSV export, filter presets, grouping, diff presentation (no SwiftUI, so it is unit-testable headless) |
 | CLI executable `usbscope` | `Sources/usbscope/main.swift` |
-| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the nine views on top of `UsbScopeUI` |
+| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the ten views on top of `UsbScopeUI` |
 | Test suite | `SwiftTests/` |
 | Fixtures | `SwiftTests/Fixtures/` — 14 real and synthetic payloads |
 | Golden | `SwiftTests/Golden/snapshot.json` — a frozen regression reference (below) |
