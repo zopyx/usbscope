@@ -40,6 +40,32 @@ enum StringKey: String, CaseIterable {
     case viewDevices
     case viewThunderbolt
     case viewPower
+    case viewTimeline
+    case viewSecurity
+    case viewUsb4
+    case viewDiff
+    case filterPresets
+    case presetAll
+    case presetHID
+    case presetStorage
+    case presetConnected
+    case timelinePowerTitle
+    case timelineEventsTitle
+    case timelineNoPower
+    case timelineNoEvents
+    case securityFindingsTitle
+    case securityStorageTitle
+    case usb4Title
+    case eject
+    case ejecting
+    case ejectFailed
+    case compareWith
+    case clearBaseline
+    case baselineNone
+    case diffNoChanges
+    case appeared
+    case disappeared
+    case changed
     case groupNone
     case groupBus
     case groupClass
@@ -65,6 +91,29 @@ enum StringKey: String, CaseIterable {
         case .devices: .viewDevices
         case .thunderbolt: .viewThunderbolt
         case .power: .viewPower
+        case .timeline: .viewTimeline
+        case .security: .viewSecurity
+        case .usb4: .viewUsb4
+        case .diff: .viewDiff
+        }
+    }
+
+    /// The key for a `FilterPreset`.
+    static func of(_ preset: FilterPreset) -> StringKey {
+        switch preset {
+        case .all: .presetAll
+        case .hid: .presetHID
+        case .storage: .presetStorage
+        case .connected: .presetConnected
+        }
+    }
+
+    /// The key for a `DiffChangeKind`.
+    static func of(_ kind: DiffChangeKind) -> StringKey {
+        switch kind {
+        case .appeared: .appeared
+        case .disappeared: .disappeared
+        case .changed: .changed
         }
     }
 
@@ -132,6 +181,32 @@ enum Strings {
         case .viewDevices: "Devices"
         case .viewThunderbolt: "Thunderbolt"
         case .viewPower: "Power"
+        case .viewTimeline: "Timeline"
+        case .viewSecurity: "Security"
+        case .viewUsb4: "USB4"
+        case .viewDiff: "Diff"
+        case .filterPresets: "Quick filter"
+        case .presetAll: "All"
+        case .presetHID: "HID only"
+        case .presetStorage: "Storage only"
+        case .presetConnected: "Connected only"
+        case .timelinePowerTitle: "Charging watts over time"
+        case .timelineEventsTitle: "Hotplug events"
+        case .timelineNoPower: "No measured power yet."
+        case .timelineNoEvents: "No hotplug events recorded yet."
+        case .securityFindingsTitle: "Findings"
+        case .securityStorageTitle: "USB mass storage"
+        case .usb4Title: "USB4 / Thunderbolt fabric"
+        case .eject: "Eject"
+        case .ejecting: "Ejecting…"
+        case .ejectFailed: "Eject failed"
+        case .compareWith: "Compare with…"
+        case .clearBaseline: "Clear comparison"
+        case .baselineNone: "No baseline loaded"
+        case .diffNoChanges: "No changes against the baseline"
+        case .appeared: "appeared"
+        case .disappeared: "disappeared"
+        case .changed: "changed"
         case .groupNone: "None"
         case .groupBus: "Bus"
         case .groupClass: "Class"
@@ -186,6 +261,32 @@ enum Strings {
         case .viewDevices: "Geräte"
         case .viewThunderbolt: "Thunderbolt"
         case .viewPower: "Energie"
+        case .viewTimeline: "Zeitverlauf"
+        case .viewSecurity: "Sicherheit"
+        case .viewUsb4: "USB4"
+        case .viewDiff: "Vergleich"
+        case .filterPresets: "Schnellfilter"
+        case .presetAll: "Alle"
+        case .presetHID: "Nur HID"
+        case .presetStorage: "Nur Speicher"
+        case .presetConnected: "Nur verbunden"
+        case .timelinePowerTitle: "Ladeleistung über die Zeit"
+        case .timelineEventsTitle: "Hotplug-Ereignisse"
+        case .timelineNoPower: "Noch keine gemessene Leistung."
+        case .timelineNoEvents: "Noch keine Hotplug-Ereignisse erfasst."
+        case .securityFindingsTitle: "Befunde"
+        case .securityStorageTitle: "USB-Massenspeicher"
+        case .usb4Title: "USB4-/Thunderbolt-Fabric"
+        case .eject: "Auswerfen"
+        case .ejecting: "Wird ausgeworfen…"
+        case .ejectFailed: "Auswerfen fehlgeschlagen"
+        case .compareWith: "Vergleichen mit…"
+        case .clearBaseline: "Vergleich löschen"
+        case .baselineNone: "Keine Vergleichsbasis geladen"
+        case .diffNoChanges: "Keine Änderungen gegenüber der Vergleichsbasis"
+        case .appeared: "hinzugekommen"
+        case .disappeared: "verschwunden"
+        case .changed: "geändert"
         case .groupNone: "Keine"
         case .groupBus: "Bus"
         case .groupClass: "Klasse"

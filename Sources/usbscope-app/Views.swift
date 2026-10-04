@@ -362,6 +362,382 @@ struct PowerView: View {
     }
 }
 
+// MARK: - Timeline
+
+/// The Timeline tab: the charging watts over time (`AppState.powerTimeline`)
+/// as a sparkline drawn with `Canvas`, and the hotplug events of the
+/// `EventLog`, newest first. No third-party chart library.
+struct TimelineView: View {
+    @EnvironmentObject private var state: AppState
+
+    private var lang: AppLanguage { state.language }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            powerSection
+            Divider()
+            eventsSection
+        }
+    }
+
+    private var powerSection: some View {
+        let geometry = state.timelineGeometry
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(L(.timelinePowerTitle, lang)).font(.headline)
+                Spacer()
+                if let range = geometry.rangeText {
+                    Text(range).monospacedDigit().foregroundStyle(.secondary)
+                }
+            }
+            if geometry.isEmpty {
+                Text(L(.timelineNoPower, lang))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 90)
+            } else {
+                Canvas { context, size in
+                    drawSparkline(geometry, context: &context, size: size)
+                }
+                .frame(height: 150)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
+                if let times = geometry.timeRangeText() {
+                    Text(times).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(12)
+    }
+
+    /// The sparkline: a line through the measured points plus a dot each.
+    private func drawSparkline(_ geometry: TimelineGeometry, context: inout GraphicsContext, size: CGSize) {
+        let inset: CGFloat = 12
+        let plot = CGRect(
+            x: inset, y: inset,
+            width: max(size.width - 2 * inset, 1), height: max(size.height - 2 * inset, 1)
+        )
+        func position(_ point: (x: Double, y: Double)) -> CGPoint {
+            CGPoint(x: plot.minX + CGFloat(point.x) * plot.width, y: plot.maxY - CGFloat(point.y) * plot.height)
+        }
+        var line = Path()
+        for (index, point) in geometry.unitPoints.enumerated() {
+            let spot = position(point)
+            if index == 0 { line.move(to: spot) } else { line.addLine(to: spot) }
+        }
+        context.stroke(line, with: .color(.accentColor), lineWidth: 2)
+        for point in geometry.unitPoints {
+            let spot = position(point)
+            context.fill(
+                Path(ellipseIn: CGRect(x: spot.x - 2.5, y: spot.y - 2.5, width: 5, height: 5)),
+                with: .color(.accentColor)
+            )
+        }
+    }
+
+    private var eventsSection: some View {
+        let rows = state.hotplugRows
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(L(.timelineEventsTitle, lang)).font(.headline)
+                Spacer()
+                Text("\(rows.count)").monospacedDigit().foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+            if rows.isEmpty {
+                Text(L(.timelineNoEvents, lang)).foregroundStyle(.secondary).padding(12)
+                Spacer(minLength: 0)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(rows) { row in
+                            HStack(spacing: 10) {
+                                Text(row.time).monospacedDigit().foregroundStyle(.secondary)
+                                    .frame(width: 70, alignment: .leading)
+                                Text(row.kind)
+                                    .foregroundStyle(row.isAttach ? Color.green : Color.red)
+                                    .frame(width: 72, alignment: .leading)
+                                Text(row.name).fontWeight(.semibold)
+                                Text(row.detail).foregroundStyle(.secondary).lineLimit(1)
+                                Spacer(minLength: 0)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Security
+
+/// The Security tab: `Security.analyse` on the current snapshot (severity badge,
+/// rule, subject, why) plus the USB storage inventory with its Eject buttons and
+/// the CLI's honest "what this is NOT" note.
+struct SecurityView: View {
+    @EnvironmentObject private var state: AppState
+
+    private var lang: AppLanguage { state.language }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                countsBlock
+                findingsBlock
+                storageBlock
+                Text(SecurityPresentation.honestLimits).font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var countsBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let report = state.securityReport {
+                ForEach(SecurityPresentation.counts(report), id: \.label) { item in
+                    HStack {
+                        Text(item.label).foregroundStyle(styleColor(item.style)).fontWeight(.semibold)
+                        Spacer()
+                        Text("\(item.count)").monospacedDigit()
+                    }
+                    .frame(maxWidth: 320)
+                }
+            } else {
+                ProgressView().controlSize(.small)
+            }
+            Text(SecurityPresentation.headline).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var findingsBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L(.securityFindingsTitle, lang)).font(.headline)
+            if let report = state.securityReport, !report.isEmpty {
+                ForEach(SecurityPresentation.findingRows(report)) { row in
+                    findingView(row)
+                }
+            } else {
+                Text(SecurityPresentation.emptyReportText).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var storageBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L(.securityStorageTitle, lang)).font(.headline)
+            if state.storageInventory.isEmpty {
+                Text(SecurityPresentation.emptyStorageText).foregroundStyle(.secondary)
+            } else {
+                ForEach(state.storageInventory) { row in storageView(row) }
+            }
+            if let message = state.ejectMessage {
+                Text(message).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func findingView(_ row: FindingRow) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                Text(row.severity)
+                    .font(.caption).fontWeight(.semibold)
+                    .padding(.horizontal, 6).padding(.vertical, 1)
+                    .background(styleColor(row.severityStyle).opacity(0.18), in: Capsule())
+                    .foregroundStyle(styleColor(row.severityStyle))
+                Text(row.rule).font(.system(.body, design: .monospaced))
+                Spacer()
+                Text(row.subject).foregroundStyle(.secondary)
+            }
+            Text(row.detail).font(.callout)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func storageView(_ row: StorageRow) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(row.identifier) · \(row.name)").fontWeight(.semibold)
+                Text("\(row.capacity) · \(row.mode) · \(row.mount)")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if state.ejecting == row.id {
+                ProgressView().controlSize(.small)
+            }
+            Button(L(.eject, lang)) { state.eject(row) }
+                .disabled(!row.ejectEnabled || state.ejecting != nil)
+                .help(row.ejectReason ?? L(.eject, lang))
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+// MARK: - USB4 / Thunderbolt fabric
+
+/// The USB4 tab: the routers → ports → tunnels tree of `ioreg -c
+/// IOThunderboltSwitch`, with the raw link speed/width values and the note that
+/// they are raw enumerations.
+struct Usb4View: View {
+    @EnvironmentObject private var state: AppState
+
+    private var lang: AppLanguage { state.language }
+
+    private var fabric: ThunderboltFabric { state.snapshot?.thunderboltFabric ?? ThunderboltFabric() }
+
+    var body: some View {
+        let rows = state.fabricRows
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(L(.usb4Title, lang)).font(.headline)
+                Spacer()
+                Text(FabricPresentation.summary(fabric)).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 4)
+            if rows.isEmpty {
+                EmptyState(message: emptyMessage(for: .usb4))
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(rows) { row in
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: symbol(for: row.kind))
+                                    .frame(width: 18)
+                                    .foregroundStyle(color(for: row.kind))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.title).fontWeight(row.kind == .router ? .semibold : .regular)
+                                    if !row.detail.isEmpty {
+                                        Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    if let raw = row.rawLink {
+                                        Text(raw).font(.system(.caption, design: .monospaced)).foregroundStyle(.teal)
+                                    }
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.leading, CGFloat(row.depth) * 18)
+                            .padding(.vertical, 1)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Text(FabricPresentation.rawLinkNote)
+                    .font(.caption).foregroundStyle(.secondary).padding(12)
+            }
+        }
+    }
+
+    private func symbol(for kind: FabricRowKind) -> String {
+        switch kind {
+        case .router: "cpu"
+        case .port: "cable.connector"
+        case .tunnel: "arrow.turn.down.right"
+        }
+    }
+
+    private func color(for kind: FabricRowKind) -> Color {
+        switch kind {
+        case .router: .purple
+        case .port: .teal
+        case .tunnel: .green
+        }
+    }
+}
+
+// MARK: - Diff / baseline
+
+/// The Diff tab: pick a snapshot JSON (e.g. one written by `usbscope baseline
+/// save`), then show what appeared, disappeared and changed against the live
+/// machine via `diffSnapshots`.
+struct DiffView: View {
+    @EnvironmentObject private var state: AppState
+
+    private var lang: AppLanguage { state.language }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Button(L(.compareWith, lang)) { state.pickBaseline() }
+                Button(L(.exportJSON, lang)) { state.export(format: "json") }
+                Button(L(.clearBaseline, lang)) { state.clearBaseline() }
+                    .disabled(state.baseline == nil)
+                Spacer()
+                if let name = state.baselineName {
+                    Label(name, systemImage: "doc").foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            .padding(12)
+            Divider()
+            content
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let error = state.baselineError {
+            Text(error).foregroundStyle(.orange).padding(12)
+            Spacer(minLength: 0)
+        } else if let changes = state.baselineDiff {
+            let rows = DiffPresentation.rows(changes)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 18) {
+                    ForEach(DiffPresentation.counts(changes), id: \.kind) { item in
+                        HStack(spacing: 5) {
+                            Circle().fill(highlightColor(highlightFor(item.kind))).frame(width: 8, height: 8)
+                            Text("\(item.count) \(L(.of(item.kind), lang))").monospacedDigit()
+                        }
+                    }
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                Divider()
+                if rows.isEmpty {
+                    Text(L(.diffNoChanges, lang))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(rows) { row in
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text(L(.of(row.kind), lang))
+                                        .font(.caption).fontWeight(.semibold)
+                                        .foregroundStyle(highlightColor(highlightFor(row.kind)))
+                                        .frame(width: 92, alignment: .leading)
+                                    Text(row.item).fontWeight(.semibold)
+                                    Text(row.detail).foregroundStyle(.secondary).lineLimit(1)
+                                    Spacer(minLength: 0)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        } else {
+            VStack(spacing: 8) {
+                Image(systemName: "arrow.left.arrow.right").font(.largeTitle).foregroundStyle(.tertiary)
+                Text(L(.baselineNone, lang)).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func highlightFor(_ kind: DiffChangeKind) -> Highlight {
+        switch kind {
+        case .appeared: .added
+        case .disappeared: .removed
+        case .changed: .changed
+        }
+    }
+}
+
 // MARK: - Detail sheet
 
 struct DetailSheet: View {

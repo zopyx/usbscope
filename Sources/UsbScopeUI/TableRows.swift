@@ -378,5 +378,47 @@ public func emptyMessage(for view: AppView) -> String {
     case .devices: "No USB device attached — plug one in, the table refreshes itself."
     case .thunderbolt: "No Thunderbolt/USB4 receptacle reported."
     case .power: "No battery or charger reported — a desktop Mac has none."
+    case .timeline: "No power history yet — the graph fills in as the app reads the machine."
+    case .security: "No security findings — macOS reported nothing that stood out."
+    case .usb4: "No Thunderbolt/USB4 router reported."
+    case .diff: "No baseline loaded — use 'Compare with…' to pick a snapshot JSON."
     }
+}
+
+// MARK: - Quick filter presets
+
+/// Conformances for the toolbar's quick filters (`FilterPreset`). A row answers
+/// only what it can know: the Cables/Power rows carry no USB class, so their
+/// `isHID`/`isStorage` are `false` instead of guessed from the free text.
+
+extension PortRow: PresetFilterable {
+    public var isHID: Bool { attachedClass.hasPrefix("HID") }
+    public var isStorage: Bool { attachedClass.hasPrefix("mass storage") }
+    public var isConnected: Bool { stateSort == 1 }
+}
+
+extension CableRow: PresetFilterable {
+    public var isHID: Bool { false }
+    public var isStorage: Bool { false }
+    public var isConnected: Bool { cable.text != "–" }
+}
+
+extension DeviceRow: PresetFilterable {
+    public var isHID: Bool { deviceClass.text.hasPrefix("HID") }
+    public var isStorage: Bool { deviceClass.text.hasPrefix("mass storage") }
+    /// A device row is by construction an attached device.
+    public var isConnected: Bool { true }
+}
+
+extension ThunderboltRow: PresetFilterable {
+    public var isHID: Bool { false }
+    public var isStorage: Bool { false }
+    public var isConnected: Bool { stateSort == 1 }
+}
+
+extension PowerRow: PresetFilterable {
+    public var isHID: Bool { false }
+    public var isStorage: Bool { false }
+    /// Charging metrics are live readings, not objects that plug in.
+    public var isConnected: Bool { true }
 }

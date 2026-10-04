@@ -1,14 +1,27 @@
 import Foundation
 
-/// The five views of the app — the Swift twin of `usbscope.macapp.viewmodel.VIEWS`.
+/// The views of the app — the Swift twin of `usbscope.macapp.viewmodel.VIEWS`
+/// plus the four tabs the Swift app adds on top of the port tables
+/// (`timeline`, `security`, `usb4`, `diff`).
+///
+/// `tableViews` is the original five, in the order the Python `VIEWS` uses: the
+/// headless `--print-rows` self test iterates exactly those, so its output did
+/// not change when the extra tabs were added.
 public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
     case ports
     case cables
     case devices
     case thunderbolt
     case power
+    case timeline
+    case security
+    case usb4
+    case diff
 
     public var id: String { rawValue }
+
+    /// The five table views, in the Python app's order.
+    public static let tableViews: [AppView] = [.ports, .cables, .devices, .thunderbolt, .power]
 
     /// Toolbar label.
     public var title: String {
@@ -18,6 +31,10 @@ public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
         case .devices: "Devices"
         case .thunderbolt: "Thunderbolt"
         case .power: "Power"
+        case .timeline: "Timeline"
+        case .security: "Security"
+        case .usb4: "USB4"
+        case .diff: "Diff"
         }
     }
 
@@ -29,6 +46,10 @@ public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
         case .devices: "externaldrive.connected.to.line.below"
         case .thunderbolt: "bolt.horizontal"
         case .power: "bolt.fill"
+        case .timeline: "chart.xyaxis.line"
+        case .security: "lock.shield"
+        case .usb4: "point.3.connected.trianglepath.dotted"
+        case .diff: "arrow.left.arrow.right"
         }
     }
 }

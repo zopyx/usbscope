@@ -31,7 +31,7 @@ public enum GroupField: String, CaseIterable, Identifiable, Codable, Sendable {
     public static func fields(for view: AppView) -> [GroupField] {
         switch view {
         case .ports, .devices: [.none, .bus, .deviceClass, .speed]
-        case .cables, .thunderbolt, .power: []
+        case .cables, .thunderbolt, .power, .timeline, .security, .usb4, .diff: []
         }
     }
 }

@@ -269,6 +269,10 @@ public enum Presentation {
         case .devices: ["Device", "Vendor", "VID:PID", "Mode", "Class", "Tier", "Port", "Transport", "Serial", "Restricted"]
         case .thunderbolt: ["Bus", "Receptacle", "State", "Link", "Host / vendor"]
         case .power: ["Metric", "Value"]
+        case .timeline: []          // a graph, not a table — nothing to export
+        case .security: ["Severity", "Rule", "Subject", "Why"]
+        case .usb4: ["Kind", "Level", "Item", "Detail"]
+        case .diff: []              // depends on the loaded baseline, not the snapshot
         }
     }
 
@@ -285,6 +289,16 @@ public enum Presentation {
             return thunderboltRows(snapshot).map { ($0.id, [$0.bus.text, $0.receptacle.text, $0.state.text, $0.link.text, $0.host.text]) }
         case .power:
             return powerRows(snapshot).map { ($0.id, [$0.metric.text, $0.value.text]) }
+        case .security:
+            return SecurityPresentation.findingRows(Security.analyse(snapshot)).map {
+                ($0.id, [$0.severity, $0.rule, $0.subject, $0.detail])
+            }
+        case .usb4:
+            return FabricPresentation.rows(snapshot.thunderboltFabric).map {
+                ($0.id, [$0.kind.rawValue, String($0.depth), $0.title, [$0.detail, $0.rawLink].compactMap { $0 }.joined(separator: " · ")])
+            }
+        case .timeline, .diff:
+            return []
         }
     }
 
