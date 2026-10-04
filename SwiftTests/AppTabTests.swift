@@ -276,3 +276,38 @@ final class AppTabTests: XCTestCase {
 private extension FilterPreset {
     func filter<T: PresetFilterable>(_ rows: [T]) -> [T] { rows.filter { matches($0) } }
 }
+
+/// Every view is reachable by a number and says its own name on hover.
+///
+/// The toolbar switcher used to be a segmented `Picker`, which made one tooltip cover
+/// all nine icons ("View"), and the `⌘n` number was computed from an enumerated loop
+/// in the View menu while the tooltip had no number at all — two places that could
+/// drift. Both now read `AppView.shortcutNumber`.
+final class ViewShortcutTests: XCTestCase {
+    func testEveryViewHasItsOwnNumberInOrder() {
+        XCTAssertEqual(
+            AppView.allCases.map(\.shortcutNumber), Array(1...AppView.allCases.count),
+            "the numbers must be 1…n in the order of allCases"
+        )
+        XCTAssertEqual(Set(AppView.allCases.map(\.shortcutNumber)).count, AppView.allCases.count)
+        XCTAssertEqual(AppView.allCases.count, 9, "⌘1–⌘9")
+    }
+
+    /// The tooltip carries the view's label — not the word "View" — plus its shortcut.
+    func testHelpTextNamesTheViewAndItsShortcut() {
+        XCTAssertEqual(AppView.ports.helpText("Ports"), "Ports (⌘1)")
+        XCTAssertEqual(AppView.security.helpText("Security"), "Security (⌘7)")
+        XCTAssertEqual(AppView.diff.helpText("Diff"), "Diff (⌘9)")
+        // And the German label goes through unchanged, so the tooltip follows the language.
+        XCTAssertEqual(AppView.security.helpText("Sicherheit"), "Sicherheit (⌘7)")
+    }
+
+    /// Whatever label the app passes, the tooltip must never be the generic menu title.
+    func testHelpTextIsNeverTheBareMenuTitle() {
+        for view in AppView.allCases {
+            let text = view.helpText(view.title)
+            XCTAssertTrue(text.hasPrefix(view.title), text)
+            XCTAssertTrue(text.contains("⌘\(view.shortcutNumber)"), text)
+        }
+    }
+}

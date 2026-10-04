@@ -72,3 +72,22 @@ public enum Highlight: String, Sendable {
     case removed
     case changed
 }
+
+/// The `⌘n` shortcut and the tooltip of a view.
+///
+/// Both read the view's position in `allCases`, so the toolbar tooltip, the View menu
+/// item and the keyboard shortcut cannot disagree about which number a view answers to.
+extension AppView {
+    /// The number of the `⌘n` shortcut this view answers to (1-based).
+    public var shortcutNumber: Int {
+        (AppView.allCases.firstIndex(of: self) ?? 0) + 1
+    }
+
+    /// `Security (⌘7)` — the view's own label plus its shortcut, for a tooltip.
+    ///
+    /// The label is passed in because the app takes its strings from the typed table;
+    /// this type stays language-free.
+    public func helpText(_ label: String) -> String {
+        "\(label) (⌘\(shortcutNumber))"
+    }
+}

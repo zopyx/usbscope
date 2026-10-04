@@ -49,9 +49,11 @@ struct UsbScopeApp: App {
                 .disabled(state.snapshot == nil)
         }
         CommandMenu(L(.viewMenu, state.language)) {
-            ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
+            ForEach(AppView.allCases) { view in
                 Button(L(.of(view), state.language)) { state.view = view }
-                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                    .keyboardShortcut(
+                        KeyEquivalent(Character("\(view.shortcutNumber)")), modifiers: .command
+                    )
             }
         }
         CommandMenu("Table") {
@@ -263,13 +265,29 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Picker(L(.viewMenu, lang), selection: $state.view) {
+            // A row of buttons, not `Picker(.segmented)`: a segmented picker is a single
+            // AppKit control, so one `.help` covers every segment and hovering an icon
+            // reported the generic "View" instead of its own name. Each button carries
+            // its own tooltip — `Ports (⌘1)`, `Diff (⌘9)`.
+            HStack(spacing: 2) {
                 ForEach(AppView.allCases) { view in
-                    Label(L(.of(view), lang), systemImage: view.systemImage).tag(view)
+                    let selected = state.view == view
+                    Button {
+                        state.view = view
+                    } label: {
+                        Image(systemName: view.systemImage)
+                            .frame(minWidth: 22, minHeight: 18)
+                    }
+                    .buttonStyle(.borderless)
+                    .background(
+                        selected ? Color.accentColor.opacity(0.22) : Color.clear,
+                        in: .rect(cornerRadius: 5)
+                    )
+                    .foregroundStyle(selected ? Color.accentColor : Color.primary)
+                    .help(view.helpText(L(.of(view), lang)))
+                    .accessibilityLabel(L(.of(view), lang))
                 }
             }
-            .pickerStyle(.segmented)
-            .help(L(.viewMenu, lang) + " (⌘1–⌘9)")
         }
         // Search, quick filter, baseline and the refresh controls share one group:
         // `ToolbarContentBuilder` accepts at most ten top-level items.
