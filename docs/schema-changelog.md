@@ -10,9 +10,9 @@ Rules:
   the version — a reader that ignores unknown keys keeps working.
 * **Breaking** changes (removing a key, changing a key's type or meaning) bump
   `schema_version` and are listed here.
-* The constant lives in `src/usbscope/serialize.py` (`SCHEMA_VERSION`) and
-  `Sources/UsbScopeCore/Serialize.swift` (`Serialize.schemaVersion`); a test on
-  both sides asserts they agree with the head of this file.
+* The constant lives in `Sources/UsbScopeCore/Serialize.swift`
+  (`Serialize.schemaVersion`); a test asserts it agrees with the head of this
+  file.
 
 | Version | Change |
 | --- | --- |

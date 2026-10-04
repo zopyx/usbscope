@@ -5,7 +5,7 @@ import XCTest
 /// The in-process IOKit reader (`docs/app-store.md`, Plan B) — it must hand the
 /// unchanged `IOReg.parsePorts` the same shape the `ioreg` plist parser accepts,
 /// and on a machine of the same class it must find at least as many ports as the
-/// captured fixture (`tests/fixtures/ioport.plist`, 6 ports).
+/// captured fixture (`SwiftTests/Fixtures/ioport.plist`, 6 ports).
 ///
 /// The live tests read the *real* registry of the machine running the suite, so
 /// they are skipped (`XCTSkip`) rather than failed when the registry cannot be

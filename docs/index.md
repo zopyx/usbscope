@@ -1,34 +1,69 @@
 # usbscope — documentation
 
 `usbscope` renders the USB subsystem of a Mac: receptacles, negotiated USB
-modes, attached devices and the cable/port-controller facts macOS exposes.
+modes, attached devices and the cable/port-controller facts macOS exposes. The
+project is **Swift only** — one implementation, one test suite, one app. There is
+no Python version, no virtualenv and no `uv`.
 
 ## Install & run
 
+Requires macOS 14.4+ and Swift 6 (`swift build` and `swift test` are the whole
+toolchain; Xcode or the command line tools provide them).
+
 ```console
-uv sync                       # create the venv (Python 3.14+)
-uv tool install .             # optional: put `usbscope` on your PATH
-uv run usbscope               # overview
-uv run usbscope --watch 2     # refresh every 2 s (Ctrl-C quits)
-uv run usbscope ports -v      # port table with per-transport detail
-uv run usbscope devices       # device tree only
-uv run usbscope cables        # cable / e-marker / CC / liquid detection
-uv run usbscope thunderbolt   # Thunderbolt / USB4 receptacles
-uv run usbscope security      # per-device/port findings + USB mass storage
-uv run usbscope --json        # JSON snapshot (schema below)
+swift build                   # build the CLI and the app
+swift run usbscope            # overview
+swift run usbscope ports -v   # port table with per-transport detail
+swift run usbscope devices    # device tree only
+swift run usbscope cables     # cable / e-marker / CC / liquid detection
+swift run usbscope thunderbolt   # Thunderbolt / USB4 receptacles
+swift run usbscope security   # per-device/port findings + USB mass storage
+swift run usbscope --json     # JSON snapshot (schema below)
 ```
 
-Exit codes: `0` success, `1` unexpected failure, `130`/`0` on Ctrl-C.
+The built binaries live under `.build/debug/` (or `.build/release/`), so a
+script can call `./.build/debug/usbscope` directly instead of going through
+`swift run`.
 
-## Live mode (`--watch`)
+| Option | Effect |
+| --- | --- |
+| `-v`, `--verbose` | add raw detail (location IDs, plug orientation, TRM state, per-transport rate/signaling/lanes, CC hash status, SOP revision, sources, controller detail) |
+| `--json` | print the snapshot as JSON and exit (also as the `json` view) |
+| `--no-color` | disable colours (also honoured when stdout is not a terminal) |
+| `--watch seconds` | redraw in place every *seconds* until `Ctrl-C` — see [Live mode](#live-mode-and-the-event-stream) |
+| `-h`, `--help` | print usage and exit |
+| `--version` | print the version and exit |
 
-`usbscope --watch 2` refreshes in place on the terminal's alternate screen
-(`rich.live.Live`), so only the changed lines are repainted — no clear/redraw
-flicker. The refresh counter sits in the header, tall content is cropped to the
-window, and the previous screen is restored on Ctrl-C (and on `SIGTERM`, so the
-terminal is never left in the alternate buffer). The sleep is shortened by the
-collection time to keep the cadence even. `--watch` combined with `--json`/`json`
-prints one snapshot instead, because JSON in a live loop makes no sense.
+Exit status: `0` success; `1` an unexpected failure (a report that cannot be
+written, a baseline that cannot be saved); `2` a usage/parse error or a malformed
+expectation; `3` `check`/`baseline` found a mismatch. `watch --events` runs until
+interrupted.
+
+## Live mode and the event stream
+
+Two streaming entry points, one for humans and one for scripts.
+
+**`usbscope --watch <seconds>`** redraws the selected view in place until `Ctrl-C`.
+Each cycle collects a fresh snapshot and renders it — nothing is buffered across
+frames, so what is on screen is always a real reading and never a mixture of two.
+On a terminal it clears the screen and parks the cursor first; when stdout is a
+pipe or a file the frames are appended instead, which is what makes
+`make watch | grep -c 'usbscope — live'` a usable check. The interval is clamped
+to a minimum of 0.2 s, and one `collect` costs about 1.3 s on a MacBook Pro
+(`system_profiler` dominates), so the practical cadence is a little slower than
+the number you pass.
+
+**`usbscope watch --events`** prints one flushed JSON line per attach/detach so it
+can be piped (see
+[the four scriptable commands](#beyond-the-views-check-watch---events-baseline-report)).
+It builds on `UsbHotplugWatcher`: it arms real IOKit notifications
+(`kIOMatchedNotification` / `kIOTerminatedNotification` on `IOUSBHostDevice`) and
+does nothing between edges. When IOKit cannot be armed, the watcher falls back to
+comparing snapshots on a timer; `--interval S` sets that poll interval (default
+2 s).
+
+The app has its own take on this: `⌘R` plus an auto-refresh toggle and a
+2/5/10/30 s interval menu.
 
 ## What each view shows
 
@@ -50,22 +85,78 @@ and `usbscope cables -v` adds the charging panel.
 ## Beyond the views: `check`, `watch --events`, `baseline`, `report`
 
 Four commands that turn the inspector into something a script or a test rig can
-use. They exist in **both** implementations with the same semantics and the same
-exit codes.
+use.
 
 | Command | What it does |
 | --- | --- |
 | `usbscope check --expect …` | asserts facts about the current machine and sets the exit code — `0` every expectation holds, `3` one fails, `2` a malformed expectation. Forms: `device=<vid:pid\|name>`, `port=<name>`, `connected>=N`, `devices>=N`, `warning=0` |
-| `usbscope watch --events [--interval S]` | one flushed JSON line per attach/detach (`kind`, `timestamp`, name, VID/PID, serial, location id, port) so it can be piped. The Swift CLI is driven by IOKit notifications, the Python CLI polls (no IOKit without PyObjC) |
-| `usbscope baseline save <file>` / `check <file>` | store a snapshot as *known good* and compare the live machine against it: appeared / disappeared / changed ports, exit `0` identical, `3` different, `2` unreadable. The files are interchangeable between the two implementations |
-| `usbscope report [--format md\|html] [--out file]` | a human readable report (machine, ports, devices with class/tier, cables, power contract, security findings, warnings). Markdown by default, a self-contained styled HTML page with `--format html` — byte-identical from either implementation |
+| `usbscope watch --events [--interval S]` | one flushed JSON line per attach/detach (`kind`, `timestamp`, name, VID/PID, serial, location id, port) so it can be piped. Driven by IOKit notifications, falling back to a polling differ |
+| `usbscope baseline save <file>` / `check <file>` | store a snapshot as *known good* and compare the live machine against it: appeared / disappeared / changed ports, exit `0` identical, `3` different, `2` unreadable |
+| `usbscope report [--format md\|html] [--out file]` | a human-readable report (machine, ports, devices with class/tier, cables, power contract, security findings, warnings). Markdown by default; a self-contained styled HTML page with `--format html` |
 
 ```console
-uv run usbscope check --expect 'connected>=1' --expect 'device=0x1050:0x0407'
-uv run usbscope baseline save ~/known-good.json && uv run usbscope baseline check ~/known-good.json
-uv run usbscope report --format html --out usbscope-report.html
+swift run usbscope check --expect 'connected>=1' --expect 'device=0x1050:0x0407'
+swift run usbscope baseline save ~/known-good.json && swift run usbscope baseline check ~/known-good.json
+swift run usbscope report --format html --out usbscope-report.html
 ./.build/debug/usbscope watch --events | jq -c .
 ```
+
+## The macOS app
+
+The same data as a native SwiftUI window (`usbscope-app`) — nine views in a
+toolbar segmented switcher and via `⌘1`–`⌘9`, a live search field, filter presets,
+grouping and a per-view column chooser:
+
+![usbscope app](docs/screenshots/app-ports.png)
+
+```console
+swift run usbscope-app              # or: make swift-run-app
+make swift-app-check                # headless: row count of every view, then exit
+```
+
+Views: **Ports** (state, negotiated mode, transports, cable, notes), **Cables**
+(CC authentication, hash, PD spec revision, power in with the negotiated
+contract, port-controller USB mode, liquid detection, controller firmware),
+**Devices** (flat table with bus, port, transport, serial, macOS restriction),
+**Thunderbolt** and **Power** (the live charging telemetry: adapter, input,
+system load, battery).
+
+| Feature | Behaviour |
+| --- | --- |
+| Tabs | Nine views in the toolbar segmented switcher and via `⌘1`–`⌘9`: **Ports · Cables · Devices · Thunderbolt · Power · Timeline · Security · USB4 · Diff** |
+| Search | Toolbar field, live filter over every column (all terms must match) |
+| Presets | Quick filters next to the search field: all / HID only / storage only / connected only |
+| Sorting | Click a column header; a mode rank and a port number sort `USB 1.1` below `USB 3.2 Gen 2` and `@2` below `@10` |
+| Grouping | Toolbar "Group by" for bus / class / speed |
+| Columns | A per-view column chooser; the layout is remembered per view |
+| Detail sheet | **Details** button / `⌘D` shows every field of the selected row (port, cable, device or charging metric) |
+| Refresh | `⌘R`, plus an auto-refresh toggle and a 2/5/10/30 s interval menu |
+| Timeline tab | Sparkline of the live charging watts over time plus the hotplug log (attach/detach with timestamps), newest first |
+| Security tab | The `security` findings with a severity badge, the rule, the subject and the reason, the storage inventory, and the same honest-limits wording the CLI prints |
+| USB4 tab | Routers → ports → tunnels from the USB4 switch, with the raw link speed/width enumerations shown verbatim |
+| Diff tab | "Compare with…" loads a snapshot JSON (e.g. one written by `usbscope baseline save`) and shows appeared / disappeared / changed against the live machine |
+| Storage | Mount point, read-only flag and an **Eject** button per USB storage device (disabled with a reason when it is not possible) |
+| Changes | Rows that appeared, disappeared or changed colour green/red/orange after a refresh; the status line names them |
+| Copy / export | `⌘C`/`⇧⌘C` (TSV), `⇧⌘J` (snapshot JSON) to the clipboard; `⌘S`/`⇧⌘S` write JSON/CSV through a save panel |
+| Menu bar extra | `connected/ports` (plus `⚠` when a source warns), view switching, "Refresh now", a notifications switch and quit |
+| Notifications | One banner per device that appeared or disappeared — only from a bundled run (macOS refuses the request from a plain process) |
+| Preferences | `⌘,`: default view, interval, auto-refresh, notifications, appearance, language (DE/EN), grouping — persisted in the `com.zopyx.usbscope` defaults domain |
+| Status | Summary line (ports/connected/devices/cables) and a status bar with the read time, cadence, changes and warnings |
+| Screenshots | `usbscope-app --snapshot out.png [--view security]` renders the window offscreen and exits — no screen-recording permission needed |
+
+`usbscope-app --print-rows` is the headless check of the data path (row count per
+view), `--show-about` opens the About window straight away.
+
+Run from the checkout the app calls `NSApplication.setActivationPolicy(.regular)`
+to bring the window to the front; a real bundle gives it a Dock entry and a proper
+menu bar.
+
+**Notifications need the bundle.** macOS refuses — and in fact *aborts* — a
+`UNUserNotificationCenter` call from a non-bundled process, and terminals export
+their own `__CFBundleIdentifier`, so the app checks for *its own* bundle identifier
+before touching the notification centre. A checkout run (`swift run usbscope-app`)
+therefore keeps the status item but stays silent by design; install
+`usbscope-swift.app` to get the banners.
 
 ## Columns of the port table
 
@@ -98,6 +189,15 @@ port — the mode describes the link, not the connector.
 | `diskutil list -plist` / `diskutil info -plist <device>` | USB mass storage (security view): whole disks with `BusProtocol == USB`, capacity, read-only state and mount point |
 | `ioreg -r -n AppleSmartBattery -a -l -w0` | live power telemetry: adapter input, system load, battery flow, adapter PD menu |
 
+The `IOPort` plane is read **in-process** through IOKit by default
+(`IORegistryReader`: `IOServiceGetMatchingServices` +
+`IORegistryEntryCreateCFProperties` + `IORegistryEntryCreateCFProperty`, walking
+`IORegistryEntryChildren`), and the `/usr/sbin/ioreg` subprocess is kept as a
+**fallback**, used whenever the in-process read fails or reports no port.
+`IORegSourceBackend` pins the choice; either path produces the same dictionary
+the plist parser consumes, so the result is identical. See
+[In-process registry reader](#in-process-registry-reader).
+
 Both sources are optional at runtime: a failing source only adds a warning that
 is rendered in a yellow *notes* panel (or in `warnings[]` of the JSON), it never
 aborts the run. That holds for the two power sources too.
@@ -124,7 +224,7 @@ appear under the synthetic bus *"Port controller only (no bus entry)"*.
   (`IOAccessoryUSBModeType`), the accessory mode, the power contract
   (`IOAccessoryPowerMode`, `IOAccessoryPowerCurrentLimits`), the
   `Pin Configuration` map and the LDCM state/measurement are shown as the
-  controller reports them — `-v`, the detail popover and the JSON snapshot carry
+  controller reports them — `-v`, the detail sheet and the JSON snapshot carry
   them, the default table stays clean. Where the raw value is certain noise it is
   dropped instead of shown: an idle pin map (`pins:` lists only non-zero entries),
   an all-zero current-limit list and an `AccessoryMode` of `0`.
@@ -283,392 +383,200 @@ it cannot see:
 }
 ```
 
+The schema is defined once, in `Sources/UsbScopeCore/Serialize.swift`; the
+changelog is [schema-changelog.md](schema-changelog.md).
+
+## Package layout
+
+The whole project is this one Swift package (`Package.swift`,
+`swift-tools-version: 6.0`, macOS 14.4+).
+
+| Part | Path |
+| --- | --- |
+| Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, `ioreg`, `system_profiler`, charging, snapshot, JSON serialiser, formatting, the hotplug watcher, the event log and history |
+| Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, `Highlight`, detail pairs, TSV/CSV export, filter presets, grouping, diff presentation (no SwiftUI, so it is unit-testable headless) |
+| CLI executable `usbscope` | `Sources/usbscope/main.swift` |
+| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the nine views on top of `UsbScopeUI` |
+| Test suite | `SwiftTests/` |
+| Fixtures | `SwiftTests/Fixtures/` — 14 real and synthetic payloads |
+| Golden | `SwiftTests/Golden/snapshot.json` — a frozen regression reference (below) |
+
 ## Makefile
 
 `make` (or `make help`) lists every task grouped by section; the `##` comment next
-to a target is its description. Everything runs through `uv`, so the pinned Python
-3.14 and the locked dependencies are always used.
+to a target is its description. There is no Python environment to sync — every
+target runs `swift` or a shell command.
 
 | Target | Does |
 | --- | --- |
-| `make doctor` | checks the tools this repo needs (uv, PyObjC, librsvg, codesign, hdiutil) |
-| `make sync` | environment incl. the `macapp` extra (PyObjC) |
-| `make format` / `make lint` | `ruff format` + `--fix` resp. `ruff format --check`, `ruff check`, `ty check` |
-| `make test` / `make coverage` | `pytest` resp. pytest with a coverage report (`pytest-cov` is fetched on demand) |
-| `make check` | all gates, i.e. lint + test — the CI equivalent |
-| `make check-all` | `check` plus the Swift port (`swift test`) |
-| `make run` / `make watch` / `make run-app` | CLI overview, CLI with live refresh, native app |
-| `make snapshot` | app window → `docs/screenshots/app-<view>.png` (offscreen, no permissions needed) |
-| `make refresh-screenshots` | CLI screenshots (SVG + PNG, host name masked) |
-| `make screenshots` | both of the above |
-| `make binary` | standalone CLI binary → `dist/` |
-| `make icon` | regenerates `assets/icon/usbscope.icns` from the SVG |
-| `make app-bundle` (alias `make app`) | icon + `usbscope.app` + styled DMG → `dist/` |
-| `make dmg` | rebuilds only the DMG for an existing `dist/usbscope.app` |
-| `make artifacts` | gates + CLI binary + app: the full release build |
-| `make ci` | alias for `check` — what `.github/workflows/ci.yml` runs |
-| `make mas-pkg` | signs with the sandbox entitlements and builds the App Store `.pkg` |
-| `make mas-pkg-dry` | prints those commands without running them (no certificates needed) |
-| `make checksums` | verifies `dist/SHA256SUMS` and `dist/SHA256SUMS-app` |
-| `make install` | `uv tool install '.[macapp]'` (CLI + `usbscope-app` on the PATH) |
-| `make swift` | builds and tests the Swift port (`swift build` + `swift test`) |
-| `make swift-golden` | regenerates `SwiftTests/Golden/snapshot.json` from the fixtures (Python side) |
-| `make swift-run-app` | runs the SwiftUI app (`usbscope-app`) |
+| `make help` | list the targets |
+| `make doctor` | checks the tools this repo needs (swift, codesign, plutil, hdiutil, the icon) |
+| `make env` | print the Swift and Xcode toolchain versions |
+| `make build` / `make test` | `swift build` resp. `swift test` |
+| `make check` | all gates (build + tests) — the CI equivalent |
+| `make check-all` | alias for `check` |
+| `make swift` / `make swift-build` / `make swift-test` | build and test the package |
+| `make run` | run the CLI overview |
+| `make watch` | run the CLI with live refresh every 2 s (`--watch 2`) |
+| `make swift-run-app` | run the SwiftUI app (`usbscope-app`) |
 | `make swift-app-check` | headless self test of the app's data path (row count per view) |
-| `make swift-app-bundle` | builds the SwiftUI app into `dist/usbscope-swift.app` (release, ad-hoc signed) |
-| `make man` / `make completions` | installs the CLI manual page / the zsh + bash completions into `~` (no sudo) |
-| `make clean` / `make distclean` | build output / plus the virtualenv |
+| `make swift-app-bundle` | build `dist/usbscope-swift.app` (release, ad-hoc signed, verified) |
+| `make snapshot` | render the app window to `docs/screenshots/app-<view>.png` (offscreen) |
+| `make checksums` | verify the checksums of everything in `dist/` |
+| `make man` / `make completions` | install the CLI manual page / the zsh + bash completions into `~` (no sudo) |
+| `make version` | print the package version |
+| `make clean` / `make distclean` | build output / plus the package caches |
 
-Variables: `SHOT_HOST=<name> make refresh-screenshots` sets the host name shown in
-the captures (default `mac`). On macOS two details matter: `make` is the old GNU
-make 3.81 (no modern functions in the file), and the shell already exports a `HOST`
-variable — which is why the screenshot variable is called `SHOT_HOST`.
+Variables: `CONFIG=debug|release` selects the build configuration,
+`VERSION` is read from `Sources/usbscope/main.swift`.
 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main` and on every pull request,
-on an Apple-Silicon runner (`macos-14`), and mirrors what `make check` does:
+on an Apple-Silicon runner (`macos-14`):
 
 | Step | Command |
 | --- | --- |
-| Environment | `uv sync --extra macapp` (the UI tests need PyObjC) |
-| Gate 1–4 | `uv run ruff format --check`, `uv run ruff check`, `uv run ty check`, `uv run pytest -q` — one step each, so a failure names the gate |
-| Build (main only) | `scripts/build_binary.py` and `scripts/build_app.py --no-dmg`, uploaded as a 7-day artifact |
+| Toolchain | `swift --version`, `xcodebuild -version` |
+| Build | `swift build` |
+| Test | `swift test` |
+| Bundle (main only) | `scripts/build-swift-app.sh`, uploaded as a 7-day artifact |
 
-The build steps are guarded by
-`if: github.event_name == 'push' && github.ref == 'refs/heads/main'`: PyInstaller
-downloads a toolchain and produces multi-megabyte artifacts that a pull request
-should not pay for. `concurrency` cancels a superseded run for the same ref.
+There is no Python environment to sync and no virtualenv to cache. Tests that
+need the live IORegistry (the backend comparison, the timing comparison) skip
+themselves on a runner where it cannot be read. The bundle step is guarded by
+`if: github.event_name == 'push' && github.ref == 'refs/heads/main'`, and
+`concurrency` cancels a superseded run for the same ref.
 
 Signing for real distribution (Developer ID, `notarytool`, `stapler`, universal2,
 Homebrew cask) is documented — including what is still *not* done — in
 [distribution.md](distribution.md). The Mac App Store path (sandbox entitlements,
-Apple Distribution signing, `productbuild`, App Store Connect metadata and the open
-sandbox question) is in [app-store.md](app-store.md); `make mas-pkg` builds the
-installer package, `make mas-pkg-dry` shows the commands without needing certificates.
+Apple Distribution signing, `productbuild`, App Store Connect metadata and the
+open sandbox question) is in [app-store.md](app-store.md).
 
-## The macOS app
+## Building the app bundle
 
-The same data as a native Cocoa app (`usbscope-app`) — a real `NSWindow` with an
-`NSToolbar`, a view based `NSTableView`, `⌘R`, an auto-refresh timer, a menu bar
-extra and an Info.plist bundle you can drop into `/Applications`:
+`scripts/build-swift-app.sh` (or `make swift-app-bundle`) compiles the app with
+`swift build -c release --product usbscope-app`, assembles
+`dist/usbscope-swift.app` and fails loudly instead of leaving a half-built
+bundle:
 
-![usbscope app](docs/screenshots/app-ports.png)
+1. **Compile**: `swift build -c release --product usbscope-app` (or `--debug`),
+   then `swift build --show-bin-path` to locate the executable.
+2. **Assemble**: copies the binary to `Contents/MacOS/usbscope-app`, the icon to
+   `Contents/Resources/` (when `assets/icon/usbscope.icns` exists), and writes
+   `Contents/Info.plist` with `CFBundleIdentifier com.zopyx.usbscope`, the package
+   version as `CFBundleShortVersionString`/`CFBundleVersion`,
+   `LSMinimumSystemVersion 14.4`, `NSHighResolutionCapable`,
+   `LSApplicationCategoryType public.app-category.utilities` and
+   `ITSAppUsesNonExemptEncryption = false`. The plist is validated with
+   `plutil -lint`.
+3. **Sign**: `codesign --force --deep --sign - --identifier com.zopyx.usbscope`
+   (ad hoc), followed by `codesign --verify`. The verification is not optional.
+4. **Self test**: the *bundled* app is executed — `--version` must print, and
+   `--print-rows` exercises the data path when a window server is available.
 
-```console
-$ usbscope-app                    # from a checkout (needs the macapp extra)
-$ open ~/src/usbscope/dist/usbscope.app   # or the built bundle / the release DMG
-```
+The script prints every command it runs. Options: `--configuration release|debug`,
+`--debug`, `--name NAME`, `--no-icon`, `--no-sign`, `--no-verify`.
 
-Views: **Ports** (state, negotiated mode, transports, cable, notes), **Cables**
-(CC authentication, hash, PD spec revision, power in with the negotiated contract,
-port-controller USB mode, liquid detection, controller firmware), **Devices**
-(flat table with bus, port, transport, serial, macOS restriction), **Thunderbolt**
-and **Power** (the live charging telemetry: adapter, input, system load, battery).
+The result is a single Mach-O with **no embedded frameworks** (macOS 14+ ships the
+Swift runtime), so the whole bundle is about 3 MiB. The signature is ad hoc only
+— what a real release still needs (Developer ID, hardened runtime, `notarytool`,
+`stapler`) is in [distribution.md](distribution.md).
 
-| Feature | Behaviour |
-| --- | --- |
-| Views | Segmented switcher (Ports · Cables · Devices · Thunderbolt · Power) in the toolbar, plus `⌘1`–`⌘5` and the status item menu |
-| Search | Toolbar search field (`⌘F`), live filter over every column; the filter survives a view switch |
-| Sorting | Click a column header to sort, click again to reverse. Sorting uses a hidden rank where the text would sort wrong (`USB 1.1` before `USB 3.2 Gen 2`, `@2` before `@10`) |
-| Toolbar buttons | **Copy ▾** (selected rows, whole table, details, snapshot as JSON), **Export ▾** (CSV, JSON), **Refresh**, **Details** (popover for the selection), **Auto-refresh** + interval — every one of them the same action as its menu entry |
-| Refresh that does not disturb | Selection (tracked by row key) and scroll position survive every reload, sort and filter |
-| Change highlighting | Devices that appeared turn green, disappeared red, a changed port yellow — for 1.6 s after a read, plus a `changed: …` note in the status line |
-| Clipboard | `⌘C` copies the selected rows as TSV, `⇧⌘C` the whole table, `⌘D` the detail pairs, “Copy as JSON” the raw snapshot; right click and the **Copy ▾** button have the same actions |
-| Detail popover | Double click a row (or the **Details** button) for every field of that port/cable/device, including what the columns truncate and the optional controller details (USB mode, pin assignment, power contract, LDCM); the list scrolls when it is longer than the popover |
-| Export | `File ▸ Export JSON…` (`⌘S`) / `Export CSV…` (`⇧⌘S`), toolbar **Export ▾**, and the same entries in the table's context menu |
-| Tooltips | Every row, not only devices, carries its full detail list |
-| Status item | Menu bar extra with `connected/ports` (plus `⚠` when a source warns), the full summary as tooltip, view switching, “Refresh now”, a notifications switch and quit |
-| Notifications | One banner per device that appeared or disappeared — only from the bundled app (see below) |
-| Remembered | View, cadence, sort state, column widths, window frame and the notification switch, in `~/Library/Preferences/com.zopyx.usbscope.plist` |
-| Feinschliff | Alternating row colours, right aligned monospaced digits, self explaining empty states, About panel, Help ▸ Documentation |
-
-**Notifications need the bundle.** macOS refuses — and in fact *aborts* — a
-`UNUserNotificationCenter` call from a non-bundled process, and terminals export
-their own `__CFBundleIdentifier`, so the app checks for *its own* bundle identifier
-before touching the notification centre. A check-out run (`uv run usbscope-app`)
-therefore keeps the status item but stays silent by design; install
-`usbscope.app` to get the banners.
-
-```console
-$ uv run --extra macapp usbscope-app          # run from the checkout
-$ make run-app                                # same, via make
-$ make icon                                   # regenerate assets/icon/usbscope.icns
-$ make app-bundle                             # build + verify + styled DMG into dist/
-```
-
-### Building the bundle
-
-`make app-bundle` (or `uv run python scripts/build_app.py`) runs five steps and
-fails loudly at each one instead of leaving a broken artifact:
-
-1. **Icon**: the `icon` target renders `assets/icon/usbscope.svg` through
-   `rsvg-convert` into an `.iconset` and builds `assets/icon/usbscope.icns`
-   (`iconutil`), which PyInstaller embeds (`--icon`, `--no-icon` to skip).
-2. **PyInstaller** (`--windowed --target-architecture arm64`) collects Python, Rich
-   and PyObjC plus a generated entry point into `dist/usbscope.app`. Only `uv` is
-   required — PyInstaller and PyObjC are fetched on demand; `codesign` and
-   `hdiutil` ship with macOS.
-3. **Info.plist** is rewritten with `CFBundleIdentifier com.zopyx.usbscope`, the
-   package version, `CFBundleIconFile`, `LSMinimumSystemVersion 13.0` and
-   `NSHighResolutionCapable`.
-4. **Signing**: `codesign --deep --force --sign - --identifier com.zopyx.usbscope`
-   (ad hoc), followed by `codesign --verify`.
-5. **Self test**: the *bundled* app is executed —
-   `dist/usbscope.app/Contents/MacOS/usbscope --snapshot … --view ports` — and the
-   resulting PNG is checked. A windowed app still takes argv, which is how the build
-   proves the artifact works before packaging it.
-
-The DMG then comes from `scripts/make_dmg.py`: it stages the app next to an
-`/Applications` symlink, generates/uses `assets/dmg/background.png`, applies the
-Finder layout (icon view, window 600×400, icon size 128, icon positions,
-background picture) through `osascript`, converts to `UDZO` and **mounts the result
-read-only to verify** (app present, symlink resolves, bundled binary runs,
-signature valid, background in place). A Finder/automation failure is reported as
-`layout: skipped (…)` and does not fail the build.
-
-| Artifact | Content |
-| --- | --- |
-| `dist/usbscope.app` | the bundle with `usbscope.icns` (drag into `/Applications`) |
-| `dist/usbscope-0.2.0-macos-arm64.dmg` | styled disk image (~10.5 MiB) with Applications symlink |
-| `dist/SHA256SUMS-app` | SHA-256 of the DMG |
-| `dist/usbscope-<version>-macos-arm64[.tar.gz]` | standalone CLI binary (12.7 MiB) |
-| `dist/SHA256SUMS` | SHA-256 of both CLI artifacts |
-
-Install and check the built artifacts:
-
-```console
-make checksums                                            # both checksum files
-open dist/usbscope-0.2.0-macos-arm64.dmg                   # drag the app onto Applications
-hdiutil attach -nobrowse -readonly dist/usbscope-0.2.0-macos-arm64.dmg   # inspect it
-/Volumes/usbscope/usbscope.app/Contents/MacOS/usbscope --version
-```
-
-`usbscope-app --snapshot out.png [--view cables]` renders the **whole window** — the
-PNG is taken from the theme frame, so it contains the real titlebar and toolbar
-(`make snapshot` regenerates `docs/screenshots/app-*.png`). `--no-preferences` keeps
-a capture from reading or writing stored preferences, which is what makes the image
-reproducible. One limitation remains, and it only affects captures:
-
-* Forcing an appearance (`NSAppearance`) makes the layer backed labels come out
-  blank, so that flag does not exist: captures follow the system appearance, which is
-  what the window shows anyway.
+`usbscope-app --snapshot out.png [--view cables] [--baseline file.json]` renders
+the **whole window** offscreen (no screen, no screen-recording permission) and
+exits — the PNG is taken from the window frame, so it contains the real titlebar
+and toolbar. `make snapshot` regenerates `docs/screenshots/app-*.png`. One
+limitation remains, and it only affects captures: forcing an appearance
+(`NSAppearance`) makes the layer-backed labels come out blank, so captures follow
+the system appearance, which is what the window shows anyway.
 
 ## Prebuilt binary (CLI)
 
-Each release ships a standalone macOS binary (arm64) that bundles Python and Rich
-— no Python, no uv, no virtualenv required:
+**No prebuilt binary is published.** There is no signed or notarised release, and
+no release pipeline; the former Python/PyInstaller artifacts are gone with the
+Python implementation. Build the CLI yourself:
 
 ```console
-gh release download --repo zopyx/usbscope --pattern 'usbscope-*-macos-arm64.tar.gz'
-tar xzf usbscope-*-macos-arm64.tar.gz
-./usbscope            # or move it to /usr/local/bin
+swift build -c release
+./.build/release/usbscope --version
 ```
 
-`SHA256SUMS` in the release covers both the bare binary and the tarball:
-
-```console
-shasum -a 256 -c SHA256SUMS
-```
-
-Build it yourself (the script builds, ad-hoc signs, runs the binary once and
-packages it into `dist/`):
-
-```console
-uv run python scripts/build_binary.py                 # arm64, Python 3.14 + PyInstaller
-make binary                                           # same, via make
-uv run python scripts/build_binary.py --arch x86_64   # needs an x86_64/universal2 Python
-```
-
-Two honest caveats:
-
-* The binary is signed **ad hoc** (`codesign -s -`), not with a Developer ID and
-  not notarised. If the download carries the quarantine flag (browsers set it),
-  macOS blocks the first start with "cannot be opened because the developer
-  cannot be verified". `gh`/`curl` do not set the flag; otherwise remove it with
-  `xattr -d com.apple.quarantine ./usbscope`. Notarisation needs a paid Apple
-  Developer ID — the build script's `sign()`/`package()` split is where that step
-  would go.
-* Only the architecture that was built is uploaded (arm64 here). A universal2
-  binary requires a universal2 Python to build against.
+What a real release still needs — Developer ID, hardened runtime, notarisation,
+stapling, a universal2 slice, a DMG and checksums — is listed in
+[distribution.md](distribution.md). Nothing there exists yet.
 
 ## Screenshots
 
-`docs/screenshots/` holds SVG + PNG renderings of the four CLI views (plus the
-app window shots), generated from a live snapshot of the machine this tool was
-written on:
+`docs/screenshots/` holds the images used by the README and this document:
 
-```console
-make refresh-screenshots                                        # 140 cols, monokai, 1.5x
-SHOT_HOST=macbook make refresh-screenshots                      # mask the host name
-uv run python scripts/screenshots.py --png                      # the underlying script
-```
+* The **app window** shots (`app-ports.png`, `app-cables.png`, …,
+  `asc-1280x800.png`, `asc-1440x900.png`) come from `make snapshot`, i.e. the
+  Swift app's `--snapshot` mode.
+* The **CLI** shots (`overview.svg/png`, `ports`, `cables`, `devices`) are static
+  captures kept as illustrations. They were rendered by the former Python
+  console renderer, which no longer exists; the Swift CLI has its own small
+  renderer and does not export SVG, so these files cannot be regenerated from
+  this checkout today.
 
-Rich exports the recorded console as SVG (colours and box drawing included), so
-the gallery can be regenerated on any Mac without a terminal emulator, window
-server or screenshot tool; only `rsvg-convert` (librsvg) is needed for the PNG
-step. The SVGs are kept next to the PNGs so a future edit can be re-rasterised
-without re-collecting. The committed captures use `--host mac`: the header would
-otherwise show the real machine name, which does not belong in a public image.
-The device inventory and the model/chip line are left as they are — they are
-generic hardware facts, not identifiers.
+The committed captures use a masked host name (`mac`) so the header does not
+leak the machine name; the device inventory and the model/chip line are left as
+they are — generic hardware facts, not identifiers.
 
 ## Development
 
 ```console
-make sync          # uv sync --extra macapp (dev tools + PyObjC)
-make format        # ruff format + ruff check --fix
-make lint          # ruff format --check, ruff check, ty check
-make test          # pytest
-make coverage      # pytest with a coverage report (currently ~90% of src/usbscope)
-make check         # lint + test, the CI equivalent
-make artifacts     # check + CLI binary + app bundle
+swift build            # build everything
+swift test             # the suite
+make check             # build + tests, the CI equivalent
+make swift-app-check   # headless row count of every app view
+make swift-app-bundle  # assemble + sign + verify dist/usbscope-swift.app
 ```
 
-The same commands, spelled out:
+`SwiftTests/` holds the suite. `SwiftTests/Fixtures/` holds real payloads captured
+on a MacBook Pro (macOS 27.0.1) plus synthetic payloads for key styles no longer
+produced by this OS (their names say so); the fixture README lists each file and
+its origin. Parsers are tested against the fixtures, and the presentation layer
+(table rows, sort ranks, diffing) is tested headless because `UsbScopeUI` does not
+import SwiftUI.
 
-```console
-uv run ruff format && uv run ruff check --fix
-uv run ty check
-uv run pytest
-```
+**The golden is frozen.** `SwiftTests/Golden/snapshot.json` was produced once by
+the former Python serialiser, and that generator is gone with the Python
+implementation. It can no longer be regenerated from a second implementation — it
+is read-only history that pins the JSON shape, and `ParityTests` compares the
+Swift-built snapshot against it. Regenerating it would mean hand-editing or
+re-deriving the reference; do not expect a `make` target for it.
 
-`tests/fixtures/` holds real payloads captured on a MacBook Pro (macOS 27.0.1)
-plus synthetic payloads for key styles no longer produced by this OS (their
-names say so). Parsers are tested against the fixtures; the render tests run
-Rich in record mode and assert on the text, never on ANSI codes.
-
-## Swift port
-
-A Swift rewrite of the core plus a CLI twin lives next to the Python package.
-The Python tool and its suite stay in place and keep working; the two
-implementations are pinned to the *same* fixtures.
-
-| Part | Path |
-| --- | --- |
-| Package manifest | `Package.swift` (`swift-tools-version: 6.0`, macOS 14.4+ — the column chooser needs the conditional `TableColumn`/`ToolbarItem` result builders that arrived in 14.4) |
-| Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, `ioreg`, `system_profiler`, charging, snapshot, JSON serialiser, formatting |
-| Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, `Highlight`, detail pairs, TSV/CSV export (no SwiftUI, so it is unit-testable headless); the change **differ** (`deviceKey`/`diffSnapshots`) lives in `UsbScopeCore`, because the hotplug watcher and the history build on it too |
-| CLI executable `usbscope` | `Sources/usbscope/main.swift` |
-| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the five views on top of `UsbScopeUI` |
-| Test suite | `SwiftTests/` |
-| Parity golden | `SwiftTests/Golden/snapshot.json` |
-
-**The acceptance criterion is byte-identical JSON.** `usbscope --json` must
-produce the same `schema_version: 1` document from either implementation.
-
-```console
-swift build && swift test          # or: make swift
-./.build/debug/usbscope --json     # the Swift CLI
-uv run usbscope --json             # the Python CLI — the same document
-```
-
-`swift test` builds the snapshot from `tests/fixtures` through the Swift
-adapters and compares it to `SwiftTests/Golden/snapshot.json`, which
-`scripts/swift_golden.py` writes with the Python serialiser (regenerate it with
-`make swift-golden` after changing a fixture). A drift in either direction fails
-the suite with a leaf-level diff, so the two implementations cannot diverge
-unnoticed. Two macOS-specific pitfalls are covered by tests because they broke
-parity once and are easy to reintroduce:
+Two macOS-specific pitfalls are covered by tests because they are easy to
+reintroduce:
 
 * `NSNumber` bridges to `Bool` for the integers `0` and `1` on Darwin, so
   `value is Bool` is not a boolean test — the adapters use `PlistValue.isBool`
   (`CFGetTypeID`), otherwise a pin assignment of `0` or a port number of `1`
   would silently vanish from the JSON.
 * `ProcessInfo.processInfo.hostName` returns the Bonjour local name, whereas
-  Python's `platform.node()` is `gethostname(3)`; the Swift side calls
-  `gethostname` to match.
-
-The `IOPort` plane — the port, cable, power and transport records — is read
-**in-process** through IOKit by default (`IORegistryReader`), which drops one
-subprocess from launch; the historical `/usr/sbin/ioreg` spawn is kept as a
-**fallback**, used whenever the in-process read fails or reports no port, and
-either path produces byte-identical JSON (`IORegSourceBackend` pins the choice;
-an explicitly injected `IoregSource` still wins, which is what keeps the golden
-fixture path unchanged). Whether IOKit can read that plane **inside a real App
-Store sandbox remains unverified** — that needs an Apple-issued signature and
-provisioning profile, not an ad-hoc one (see [app-store.md](app-store.md)).
-
-The Rich terminal rendering is **not** part of the port — the Swift CLI carries
-its own small renderer. What the two implementations must agree on is the domain
-model, the data adapters and the JSON.
-
-### The SwiftUI app
-
-`usbscope-app` is the SwiftUI twin of the Python/AppKit app: the same five views
-(**Ports · Cables · Devices · Thunderbolt · Power**) as a real window, built on
-`UsbScopeUI`. The presentation layer is a straight port of
-`macapp/viewmodel.py` + `tableops.py` + `changes.py` — the column titles, the
-cell text and the sort ranks match the Python app, so the two UIs show the same
-numbers in the same order.
-
-```console
-swift run usbscope-app              # or: make swift-run-app
-make swift-app-check                # headless: row count of every view, then exit
-```
-
-| Feature | Behaviour |
-| --- | --- |
-| Tabs | Nine views in the toolbar segmented switcher and via `⌘1`–`⌘9`: **Ports · Cables · Devices · Thunderbolt · Power · Timeline · Security · USB4 · Diff** |
-| Search | Toolbar field, live filter over every column (all terms must match) |
-| Presets | Quick filters next to the search field: all / HID only / storage only / connected only |
-| Sorting | Click a column header; the sort keys mirror the Python `Cell.sort_value` (a mode rank, a port number) so `USB 1.1` sorts below `USB 3.2 Gen 2` |
-| Grouping | Toolbar "Group by" for bus / class / speed |
-| Columns | A per-view column chooser; the layout is remembered per view |
-| Detail sheet | **Details** button / `⌘D` shows every field of the selected row (port, cable, device or charging metric) |
-| Refresh | `⌘R`, plus an auto-refresh toggle and a 2/5/10/30 s interval menu |
-| Timeline tab | Sparkline of the live charging watts over time plus the hotplug log (attach/detach with timestamps), newest first |
-| Security tab | The `security` findings with a severity badge, the rule, the subject and the reason, the storage inventory, and the same honest-limits wording the CLI prints |
-| USB4 tab | Routers → ports → tunnels from the USB4 switch, with the raw link speed/width enumerations shown verbatim |
-| Diff tab | "Compare with…" loads a snapshot JSON (e.g. one written by `usbscope baseline save`) and shows appeared / disappeared / changed against the live machine |
-| Storage | Mount point, read-only flag and an **Eject** button per USB storage device (disabled with a reason when it is not possible) |
-| Changes | Rows that appeared, disappeared or changed colour green/red/orange after a refresh; the status line names them |
-| Copy / export | `⌘C`/`⇧⌘C` (TSV), `⇧⌘J` (snapshot JSON) to the clipboard; `⌘S`/`⇧⌘S` write JSON/CSV through a save panel |
-| Menu bar extra | `connected/ports` (plus `⚠` when a source warns), view switching, "Refresh now", a notifications switch and quit |
-| Notifications | One banner per device that appeared or disappeared — only from a bundled run (macOS refuses the request from a plain process) |
-| Preferences | `⌘,`: default view, interval, auto-refresh, notifications, appearance, language (DE/EN), grouping — persisted in the `com.zopyx.usbscope` defaults domain |
-| Status | Summary line (ports/connected/devices/cables) and a status bar with the read time, cadence, changes and warnings |
-| Screenshots | `usbscope-app --snapshot out.png [--view security]` renders the window offscreen and exits — no screen-recording permission needed |
-
-`usbscope-app --print-rows` is the headless check of the data path (row count per
-view), `--show-about` opens the About window straight away.
-
-**Not ported:** the Python app's per-row tooltips and its DMG packaging. The
-About window, the preferences, the menu bar extra and the notification banners
-now exist on the Swift side too.
-
-The SwiftUI app also needs an app bundle before macOS will show it as a regular
-app with a Dock entry and a proper menu bar; run from the checkout it calls
-`NSApplication.setActivationPolicy(.regular)` to bring the window to the front.
-
-### Building the Swift app bundle
-
-`uv run python scripts/build_swift_app.py` (or `make swift-app-bundle`) compiles
-the app with `swift build -c release`, assembles `dist/usbscope-swift.app`
-(`Contents/MacOS/usbscope-app`, an `Info.plist` with
-`CFBundleIdentifier com.zopyx.usbscope` and the package version,
-`LSMinimumSystemVersion 14.0`, `NSHighResolutionCapable`, the app icon copied from
-`assets/icon/usbscope.icns`), ad-hoc signs it and verifies the signature **and**
-that the bundled binary runs (`--version`, plus the `--print-rows` data path). It
-prints every command it runs and stops with a clear message instead of leaving a
-half-built bundle; `--no-sign` skips the signature, `--debug` builds the debug
-configuration. The signature is ad hoc only — what a real release still needs
-(Developer ID, hardened runtime, `notarytool`, `stapler`) and what the script does
-not do is in [distribution.md](distribution.md).
+  `gethostname(3)` is the plain host name; the Swift side calls `gethostname`.
 
 ### In-process registry reader (Plan B)
 
 `Sources/UsbScopeCore/IORegistryReader.swift` reads the `IOPort` registry plane
-through IOKit (`IOServiceGetMatchingServices` + `IORegistryEntryCreateCFProperties`
-+ `IORegistryEntryCreateCFProperty` walking `IORegistryEntryChildren`) instead of
-spawning `/usr/bin/ioreg`. It returns the same dictionary shape the plist parser
-consumes, so `IOReg.parsePorts` is unchanged; `IORegistryReader.runner()` wraps it
-as a `Runner`, which makes `IoregSource(runner: IORegistryReader.runner())` a
-drop-in replacement for the subprocess source. This is the sandbox answer from
-[app-store.md](app-store.md) (Plan B) implemented for the Swift core. On the
-machine the fixtures were captured on the in-process tree parses to byte-identical
-`Port` values (verified against `ioreg -p IOPort`); `SwiftTests/IORegistryReaderTests`
-skips the live assertions with `XCTSkip` where the registry cannot be read.
+through IOKit (`IOServiceGetMatchingServices` +
+`IORegistryEntryCreateCFProperties` + `IORegistryEntryCreateCFProperty` walking
+`IORegistryEntryChildren`) instead of spawning `/usr/sbin/ioreg`. It returns the
+same dictionary shape the plist parser consumes, so `IOReg.parsePorts` is
+unchanged; `IORegistryReader.runner()` wraps it as a `Runner`, which makes
+`IoregSource(runner: IORegistryReader.runner())` a drop-in replacement for the
+subprocess source. This is the sandbox answer from
+[app-store.md](app-store.md) (Plan B) implemented for the core. On the machine
+the fixtures were captured on the in-process tree parses to identical `Port`
+values (verified against `ioreg -p IOPort`);
+`SwiftTests/IORegistryReaderTests` skips the live assertions with `XCTSkip` where
+the registry cannot be read.
+
+Whether IOKit can read that plane **inside a real App Store sandbox remains
+unverified** — that needs an Apple-issued signature and provisioning profile, not
+an ad-hoc one (see [app-store.md](app-store.md)).
 
 ### Manual page and shell completions
 
@@ -701,10 +609,3 @@ Every attach/detach is appended to
 app also keeps the last 240 snapshots in memory (`SnapshotHistory`), each with its
 timestamp and the delta to its predecessor, and projects their charging telemetry
 onto a `powerTimeline()` of watts (`system_power_in_mw`, the measured input).
-
-Only the pure side of the timeline has a Python twin: `usbscope/history.py`
-(`PowerHistory` — a sample ring plus `timeline()`/`watts_timeline()`). The IOKit
-watcher is deliberately **Swift-only**: arming IOKit notifications from Python
-needs PyObjC bridging, and the event path belongs where the app runs.
-
-

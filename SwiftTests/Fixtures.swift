@@ -2,24 +2,28 @@ import Foundation
 import XCTest
 import UsbScopeCore
 
-/// Access to the fixtures the Python suite also uses (`tests/fixtures`) plus the
-/// golden JSON the Python implementation produced from them.
+/// Access to the captured fixtures (`SwiftTests/Fixtures`) plus the frozen
+/// golden JSON under `SwiftTests/Golden`.
 ///
 /// The paths are derived from this file's location, so the suite works from a
 /// checkout wherever it lives. The fixtures are *not* bundled as a resource:
-/// the Swift and the Python suite must read the exact same bytes.
+/// they are read from disk by absolute path, so what the tests read is exactly
+/// what a human can open.
 enum Fixtures {
     private static let testDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 
     static let repoRoot = testDirectory.deletingLastPathComponent()
 
-    static let directory = repoRoot.appendingPathComponent("tests/fixtures")
+    static let directory = testDirectory.appendingPathComponent("Fixtures")
 
-    /// `snapshot.json` — `usbscope.serialize.snapshot_to_dict` over the fixtures.
+    /// `Golden/snapshot.json` — the frozen reference of the serialised snapshot
+    /// over the fixtures. It was produced by the Python implementation that this
+    /// repository used to carry; the generator is gone, so the file is read-only
+    /// history that pins the JSON shape.
     static let golden = testDirectory.appendingPathComponent("Golden/snapshot.json")
 
-    /// The identity the fixtures were captured with; the Python suite pins the
-    /// same two values in `tests/conftest.py`.
+    /// The identity the fixtures were captured with; the golden was written with
+    /// the same two values, so a mismatch means the fixture identity drifted.
     static let host = "mac"
     static let osVersion = "27.0.1"
 

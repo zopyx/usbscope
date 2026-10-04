@@ -1,16 +1,16 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// The Swift rewrite of usbscope. The Python tool and its suite stay in place
-// while the Swift port is verified against the very same fixtures
-// (tests/fixtures) — the two implementations must produce identical JSON.
+// usbscope — Swift only. The tool, its test suite and its packaging are all in
+// this package; the fixtures under SwiftTests/Fixtures and the golden under
+// SwiftTests/Golden pin the JSON shape.
 //
 // Layout:
 //   UsbScopeCore   the domain model, the OS adapters and the JSON serialiser
 //   UsbScopeUI     the presentation layer (table rows, details, diffing) — no
 //                  SwiftUI, so it is unit-testable without a window server
-//   usbscope       the CLI twin
-//   usbscope-app   the SwiftUI app (five views, mirroring the Python app)
+//   usbscope       the CLI
+//   usbscope-app   the SwiftUI app (nine views)
 let package = Package(
     name: "usbscope",
     platforms: [.macOS("14.4")],
@@ -34,7 +34,7 @@ let package = Package(
             dependencies: ["UsbScopeCore", "UsbScopeUI"],
             path: "SwiftTests",
             // The golden JSON is read from disk by absolute path, not bundled.
-            exclude: ["Golden"]
+            exclude: ["Golden", "Fixtures"]
         ),
     ]
 )

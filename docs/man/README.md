@@ -1,8 +1,7 @@
 # Manual page and shell completions
 
-`usbscope.1` is the roff manual page for the CLI (all four views and the options
-of both implementations, the Python tool and the Swift twin). The completions
-cover the same interface:
+`usbscope.1` is the roff manual page for the CLI (the views, the four scriptable
+commands and the options). The completions cover the same interface:
 
 ```
 docs/man/usbscope.1                 the manual page
@@ -11,8 +10,8 @@ scripts/completions/usbscope.bash   bash completion
 ```
 
 The manual page is kept in sync **by hand** with `usbscope --help`
-(`src/usbscope/cli.py` / `Sources/usbscope/main.swift`); there is no generator, so
-change both sides together. Preview it without installing anything:
+(`Sources/usbscope/main.swift`); there is no generator, so change both sides
+together. Preview it without installing anything:
 
 ```console
 man ./docs/man/usbscope.1

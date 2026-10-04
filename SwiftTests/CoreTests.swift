@@ -71,7 +71,7 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(UsbMode.unknown.rank, 0)
     }
 
-    // MARK: - Format (mirrors tests/test_format.py)
+    // MARK: - Format (rules carried over from the Python tool's test_format.py)
 
     func testUnitsAreRenderedFromTheRawValues() {
         XCTAssertNil(Format.watts(nil))
