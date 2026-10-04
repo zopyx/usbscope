@@ -339,7 +339,10 @@ final class AppState: ObservableObject {
         storageStatus = inventory.status
         storageWarnings = inventory.warnings
         storageErrors = inventory.errors
-        apply(SnapshotBuilder.collect(), generation: nil)
+        let profile = monitoringProfile == .lowPower ? SnapshotCollectionProfile.lowPower : .full
+        apply(SnapshotBuilder.collect(includeConflictWarnings: true,
+                                      metadataCache: SnapshotBuilder.stableMetadataCache,
+                                      profile: profile), generation: nil)
     }
 
     private func apply(_ fresh: Snapshot, generation: UInt64?) {
