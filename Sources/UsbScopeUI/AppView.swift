@@ -17,11 +17,12 @@ public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
     case security
     case usb4
     case diff
+    case warnings
 
     public var id: String { rawValue }
 
     /// The five table views, in the Python app's order.
-    public static let tableViews: [AppView] = [.ports, .cables, .devices, .thunderbolt, .power]
+    public static let tableViews: [AppView] = [.ports, .cables, .devices, .thunderbolt, .power, .warnings]
 
     /// Toolbar label.
     public var title: String {
@@ -35,6 +36,7 @@ public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
         case .security: "Security"
         case .usb4: "USB4"
         case .diff: "Diff"
+        case .warnings: "Warnings"
         }
     }
 
@@ -50,6 +52,7 @@ public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
         case .security: "lock.shield"
         case .usb4: "point.3.connected.trianglepath.dotted"
         case .diff: "arrow.left.arrow.right"
+        case .warnings: "exclamationmark.triangle"
         }
     }
 }
@@ -78,7 +81,9 @@ public enum Highlight: String, Sendable {
 /// Both read the view's position in `allCases`, so the toolbar tooltip, the View menu
 /// item and the keyboard shortcut cannot disagree about which number a view answers to.
 extension AppView {
-    /// The number of the `⌘n` shortcut this view answers to (1-based).
+    /// The 1-based menu position. The first nine positions receive `⌘1`–`⌘9`;
+    /// later views remain reachable through the menu and command palette because
+    /// macOS has no single-key `⌘10` equivalent.
     public var shortcutNumber: Int {
         (AppView.allCases.firstIndex(of: self) ?? 0) + 1
     }

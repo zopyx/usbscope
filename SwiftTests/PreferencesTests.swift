@@ -18,6 +18,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.monitoringProfile, .balanced)
         XCTAssertTrue(preferences.hiddenColumns.isEmpty)
         XCTAssertTrue(preferences.securitySeverityOverrides.isEmpty)
+        XCTAssertTrue(preferences.viewPreferences.isEmpty)
     }
 
     func testSanitizedReplacesUntrustedValues() {
@@ -55,10 +56,17 @@ final class PreferencesTests: XCTestCase {
         preferences.monitoringProfile = .lowPower
         preferences.hiddenColumns = ["devices": ["Serial", "Tier"]]
         preferences.securitySeverityOverrides = ["mass-storage": "info"]
+        preferences.viewPreferences = [
+            "devices": ViewPreferences(search: "keyboard", filterPreset: .connected,
+                                        grouping: .deviceClass, preserveSelection: false)
+        ]
 
         let restored = AppPreferences.decode(preferences.encoded())
         XCTAssertEqual(restored, preferences.sanitized())
         XCTAssertEqual(restored.securitySeverityOverrides, ["mass-storage": "info"])
+        XCTAssertEqual(restored.viewPreferences["devices"]?.search, "keyboard")
+        XCTAssertEqual(restored.viewPreferences["devices"]?.filterPreset, .connected)
+        XCTAssertFalse(restored.viewPreferences["devices"]?.preserveSelection ?? true)
     }
 
     func testOlderPreferenceDocumentsDefaultTheMonitoringProfile() {

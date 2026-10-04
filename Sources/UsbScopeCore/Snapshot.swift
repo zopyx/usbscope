@@ -149,7 +149,7 @@ public enum SnapshotBuilder {
     /// JSON it produces is byte-identical to `.subprocess` wherever the
     /// in-process read succeeds.
     static func readPorts(
-        backend: IORegSourceBackend, explicit: IoregSource?
+        backend: IORegSourceBackend, explicit: (any IOPortAdapter)?
     ) -> ([UsbPort], [String]) {
         if let explicit { return explicit.ports() }
         switch backend {
@@ -168,13 +168,13 @@ public enum SnapshotBuilder {
     }
 
     public static func collect(
-        profiler: SystemProfiler = SystemProfiler(),
-        ioreg: IoregSource? = nil,
+        profiler: any ProfilerAdapter = SystemProfiler(),
+        ioreg: (any IOPortAdapter)? = nil,
         ioregBackend: IORegSourceBackend = .automatic,
-        charging: ChargingSource = ChargingSource(),
-        usbregistry: USBRegistrySource = USBRegistrySource(),
-        interfaces: USBInterfaceSource = USBInterfaceSource(),
-        fabric: ThunderboltFabricSource = ThunderboltFabricSource(),
+        charging: any ChargingAdapter = ChargingSource(),
+        usbregistry: any USBRegistryAdapter = USBRegistrySource(),
+        interfaces: any InterfaceAdapter = USBInterfaceSource(),
+        fabric: any ThunderboltFabricAdapter = ThunderboltFabricSource(),
         clock: @Sendable () -> Date = { Date() },
         osVersion: String? = nil,
         host: String? = nil,

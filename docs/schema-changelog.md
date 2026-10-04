@@ -36,6 +36,9 @@ keys keeps working):
   `class_code`, `class_text`, `subclass`, `protocol`, `endpoints` (the *count*
   macOS reports; the endpoint descriptors themselves are not published) and `name`.
   Empty for a device that publishes none.
+* Port records additionally expose `advertised_modes`, `negotiated_mode`, and
+  `maximum_observed_rate_mbps`; these are additive fields that distinguish
+  capability evidence from the currently negotiated link.
 * The separate `kind: "security"` document may include `storage_status`,
   `storage_warnings`, and `storage_errors`; these preserve storage-source health
   without changing the snapshot schema.

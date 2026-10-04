@@ -56,6 +56,22 @@ final class FixSpecTests: XCTestCase {
         }
     }
 
+    func testCapabilityAndNegotiatedModesRemainSeparate() {
+        var port = UsbPort(description: "USB-C@1", kind: "USB-C")
+        port.connected = true
+        port.transports = [
+            Transport(kind: "USB2", active: true, speedMbps: 480),
+            Transport(kind: "USB3", active: false, speedMbps: 5_000),
+        ]
+        XCTAssertEqual(port.negotiatedMode, .highSpeed)
+        XCTAssertEqual(port.advertisedModes, [.highSpeed, .superSpeed])
+        XCTAssertEqual(port.maximumObservedRate, 5_000)
+        let encoded = Serialize.json(Snapshot(host: "host", osVersion: "1", seenAt: Date(), ports: [port]))
+        XCTAssertTrue(encoded.contains("advertised_modes"))
+        XCTAssertTrue(encoded.contains("negotiated_mode"))
+        XCTAssertTrue(encoded.contains("maximum_observed_rate_mbps"))
+    }
+
     func testDiagnosticRedactionRemovesIdentifiers() {
         let snapshot = Fixtures.snapshot()
         let text = DiagnosticBundle.redactedSnapshotJSON(snapshot)

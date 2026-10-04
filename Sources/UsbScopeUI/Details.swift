@@ -143,6 +143,9 @@ public enum Presentation {
             pair("Number", port.number),
             pair("Connect type", port.connectType),
             pair("USB link", transport?.mode.label),
+            pair("Advertised modes", port.advertisedModes.map(\.label).joined(separator: " · ")),
+            pair("Negotiated mode", port.negotiatedMode.label),
+            pair("Maximum observed rate", port.maximumObservedRate.map { Format.g($0) + " Mbit/s" }),
             pair("USB link active", transport?.active),
             pair("USB speed", transport?.rateText),
             pair("Super speed active", port.superSpeedActive),
@@ -294,6 +297,7 @@ public enum Presentation {
         case .security: ["Severity", "Rule", "Subject", "Why"]
         case .usb4: ["Kind", "Level", "Item", "Detail"]
         case .diff: []              // depends on the loaded baseline, not the snapshot
+        case .warnings: ["Source", "Severity", "Field", "Message", "Remediation"]
         }
     }
 
@@ -317,6 +321,10 @@ public enum Presentation {
         case .usb4:
             return FabricPresentation.rows(snapshot.thunderboltFabric).map {
                 ($0.id, [$0.kind.rawValue, String($0.depth), $0.title, [$0.detail, $0.rawLink].compactMap { $0 }.joined(separator: " · ")])
+            }
+        case .warnings:
+            return WarningPresentation.rows(snapshot.warnings).map {
+                ($0.id, [$0.source, $0.severity, $0.field, $0.message, $0.remediation])
             }
         case .timeline, .diff:
             return []

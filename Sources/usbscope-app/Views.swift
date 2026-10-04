@@ -157,7 +157,7 @@ struct DiagnosticsSheet: View {
                     }
                 }
             }
-            let warningRows = WarningPresentation.rows(state.readWarnings)
+            let warningRows = WarningPresentation.rows(state.readWarnings, language: state.language)
             if !warningRows.isEmpty {
                 HStack {
                     Text(L(.warnings, state.language)).font(.headline)
@@ -198,6 +198,56 @@ struct DiagnosticsSheet: View {
         .padding(20)
         .frame(minWidth: 560, minHeight: 420)
         .accessibilityElement(children: .contain)
+    }
+}
+
+// MARK: - Warnings / data quality
+
+struct WarningsView: View {
+    @EnvironmentObject private var state: AppState
+
+    private var rows: [WarningRow] {
+        WarningPresentation.rows(state.readWarnings, language: state.language)
+    }
+
+    var body: some View {
+        Group {
+            if rows.isEmpty {
+                EmptyState(message: Strings.emptyMessage(for: .warnings, state.language),
+                           actionTitle: L(.refreshAction, state.language)) { state.refresh() }
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Label(L(.warnings, state.language), systemImage: AppView.warnings.systemImage)
+                            .font(.title3.bold())
+                        Spacer()
+                        Button(L(.copyTechnicalDetails, state.language)) { state.copyWarnings() }
+                            .keyboardShortcut("c", modifiers: [.command, .shift])
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    Table(rows) {
+                        TableColumn(L(.sourceHealth, state.language)) { row in
+                            Text(row.source).font(.caption.monospaced())
+                        }
+                        TableColumn(L(.severityWarning, state.language)) { row in
+                            Label(row.severity, systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                        }
+                        TableColumn(L(.warningField, state.language)) { row in Text(row.field).font(.caption.monospaced()) }
+                        TableColumn(L(.warningMessage, state.language)) { row in Text(row.message).lineLimit(2) }
+                        TableColumn(L(.warningRemediation, state.language)) { row in Text(row.remediation).foregroundStyle(.secondary).lineLimit(2) }
+                    }
+                    .contextMenu(forSelectionType: WarningRow.ID.self) { ids in
+                        if let id = ids.first, let row = rows.first(where: { $0.id == id }) {
+                            Button(L(.copyTechnicalDetails, state.language)) { state.copyWarning(row.technical) }
+                        }
+                    }
+                    .accessibilityLabel(L(.warnings, state.language))
+                }
+            }
+        }
+        .padding(.top, 2)
     }
 }
 

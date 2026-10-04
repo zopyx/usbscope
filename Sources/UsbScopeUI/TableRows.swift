@@ -382,6 +382,7 @@ public func emptyMessage(for view: AppView) -> String {
     case .security: "No security findings — macOS reported nothing that stood out."
     case .usb4: "No Thunderbolt/USB4 router reported."
     case .diff: "No baseline loaded — use 'Compare with…' to pick a snapshot JSON."
+    case .warnings: "No source warnings were reported for the current snapshot."
     }
 }
 

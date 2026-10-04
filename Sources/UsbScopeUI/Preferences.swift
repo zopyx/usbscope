@@ -59,6 +59,47 @@ public enum MonitoringProfile: String, CaseIterable, Identifiable, Codable, Send
 /// The refresh cadences the app offers.
 public let PREFERENCE_INTERVALS: [Double] = [1, 2, 5, 10, 30]
 
+/// Configuration that belongs to one view rather than to the whole window.
+/// Keeping it keyed by the stable `AppView` raw value prevents a filter or
+/// grouping choice from leaking into an unrelated table.
+public struct ViewPreferences: Codable, Equatable, Sendable {
+    public var search: String = ""
+    public var filterPreset: FilterPreset = .all
+    public var grouping: GroupField = .none
+    public var preserveSelection: Bool = true
+    public var selection: [String] = []
+
+    public init(search: String = "", filterPreset: FilterPreset = .all,
+                grouping: GroupField = .none, preserveSelection: Bool = true,
+                selection: [String] = []) {
+        self.search = search
+        self.filterPreset = filterPreset
+        self.grouping = grouping
+        self.preserveSelection = preserveSelection
+        self.selection = selection
+    }
+
+    private enum CodingKeys: String, CodingKey { case search, filterPreset, grouping, preserveSelection, selection }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        search = try values.decodeIfPresent(String.self, forKey: .search) ?? ""
+        filterPreset = try values.decodeIfPresent(FilterPreset.self, forKey: .filterPreset) ?? .all
+        grouping = try values.decodeIfPresent(GroupField.self, forKey: .grouping) ?? .none
+        preserveSelection = try values.decodeIfPresent(Bool.self, forKey: .preserveSelection) ?? true
+        selection = try values.decodeIfPresent([String].self, forKey: .selection) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(search, forKey: .search)
+        try values.encode(filterPreset, forKey: .filterPreset)
+        try values.encode(grouping, forKey: .grouping)
+        try values.encode(preserveSelection, forKey: .preserveSelection)
+        try values.encode(selection, forKey: .selection)
+    }
+}
+
 public struct AppPreferences: Codable, Equatable, Sendable {
     public var defaultView: AppView = .ports
     public var interval: Double = 5
@@ -73,6 +114,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public var hiddenColumns: [String: [String]] = [:]
     /// Optional presentation severity overrides keyed by stable security rule ID.
     public var securitySeverityOverrides: [String: String] = [:]
+    /// Search/filter/grouping/selection policy keyed by `AppView.rawValue`.
+    public var viewPreferences: [String: ViewPreferences] = [:]
 
     public init() {}
 
@@ -87,7 +130,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         grouping: GroupField = .none,
         monitoringProfile: MonitoringProfile = .balanced,
         hiddenColumns: [String: [String]] = [:],
-        securitySeverityOverrides: [String: String] = [:]
+        securitySeverityOverrides: [String: String] = [:],
+        viewPreferences: [String: ViewPreferences] = [:]
     ) {
         self.defaultView = defaultView
         self.interval = interval
@@ -100,12 +144,13 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.monitoringProfile = monitoringProfile
         self.hiddenColumns = hiddenColumns
         self.securitySeverityOverrides = securitySeverityOverrides
+        self.viewPreferences = viewPreferences
     }
 
     private enum CodingKeys: String, CodingKey {
         case defaultView, interval, autoRefresh, notifications, notificationDetail
         case appearance, language, grouping, monitoringProfile, hiddenColumns
-        case securitySeverityOverrides
+        case securitySeverityOverrides, viewPreferences
     }
 
     public init(from decoder: Decoder) throws {
@@ -121,6 +166,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         monitoringProfile = try values.decodeIfPresent(MonitoringProfile.self, forKey: .monitoringProfile) ?? .balanced
         hiddenColumns = try values.decodeIfPresent([String: [String]].self, forKey: .hiddenColumns) ?? [:]
         securitySeverityOverrides = try values.decodeIfPresent([String: String].self, forKey: .securitySeverityOverrides) ?? [:]
+        viewPreferences = try values.decodeIfPresent([String: ViewPreferences].self, forKey: .viewPreferences) ?? [:]
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -136,6 +182,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         try values.encode(monitoringProfile, forKey: .monitoringProfile)
         try values.encode(hiddenColumns, forKey: .hiddenColumns)
         try values.encode(securitySeverityOverrides, forKey: .securitySeverityOverrides)
+        try values.encode(viewPreferences, forKey: .viewPreferences)
     }
 
     /// A copy with every invalid value replaced by a default.
@@ -153,6 +200,12 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         copy.securitySeverityOverrides = securitySeverityOverrides.reduce(into: [:]) { result, entry in
             guard Security.ruleIDs.contains(entry.key), FindingSeverity(rawValue: entry.value) != nil else { return }
             result[entry.key] = entry.value
+        }
+        copy.viewPreferences = viewPreferences.reduce(into: [:]) { result, entry in
+            guard let view = AppView(rawValue: entry.key) else { return }
+            var value = entry.value
+            value.grouping = GroupField.fields(for: view).contains(value.grouping) ? value.grouping : .none
+            result[view.rawValue] = value
         }
         copy.hiddenColumns = hiddenColumns.reduce(into: [:]) { result, entry in
             guard let view = AppView(rawValue: entry.key) else { return }

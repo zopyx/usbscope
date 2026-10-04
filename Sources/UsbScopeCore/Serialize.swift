@@ -137,6 +137,10 @@ public enum Serialize {
         payload["connected"] = port.connected
         payload["mode"] = port.mode.rawValue
         payload["mode_label"] = port.mode.label
+        payload["advertised_modes"] = port.advertisedModes.map(\.rawValue)
+        payload["negotiated_mode"] = port.negotiatedMode.rawValue
+        payload["active_transports"] = port.activeTransports.map { transport($0) }
+        payload["maximum_observed_rate_mbps"] = orNull(port.maximumObservedRate)
         payload["connect_type"] = orNull(port.connectType)
         payload["super_speed_active"] = orNull(port.superSpeedActive)
         payload["plug_orientation"] = orNull(port.plugOrientation)

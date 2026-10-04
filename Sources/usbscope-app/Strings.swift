@@ -51,6 +51,7 @@ enum StringKey: String, CaseIterable {
     case viewSecurity
     case viewUsb4
     case viewDiff
+    case viewWarnings
     case filterPresets
     case presetAll
     case presetHID
@@ -119,6 +120,9 @@ enum StringKey: String, CaseIterable {
     case monitoring
     case freshness
     case warnings
+    case warningField
+    case warningMessage
+    case warningRemediation
     case copyTechnicalDetails
     case guidedTroubleshooting
     case refreshToEvaluate
@@ -197,6 +201,7 @@ enum StringKey: String, CaseIterable {
     case emptySecurity
     case emptyUsb4
     case emptyDiff
+    case emptyWarnings
 
     /// The key for an `AppView`.
     static func of(_ view: AppView) -> StringKey {
@@ -210,6 +215,7 @@ enum StringKey: String, CaseIterable {
         case .security: .viewSecurity
         case .usb4: .viewUsb4
         case .diff: .viewDiff
+        case .warnings: .viewWarnings
         }
     }
 
@@ -314,6 +320,7 @@ enum Strings {
         case .viewSecurity: "Security"
         case .viewUsb4: "USB4"
         case .viewDiff: "Diff"
+        case .viewWarnings: "Warnings"
         case .filterPresets: "Quick filter"
         case .presetAll: "All"
         case .presetHID: "HID only"
@@ -382,6 +389,9 @@ enum Strings {
         case .monitoring: "Monitoring"
         case .freshness: "Freshness"
         case .warnings: "Warnings"
+        case .warningField: "Field"
+        case .warningMessage: "Message"
+        case .warningRemediation: "Remediation"
         case .copyTechnicalDetails: "Copy technical details"
         case .guidedTroubleshooting: "Guided troubleshooting"
         case .refreshToEvaluate: "Refresh to evaluate the current machine."
@@ -460,6 +470,7 @@ enum Strings {
         case .emptySecurity: "No security observations are available yet."
         case .emptyUsb4: "No Thunderbolt/USB4 router reported."
         case .emptyDiff: "No baseline loaded — use Compare with… to choose a snapshot JSON."
+        case .emptyWarnings: "No source warnings were reported for the current snapshot."
         }
     }
 
@@ -508,6 +519,7 @@ enum Strings {
         case .viewSecurity: "Sicherheit"
         case .viewUsb4: "USB4"
         case .viewDiff: "Vergleich"
+        case .viewWarnings: "Warnungen"
         case .filterPresets: "Schnellfilter"
         case .presetAll: "Alle"
         case .presetHID: "Nur HID"
@@ -576,6 +588,9 @@ enum Strings {
         case .monitoring: "Überwachung"
         case .freshness: "Aktualität"
         case .warnings: "Warnungen"
+        case .warningField: "Feld"
+        case .warningMessage: "Meldung"
+        case .warningRemediation: "Abhilfe"
         case .copyTechnicalDetails: "Technische Details kopieren"
         case .guidedTroubleshooting: "Geführte Fehlersuche"
         case .refreshToEvaluate: "Aktualisieren, um diesen Mac auszuwerten."
@@ -654,6 +669,7 @@ enum Strings {
         case .emptySecurity: "Noch keine Sicherheitsbeobachtungen verfügbar."
         case .emptyUsb4: "Kein Thunderbolt-/USB4-Router gemeldet."
         case .emptyDiff: "Keine Vergleichsbasis geladen — mit „Vergleichen mit…“ eine Snapshot-JSON auswählen."
+        case .emptyWarnings: "Für die aktuelle Momentaufnahme wurden keine Quellenwarnungen gemeldet."
         }
     }
 }
@@ -676,6 +692,7 @@ extension Strings {
         case .security: key = .emptySecurity
         case .usb4: key = .emptyUsb4
         case .diff: key = .emptyDiff
+        case .warnings: key = .emptyWarnings
         }
         return L(key, language)
     }

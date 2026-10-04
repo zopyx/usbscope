@@ -11,6 +11,8 @@ Automated checks run on every change:
 | Large-data performance | `swift test --filter PerformanceTests` | 500-device report and 1,000-entry history stay within budgets |
 | Parser robustness | `swift test --filter ParserFuzzTests` | Malformed and deeply nested source trees do not crash adapters |
 | Concurrency and export safety | `swift test --filter FixSpecTests` | Refresh bursts are serialized, stderr remains bounded, and atomic exports leave no temporary files |
+| Warnings/data quality | `swift test --filter PresentationTests` plus app smoke run | Warnings are navigable with source, severity, field, remediation, and redacted technical copy |
+| Capability/negotiated model | `swift test --filter FixSpecTests` | Advertised modes, negotiated mode, and maximum observed rate remain distinct in JSON and details |
 | Script safety | `bash -n scripts/*.sh` | No shell syntax errors |
 | Patch hygiene | `git diff --check` | No whitespace errors |
 

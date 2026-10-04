@@ -62,24 +62,33 @@ final class AppState: ObservableObject {
 
     @Published var view: AppView = .ports {
         didSet {
-            if view != oldValue { selection.removeAll() }
+            if view != oldValue {
+                saveViewPreferences(for: oldValue, selectionValue: selection)
+                loadViewPreferences(for: view)
+                if !currentViewPreferences.preserveSelection { selection.removeAll() }
+            }
             persist()
         }
     }
-    @Published var search = ""
+    @Published var search = "" { didSet { if !restoringViewPreferences { saveViewPreferences(for: view); persist() } } }
     @Published var interval: Double = 5 { didSet { persist() } }
     @Published private(set) var autoRefresh = false
     @Published var appearance: Appearance = .system { didSet { persist() } }
     @Published var language: AppLanguage = .en { didSet { persist() } }
     @Published private(set) var notificationsEnabled = true { didSet { persist() } }
     @Published private(set) var notificationDetail: NotificationDetail = .generic { didSet { persist() } }
-    @Published var groupField: GroupField = .none { didSet { persist() } }
+    @Published var groupField: GroupField = .none { didSet { if !restoringViewPreferences { saveViewPreferences(for: view) }; persist() } }
     @Published private(set) var monitoringProfile: MonitoringProfile = .balanced { didSet { persist() } }
     @Published private(set) var securitySeverityPolicy = SecuritySeverityPolicy.standard { didSet { persist() } }
     @Published private(set) var hiddenColumns: [AppView: Set<String>] = [:] { didSet { persist() } }
 
     /// The quick filter on top of the search text (session only, not persisted).
-    @Published var filterPreset: FilterPreset = .all
+    @Published var filterPreset: FilterPreset = .all { didSet { if !restoringViewPreferences { saveViewPreferences(for: view); persist() } } }
+
+    @Published private(set) var viewPreferences: [AppView: ViewPreferences] = [:]
+    private var restoringViewPreferences = false
+
+    private var currentViewPreferences: ViewPreferences { viewPreferences[view] ?? ViewPreferences() }
 
     /// The USB mass-storage inventory of the last read (the Security tab).
     @Published private(set) var storage: [StorageDevice] = []
@@ -101,7 +110,9 @@ final class AppState: ObservableObject {
     static let eventLimit = 500
 
     /// Selected rows of the current view (row ids).
-    @Published var selection = Set<String>()
+    @Published var selection = Set<String>() {
+        didSet { if !restoringViewPreferences { saveViewPreferences(for: view); persist() } }
+    }
 
     /// The row whose detail sheet is open, if any.
     @Published var detailRowKey: String?
@@ -181,6 +192,10 @@ final class AppState: ObservableObject {
         hiddenColumns = preferences.hiddenColumns.reduce(into: [:]) { result, entry in
             if let view = AppView(rawValue: entry.key) { result[view] = Set(entry.value) }
         }
+        viewPreferences = preferences.viewPreferences.reduce(into: [:]) { result, entry in
+            if let view = AppView(rawValue: entry.key) { result[view] = entry.value }
+        }
+        loadViewPreferences(for: view)
         // Own the IOKit notifications for the lifetime of the app; the watcher
         // collects its own baseline off the main thread, so launch is not blocked.
         if monitoring { startMonitoring() }
@@ -290,9 +305,33 @@ final class AppState: ObservableObject {
             hiddenColumns: hiddenColumns.reduce(into: [:]) { result, entry in
                 result[entry.key.rawValue] = Array(entry.value).sorted()
             },
-            securitySeverityOverrides: securitySeverityPolicy.overrides.mapValues(\.rawValue)
+            securitySeverityOverrides: securitySeverityPolicy.overrides.mapValues(\.rawValue),
+            viewPreferences: viewPreferences.reduce(into: [:]) { result, entry in
+                result[entry.key.rawValue] = entry.value
+            }
         )
         store.save(preferences)
+    }
+
+    private func saveViewPreferences(for view: AppView, selectionValue: Set<String>? = nil) {
+        guard !restoringViewPreferences else { return }
+        var value = viewPreferences[view] ?? ViewPreferences()
+        value.search = view == self.view ? search : value.search
+        value.filterPreset = view == self.view ? filterPreset : value.filterPreset
+        value.grouping = view == self.view ? groupField : value.grouping
+        if let selectionValue { value.selection = selectionValue.sorted() }
+        else if view == self.view { value.selection = selection.sorted() }
+        viewPreferences[view] = value
+    }
+
+    private func loadViewPreferences(for view: AppView) {
+        let value = viewPreferences[view] ?? ViewPreferences()
+        restoringViewPreferences = true
+        search = value.search
+        filterPreset = value.filterPreset
+        groupField = GroupField.fields(for: view).contains(value.grouping) ? value.grouping : .none
+        selection = value.preserveSelection ? Set(value.selection) : []
+        restoringViewPreferences = false
     }
 
     func setNotifications(_ enabled: Bool) { notificationsEnabled = enabled }
@@ -807,6 +846,14 @@ final class AppState: ObservableObject {
         } ?? readWarnings
         guard !warnings.isEmpty else { return }
         writeClipboard(warnings.joined(separator: "\n"))
+    }
+
+    /// Copy one warning selected in the data-quality view with the same
+    /// identifier redaction used by aggregate diagnostics.
+    func copyWarning(_ warning: String) {
+        let policy = RedactionPolicy()
+        let text = snapshot.map { policy.redactText(warning, snapshot: $0, storage: storage) } ?? warning
+        writeClipboard(text)
     }
 
     func exportDiagnostics() {

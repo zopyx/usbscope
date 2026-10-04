@@ -290,7 +290,7 @@ final class ViewShortcutTests: XCTestCase {
             "the numbers must be 1…n in the order of allCases"
         )
         XCTAssertEqual(Set(AppView.allCases.map(\.shortcutNumber)).count, AppView.allCases.count)
-        XCTAssertEqual(AppView.allCases.count, 9, "⌘1–⌘9")
+        XCTAssertEqual(AppView.allCases.count, 10, "⌘1–⌘10")
     }
 
     /// The tooltip carries the view's label — not the word "View" — plus its shortcut.

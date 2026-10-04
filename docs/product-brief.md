@@ -30,3 +30,14 @@ version, freshness, source health and timings, recent event summaries, and the
 same default redaction policy as file diagnostics. Reports and table exports
 are written atomically, and each empty data view offers a refresh action where
 refreshing can change the result.
+
+The sidebar also exposes a first-class Warnings/data-quality view. It lists
+each source warning with severity, affected field, remediation, and a
+row-scoped technical-copy action. Search, quick filters, grouping, and the
+selection policy are stored per view so a Devices filter cannot leak into Ports
+or Security.
+
+Port JSON and inspectors keep capability evidence separate from current state:
+`advertised_modes` lists modes macOS exposed, `negotiated_mode` is the active
+read result, `active_transports` remains the transport list, and
+`maximum_observed_rate_mbps` records the highest rate seen in that read.

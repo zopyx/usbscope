@@ -523,6 +523,24 @@ public struct UsbPort: Equatable, Sendable {
 
     public var activeTransports: [Transport] { transports.filter(\.active) }
 
+    /// All link modes macOS exposed for this receptacle, including inactive
+    /// alternatives. This is capability evidence, not the current link.
+    public var advertisedModes: [UsbMode] {
+        let modes = Set(transports.map(\.mode).filter { $0 != .unknown })
+        return modes.sorted { $0.rank < $1.rank }
+    }
+
+    /// The currently negotiated USB data mode, or `.unknown` when no active
+    /// USB transport was reported.
+    public var negotiatedMode: UsbMode { mode }
+
+    /// Highest link rate observed in this read across all reported transports.
+    /// It is deliberately separate from `negotiatedMode` and may be greater
+    /// than the current mode when an inactive capability is present.
+    public var maximumObservedRate: Double? {
+        transports.compactMap(\.speedMbps).max()
+    }
+
     /// The USB data transport of this port, preferring the faster one.
     public var usbTransport: Transport? {
         let candidates = transports.filter { ["usb2", "usb3", "usb4"].contains($0.kind.lowercased()) }

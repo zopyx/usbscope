@@ -127,6 +127,12 @@
     {
       "accessory_mode" : null,
       "active_power_mode" : null,
+      "active_transports" : [
+
+      ],
+      "advertised_modes" : [
+
+      ],
       "authorization" : "Not Required",
       "cable" : {
         "active" : false,
@@ -153,9 +159,11 @@
       "liquid_override" : null,
       "liquid_pin" : null,
       "liquid_state" : null,
+      "maximum_observed_rate_mbps" : null,
       "mode" : "unknown",
       "mode_label" : "unknown",
       "name" : "HDMI@1",
+      "negotiated_mode" : "unknown",
       "number" : 1,
       "pin_configuration" : {
 
@@ -197,6 +205,12 @@
     {
       "accessory_mode" : 0,
       "active_power_mode" : 1,
+      "active_transports" : [
+
+      ],
+      "advertised_modes" : [
+
+      ],
       "authorization" : "Not Required",
       "cable" : {
         "active" : false,
@@ -223,9 +237,11 @@
       "liquid_override" : null,
       "liquid_pin" : null,
       "liquid_state" : null,
+      "maximum_observed_rate_mbps" : null,
       "mode" : "unknown",
       "mode_label" : "unknown",
       "name" : "MagSafe 3@1",
+      "negotiated_mode" : "unknown",
       "number" : 1,
       "pin_configuration" : {
         "rx1" : 0,
@@ -277,6 +293,12 @@
     {
       "accessory_mode" : null,
       "active_power_mode" : null,
+      "active_transports" : [
+
+      ],
+      "advertised_modes" : [
+
+      ],
       "authorization" : "No Action",
       "cable" : {
         "active" : false,
@@ -303,9 +325,11 @@
       "liquid_override" : null,
       "liquid_pin" : null,
       "liquid_state" : null,
+      "maximum_observed_rate_mbps" : null,
       "mode" : "unknown",
       "mode_label" : "unknown",
       "name" : "SD Card@1",
+      "negotiated_mode" : "unknown",
       "number" : 1,
       "pin_configuration" : {
 
@@ -347,6 +371,26 @@
     {
       "accessory_mode" : 0,
       "active_power_mode" : 1,
+      "active_transports" : [
+        {
+          "active" : true,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "CC",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        }
+      ],
+      "advertised_modes" : [
+
+      ],
       "authorization" : "Not Required",
       "cable" : {
         "active" : false,
@@ -373,9 +417,11 @@
       "liquid_override" : false,
       "liquid_pin" : "Reference",
       "liquid_state" : "Idle",
+      "maximum_observed_rate_mbps" : null,
       "mode" : "unknown",
       "mode_label" : "unknown",
       "name" : "USB-C@1",
+      "negotiated_mode" : "unknown",
       "number" : 1,
       "pin_configuration" : {
         "rx1" : 0,
@@ -517,6 +563,12 @@
     {
       "accessory_mode" : 0,
       "active_power_mode" : 1,
+      "active_transports" : [
+
+      ],
+      "advertised_modes" : [
+
+      ],
       "authorization" : "Not Required",
       "cable" : {
         "active" : false,
@@ -543,9 +595,11 @@
       "liquid_override" : false,
       "liquid_pin" : "Reference",
       "liquid_state" : "Idle",
+      "maximum_observed_rate_mbps" : null,
       "mode" : "unknown",
       "mode_label" : "unknown",
       "name" : "USB-C@2",
+      "negotiated_mode" : "unknown",
       "number" : 2,
       "pin_configuration" : {
         "rx1" : 2,
@@ -597,6 +651,41 @@
     {
       "accessory_mode" : 0,
       "active_power_mode" : 1,
+      "active_transports" : [
+        {
+          "active" : true,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "CC",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        },
+        {
+          "active" : true,
+          "data_role" : "Host",
+          "generation" : "USB 2.0",
+          "hash_status" : "Cached",
+          "kind" : "USB2",
+          "lanes" : null,
+          "mode" : "full_speed",
+          "rate" : "12 Mbps (Full Speed)",
+          "restricted" : false,
+          "signaling" : null,
+          "speed_mbps" : 12,
+          "trm_profile" : "Ask for New Accessories",
+          "trm_state" : "Limited"
+        }
+      ],
+      "advertised_modes" : [
+        "full_speed"
+      ],
       "authorization" : "No Action",
       "cable" : {
         "active" : false,
@@ -690,9 +779,11 @@
       "liquid_override" : false,
       "liquid_pin" : "Reference",
       "liquid_state" : "Idle",
+      "maximum_observed_rate_mbps" : 12,
       "mode" : "full_speed",
       "mode_label" : "USB 1.1 Full-Speed · 12 Mbit\/s",
       "name" : "USB-C@3",
+      "negotiated_mode" : "full_speed",
       "number" : 3,
       "pin_configuration" : {
         "rx1" : 0,

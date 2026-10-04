@@ -58,10 +58,14 @@ struct UsbScopeApp: App {
         }
         CommandMenu(L(.viewMenu, state.language)) {
             ForEach(AppView.allCases) { view in
-                Button(L(.of(view), state.language)) { state.view = view }
-                    .keyboardShortcut(
-                        KeyEquivalent(Character("\(view.shortcutNumber)")), modifiers: .command
-                    )
+                if view.shortcutNumber <= 9 {
+                    Button(L(.of(view), state.language)) { state.view = view }
+                        .keyboardShortcut(
+                            KeyEquivalent(Character("\(view.shortcutNumber)")), modifiers: .command
+                        )
+                } else {
+                    Button(L(.of(view), state.language)) { state.view = view }
+                }
             }
         }
         CommandMenu(L(.commandsMenu, state.language)) {
@@ -272,10 +276,11 @@ struct ContentView: View {
                     }
                 }
                 Section(L(.diagnostics, lang)) {
+                    Label(L(.of(.warnings), lang), systemImage: AppView.warnings.systemImage)
+                        .tag(AppView.warnings)
                     Button { state.showDiagnostics = true } label: {
                         Label(L(.openDiagnostics, lang), systemImage: "cross.case")
-                    }
-                    .buttonStyle(.plain)
+                    }.buttonStyle(.plain)
                 }
             }
             .listStyle(.sidebar)
@@ -320,6 +325,7 @@ struct ContentView: View {
                 case .security: SecurityView()
                 case .usb4: Usb4View()
                 case .diff: DiffView()
+                case .warnings: WarningsView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
