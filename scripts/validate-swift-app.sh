@@ -2,9 +2,15 @@
 # Validate the structural and signature invariants of a usbscope app bundle.
 set -euo pipefail
 
-APP="${1:?usage: validate-swift-app.sh path/to/usbscope.app [--gatekeeper]}"
+APP="${1:?usage: validate-swift-app.sh path/to/usbscope.app [--gatekeeper|--sandbox]}"
 GATEKEEPER=0
-[ "${2:-}" = "--gatekeeper" ] && GATEKEEPER=1
+SANDBOX=0
+case "${2:-}" in
+  --gatekeeper) GATEKEEPER=1 ;;
+  --sandbox) SANDBOX=1 ;;
+  "") ;;
+  *) echo "unknown validation mode: $2" >&2; exit 2 ;;
+esac
 
 [ -d "$APP" ] || { echo "app bundle not found: $APP" >&2; exit 1; }
 INFO="$APP/Contents/Info.plist"
@@ -36,6 +42,19 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 archs="$(lipo -archs "$EXEC" 2>/dev/null || true)"
 [ -n "$archs" ] || { echo "cannot inspect executable architectures" >&2; exit 1; }
 echo "validated $(basename "$APP"): $bundle_id, version=$marketing_version ($build_version), macOS >= $min_os, arch=$archs"
+
+entitlements="$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)"
+has_sandbox=0
+if echo "$entitlements" | grep -q 'com.apple.security.app-sandbox'; then has_sandbox=1; fi
+if [ "$SANDBOX" -eq 1 ] && [ "$has_sandbox" -ne 1 ]; then
+  echo "sandbox validation requested but com.apple.security.app-sandbox is absent" >&2
+  exit 1
+fi
+if [ "$SANDBOX" -eq 0 ] && [ "$has_sandbox" -eq 1 ]; then
+  echo "direct bundle unexpectedly carries com.apple.security.app-sandbox" >&2
+  exit 1
+fi
+echo "  entitlements: $([ "$has_sandbox" -eq 1 ] && echo sandbox || echo direct)"
 
 if [ "$GATEKEEPER" -eq 1 ]; then
   spctl --assess --type execute --verbose=4 "$APP"

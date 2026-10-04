@@ -47,6 +47,8 @@ codesign --force --timestamp --options runtime \
   --sign "$APP_IDENTITY" --identifier com.zopyx.usbscope "$APP"
 codesign --verify --strict --verbose=2 "$APP"
 
+"$ROOT/scripts/validate-swift-app.sh" "$APP" --sandbox
+
 entitlements="$(codesign -d --entitlements :- "$APP" 2>/dev/null)"
 echo "$entitlements" | grep -q 'com.apple.security.app-sandbox' || {
   echo "signed app is missing com.apple.security.app-sandbox" >&2

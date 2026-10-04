@@ -261,7 +261,11 @@ if [ "$verify" -eq 1 ]; then
 fi
 
 if [ "$sign" -eq 1 ]; then
-  "$ROOT/scripts/validate-swift-app.sh" "$bundle"
+  if [ -n "$entitlements" ] && grep -q 'com.apple.security.app-sandbox' "$entitlements"; then
+    "$ROOT/scripts/validate-swift-app.sh" "$bundle" --sandbox
+  else
+    "$ROOT/scripts/validate-swift-app.sh" "$bundle"
+  fi
 fi
 
 size="$(du -sk "$bundle" | awk '{printf "%.1f", $1/1024}')"
