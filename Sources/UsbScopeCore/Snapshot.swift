@@ -1,5 +1,36 @@
 import Foundation
 
+/// Which backend produces the `IOPort` plane that a snapshot's ports come from.
+///
+/// The parsing is identical either way (`IOReg.parsePorts`); only the *reader*
+/// differs. The default `automatic` prefers the in-process IOKit read, which
+/// removes a subprocess from launch and is what a sandboxed App Store build
+/// needs (`docs/app-store.md`, Plan B), and falls back to `/usr/sbin/ioreg`
+/// whenever the in-process read is unavailable or reports no ports.
+public enum IORegSourceBackend: Sendable {
+    /// Prefer the in-process IOKit reader; fall back to `ioreg` if it fails or
+    /// reports no port at all. This is the default.
+    case automatic
+    /// Always spawn `/usr/sbin/ioreg` — the historical path, kept for pinning.
+    case subprocess
+    /// Always read in-process; surface a warning instead of falling back.
+    case inProcess
+}
+
+/// The steps `SnapshotBuilder.collect` walks, in the order it walks them.
+///
+/// The `progress` hook of `collect` reports one call per stage with the stage,
+/// its 1-based position and the total stage count, so the app can drive a
+/// per-step progress indicator instead of one opaque spinner.
+public enum SnapshotStage: String, CaseIterable, Sendable {
+    case ports
+    case buses
+    case thunderbolt
+    case hardware
+    case charging
+    case registry
+}
+
 /// Aggregation: turn the raw OS reports into one `Snapshot` — the twin of
 /// `usbscope/snapshot.py`.
 public enum SnapshotBuilder {
@@ -52,6 +83,18 @@ public enum SnapshotBuilder {
     /// injectable `clock`, `host` and `osVersion` let tests pin a captured machine.
     /// `27.0.1` — `operatingSystemVersionString` carries the build too, which
     /// does not belong in the JSON (the Python side reports the plain version).
+    ///
+    /// `ioreg` is the `IOPort` reader. `nil` (the default) means “no reader was
+    /// injected”, and then `ioregBackend` decides: `.automatic` reads the plane
+    /// **in-process** through IOKit and only spawns `/usr/sbin/ioreg` when that
+    /// fails or reports no port, `.subprocess` always spawns `ioreg`, and
+    /// `.inProcess` always reads in-process. A non-`nil` `ioreg` is an explicit
+    /// override — the fixture-backed source in the test suite, say — and is used
+    /// as given, whatever the backend says. The JSON is identical on every path.
+    ///
+    /// `progress`, when given, is called once per `SnapshotStage` in order, with
+    /// the stage, its 1-based index and the total stage count — additive and
+    /// optional, so existing callers are untouched.
     public static func osVersionString() -> String {
         let version = ProcessInfo.processInfo.operatingSystemVersion
         return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
@@ -71,31 +114,71 @@ public enum SnapshotBuilder {
         return name.isEmpty ? "this Mac" : name
     }
 
+    /// The port records for `backend`, honouring an explicitly injected source.
+    ///
+    /// Split out so the selection is testable and the fallback is one obvious
+    /// branch: `.automatic` keeps the subprocess result only as a backup, so the
+    /// JSON it produces is byte-identical to `.subprocess` wherever the
+    /// in-process read succeeds.
+    static func readPorts(
+        backend: IORegSourceBackend, explicit: IoregSource?
+    ) -> ([UsbPort], [String]) {
+        if let explicit { return explicit.ports() }
+        switch backend {
+        case .subprocess:
+            return IoregSource().ports()
+        case .inProcess:
+            return IORegistryReader.ioregSource().ports()
+        case .automatic:
+            let (ports, warnings) = IORegistryReader.ioregSource().ports()
+            if !ports.isEmpty { return (ports, warnings) }
+            // The in-process read failed or found nothing: fall back to the
+            // subprocess. Its result alone is reported, so the JSON stays
+            // identical to the `.subprocess` path (no extra warning).
+            return IoregSource().ports()
+        }
+    }
+
     public static func collect(
         profiler: SystemProfiler = SystemProfiler(),
-        ioreg: IoregSource = IoregSource(),
+        ioreg: IoregSource? = nil,
+        ioregBackend: IORegSourceBackend = .automatic,
         charging: ChargingSource = ChargingSource(),
         usbregistry: USBRegistrySource = USBRegistrySource(),
         fabric: ThunderboltFabricSource = ThunderboltFabricSource(),
         clock: @Sendable () -> Date = { Date() },
         osVersion: String? = nil,
-        host: String? = nil
+        host: String? = nil,
+        progress: ((SnapshotStage, Int, Int) -> Void)? = nil
     ) -> Snapshot {
+        let stages = SnapshotStage.allCases
+        let total = stages.count
+        func report(_ stage: SnapshotStage) {
+            guard let progress else { return }
+            progress(stage, (stages.firstIndex(of: stage) ?? 0) + 1, total)
+        }
+
         var warnings: [String] = []
-        let (ports, portWarnings) = ioreg.ports()
+        let (ports, portWarnings) = readPorts(backend: ioregBackend, explicit: ioreg)
         warnings.append(contentsOf: portWarnings)
+        report(.ports)
         let (buses, busWarnings) = profiler.usbBuses()
         warnings.append(contentsOf: busWarnings)
+        report(.buses)
         let (thunderbolt, thunderboltWarnings) = profiler.thunderbolt()
         warnings.append(contentsOf: thunderboltWarnings)
         let (thunderboltFabric, fabricWarnings) = fabric.fabric()
         warnings.append(contentsOf: fabricWarnings)
+        report(.thunderbolt)
         let hardware = profiler.hardware()
         warnings.append(contentsOf: hardware.warnings)
+        report(.hardware)
         let (power, powerWarnings) = charging.charging()
         warnings.append(contentsOf: powerWarnings)
+        report(.charging)
         let (registryDevices, registryWarnings) = usbregistry.devices()
         warnings.append(contentsOf: registryWarnings)
+        report(.registry)
 
         let busIndex = index(buses.flatMap(\.devices))
         let portIndex = index(ports.flatMap(\.devices))
