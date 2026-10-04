@@ -75,7 +75,8 @@ public enum Baseline {
         var document = Serialize.dict(snapshot)
         document["baseline_metadata"] = metadata(for: snapshot)
         let data = try JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys])
-        try (String(decoding: data, as: UTF8.self) + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        try AtomicFile.write(String(decoding: data, as: UTF8.self) + "\n",
+                             to: URL(fileURLWithPath: path))
     }
 
     /// Read and validate a baseline document.

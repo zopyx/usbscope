@@ -20,3 +20,13 @@ Only local diagnostics record time-to-first-snapshot, per-source latency,
 failed-source rate, collection attempts, and time-to-identify-device. These
 metrics remain in memory until the user copies or exports diagnostics; no
 metric is transmitted or persisted as telemetry.
+
+Security observations remain heuristic and traceable to evidence. Their display
+severity can be overridden per stable rule ID in Preferences without changing
+the raw observation or its rule ID in exports.
+
+The Copy Diagnostics action includes app/version, OS and architecture, schema
+version, freshness, source health and timings, recent event summaries, and the
+same default redaction policy as file diagnostics. Reports and table exports
+are written atomically, and each empty data view offers a refresh action where
+refreshing can change the result.

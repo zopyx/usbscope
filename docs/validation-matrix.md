@@ -10,6 +10,7 @@ Automated checks run on every change:
 | Localization | `scripts/check-localization.sh` | No user-visible SwiftUI/AppKit literals bypass the string table |
 | Large-data performance | `swift test --filter PerformanceTests` | 500-device report and 1,000-entry history stay within budgets |
 | Parser robustness | `swift test --filter ParserFuzzTests` | Malformed and deeply nested source trees do not crash adapters |
+| Concurrency and export safety | `swift test --filter FixSpecTests` | Refresh bursts are serialized, stderr remains bounded, and atomic exports leave no temporary files |
 | Script safety | `bash -n scripts/*.sh` | No shell syntax errors |
 | Patch hygiene | `git diff --check` | No whitespace errors |
 

@@ -60,8 +60,18 @@ enum StringKey: String, CaseIterable {
     case timelineEventsTitle
     case timelineNoPower
     case timelineNoEvents
+    case timelineValues
     case securityFindingsTitle
     case securityStorageTitle
+    case securityHeadline
+    case securityHonestLimits
+    case securityEmptyFindings
+    case securityEmptyStorage
+    case severityWarning
+    case severityAttention
+    case severityInfo
+    case securitySeverity
+    case severityDefault
     case usb4Title
     case eject
     case ejecting
@@ -178,6 +188,15 @@ enum StringKey: String, CaseIterable {
     case exportWritten
     case exportFailed
     case ejected
+    case emptyPorts
+    case emptyCables
+    case emptyDevices
+    case emptyThunderbolt
+    case emptyPower
+    case emptyTimeline
+    case emptySecurity
+    case emptyUsb4
+    case emptyDiff
 
     /// The key for an `AppView`.
     static func of(_ view: AppView) -> StringKey {
@@ -304,8 +323,18 @@ enum Strings {
         case .timelineEventsTitle: "Hotplug events"
         case .timelineNoPower: "No measured power yet."
         case .timelineNoEvents: "No hotplug events recorded yet."
+        case .timelineValues: "Measured values"
         case .securityFindingsTitle: "Findings"
         case .securityStorageTitle: "USB mass storage"
+        case .securityHeadline: "Security observations — heuristic, not a verdict"
+        case .securityHonestLimits: "The security view reports observations from macOS. It is not malware detection; missing data is not evidence of malicious behaviour."
+        case .securityEmptyFindings: "Nothing stood out in what macOS reports."
+        case .securityEmptyStorage: "No USB mass storage attached — a Mac without one is normal."
+        case .severityWarning: "Warning"
+        case .severityAttention: "Attention"
+        case .severityInfo: "Info"
+        case .securitySeverity: "Security observation severity"
+        case .severityDefault: "Rule default"
         case .usb4Title: "USB4 / Thunderbolt fabric"
         case .eject: "Eject"
         case .ejecting: "Ejecting…"
@@ -422,6 +451,15 @@ enum Strings {
         case .exportWritten: "Export written"
         case .exportFailed: "Export failed"
         case .ejected: "ejected"
+        case .emptyPorts: "No ports reported by the port controller."
+        case .emptyCables: "No cable or port-controller data."
+        case .emptyDevices: "No USB device attached — connect one, then refresh."
+        case .emptyThunderbolt: "No Thunderbolt/USB4 receptacle reported."
+        case .emptyPower: "No battery or charger reported — a desktop Mac normally has neither."
+        case .emptyTimeline: "No power history yet — the graph fills in as the app reads the machine."
+        case .emptySecurity: "No security observations are available yet."
+        case .emptyUsb4: "No Thunderbolt/USB4 router reported."
+        case .emptyDiff: "No baseline loaded — use Compare with… to choose a snapshot JSON."
         }
     }
 
@@ -479,8 +517,18 @@ enum Strings {
         case .timelineEventsTitle: "Hotplug-Ereignisse"
         case .timelineNoPower: "Noch keine gemessene Leistung."
         case .timelineNoEvents: "Noch keine Hotplug-Ereignisse erfasst."
+        case .timelineValues: "Messwerte"
         case .securityFindingsTitle: "Befunde"
         case .securityStorageTitle: "USB-Massenspeicher"
+        case .securityHeadline: "Sicherheitsbeobachtungen — heuristisch, kein Urteil"
+        case .securityHonestLimits: "Die Sicherheitsansicht zeigt Beobachtungen aus macOS. Sie ist keine Schadsoftware-Erkennung; fehlende Daten sind kein Hinweis auf bösartiges Verhalten."
+        case .securityEmptyFindings: "In den von macOS gemeldeten Daten ist nichts Auffälliges enthalten."
+        case .securityEmptyStorage: "Kein USB-Massenspeicher angeschlossen — auf einem Mac ohne solchen Speicher ist das normal."
+        case .severityWarning: "Warnung"
+        case .severityAttention: "Achtung"
+        case .severityInfo: "Info"
+        case .securitySeverity: "Schweregrad der Sicherheitsbeobachtung"
+        case .severityDefault: "Regelstandard"
         case .usb4Title: "USB4-/Thunderbolt-Fabric"
         case .eject: "Auswerfen"
         case .ejecting: "Wird ausgeworfen…"
@@ -597,6 +645,15 @@ enum Strings {
         case .exportWritten: "Export geschrieben"
         case .exportFailed: "Export fehlgeschlagen"
         case .ejected: "ausgeworfen"
+        case .emptyPorts: "Der Port-Controller meldet keine Anschlüsse."
+        case .emptyCables: "Keine Kabel- oder Port-Controller-Daten."
+        case .emptyDevices: "Kein USB-Gerät angeschlossen — Gerät verbinden und aktualisieren."
+        case .emptyThunderbolt: "Keine Thunderbolt-/USB4-Buchse gemeldet."
+        case .emptyPower: "Keine Batterie oder kein Ladegerät gemeldet — ein Desktop-Mac hat normalerweise keines von beiden."
+        case .emptyTimeline: "Noch keine Energiehistorie — das Diagramm füllt sich während der Messungen."
+        case .emptySecurity: "Noch keine Sicherheitsbeobachtungen verfügbar."
+        case .emptyUsb4: "Kein Thunderbolt-/USB4-Router gemeldet."
+        case .emptyDiff: "Keine Vergleichsbasis geladen — mit „Vergleichen mit…“ eine Snapshot-JSON auswählen."
         }
     }
 }
@@ -607,6 +664,63 @@ func L(_ key: StringKey, _ language: AppLanguage) -> String {
 }
 
 extension Strings {
+    static func emptyMessage(for view: AppView, _ language: AppLanguage) -> String {
+        let key: StringKey
+        switch view {
+        case .ports: key = .emptyPorts
+        case .cables: key = .emptyCables
+        case .devices: key = .emptyDevices
+        case .thunderbolt: key = .emptyThunderbolt
+        case .power: key = .emptyPower
+        case .timeline: key = .emptyTimeline
+        case .security: key = .emptySecurity
+        case .usb4: key = .emptyUsb4
+        case .diff: key = .emptyDiff
+        }
+        return L(key, language)
+    }
+
+    static func securitySeverity(_ severity: FindingSeverity, _ language: AppLanguage) -> String {
+        switch severity {
+        case .warning: L(.severityWarning, language)
+        case .attention: L(.severityAttention, language)
+        case .info: L(.severityInfo, language)
+        }
+    }
+
+    static func securitySeverity(_ rawValue: String, _ language: AppLanguage) -> String {
+        securitySeverity(FindingSeverity(rawValue: rawValue) ?? .info, language)
+    }
+
+    static func securityRuleLabel(_ rule: String, _ language: AppLanguage) -> String {
+        guard language == .de else {
+            switch rule {
+            case "mass-storage": return "Mass storage"
+            case "hid-without-serial": return "HID without serial"
+            case "hid-and-storage-on-device": return "HID and storage on device"
+            case "composite-per-interface": return "Composite per interface"
+            case "composite-iad": return "Composite IAD"
+            case "restricted-by-macos": return "Restricted by macOS"
+            case "restricted-transport": return "Restricted transport"
+            case "no-usb-data": return "No USB data transport"
+            case "hid-and-storage-on-port": return "HID and storage on port"
+            default: return rule
+            }
+        }
+        switch rule {
+        case "mass-storage": return "Massenspeicher"
+        case "hid-without-serial": return "HID ohne Seriennummer"
+        case "hid-and-storage-on-device": return "HID und Speicher am Gerät"
+        case "composite-per-interface": return "Composite pro Interface"
+        case "composite-iad": return "Composite-IAD"
+        case "restricted-by-macos": return "Von macOS eingeschränkt"
+        case "restricted-transport": return "Eingeschränkter Transport"
+        case "no-usb-data": return "Kein USB-Datentransport"
+        case "hid-and-storage-on-port": return "HID und Speicher am Anschluss"
+        default: return rule
+        }
+    }
+
     /// Localized table headers. The identifiers passed by the views are stable
     /// persistence keys; only the visible header is translated here.
     static func columnLabel(_ identifier: String, _ language: AppLanguage) -> String {

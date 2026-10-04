@@ -71,6 +71,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public var monitoringProfile: MonitoringProfile = .balanced
     /// Hidden column titles per view raw value.
     public var hiddenColumns: [String: [String]] = [:]
+    /// Optional presentation severity overrides keyed by stable security rule ID.
+    public var securitySeverityOverrides: [String: String] = [:]
 
     public init() {}
 
@@ -84,7 +86,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         language: AppLanguage = .en,
         grouping: GroupField = .none,
         monitoringProfile: MonitoringProfile = .balanced,
-        hiddenColumns: [String: [String]] = [:]
+        hiddenColumns: [String: [String]] = [:],
+        securitySeverityOverrides: [String: String] = [:]
     ) {
         self.defaultView = defaultView
         self.interval = interval
@@ -96,11 +99,13 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.grouping = grouping
         self.monitoringProfile = monitoringProfile
         self.hiddenColumns = hiddenColumns
+        self.securitySeverityOverrides = securitySeverityOverrides
     }
 
     private enum CodingKeys: String, CodingKey {
         case defaultView, interval, autoRefresh, notifications, notificationDetail
         case appearance, language, grouping, monitoringProfile, hiddenColumns
+        case securitySeverityOverrides
     }
 
     public init(from decoder: Decoder) throws {
@@ -115,6 +120,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         grouping = try values.decodeIfPresent(GroupField.self, forKey: .grouping) ?? .none
         monitoringProfile = try values.decodeIfPresent(MonitoringProfile.self, forKey: .monitoringProfile) ?? .balanced
         hiddenColumns = try values.decodeIfPresent([String: [String]].self, forKey: .hiddenColumns) ?? [:]
+        securitySeverityOverrides = try values.decodeIfPresent([String: String].self, forKey: .securitySeverityOverrides) ?? [:]
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -129,6 +135,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         try values.encode(grouping, forKey: .grouping)
         try values.encode(monitoringProfile, forKey: .monitoringProfile)
         try values.encode(hiddenColumns, forKey: .hiddenColumns)
+        try values.encode(securitySeverityOverrides, forKey: .securitySeverityOverrides)
     }
 
     /// A copy with every invalid value replaced by a default.
@@ -143,6 +150,10 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         copy.language = AppLanguage(rawValue: language.rawValue) ?? .en
         copy.grouping = GroupField.fields(for: defaultView).contains(grouping) ? grouping : .none
         copy.monitoringProfile = MonitoringProfile(rawValue: monitoringProfile.rawValue) ?? .balanced
+        copy.securitySeverityOverrides = securitySeverityOverrides.reduce(into: [:]) { result, entry in
+            guard Security.ruleIDs.contains(entry.key), FindingSeverity(rawValue: entry.value) != nil else { return }
+            result[entry.key] = entry.value
+        }
         copy.hiddenColumns = hiddenColumns.reduce(into: [:]) { result, entry in
             guard let view = AppView(rawValue: entry.key) else { return }
             let headers = Set(Presentation.headers(for: view))

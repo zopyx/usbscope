@@ -156,10 +156,10 @@ system load, battery).
 | Copy / export | `⌘C`/`⇧⌘C` (TSV), `⇧⌘J` (snapshot JSON) to the clipboard; `⌘S`/`⇧⌘S` write JSON/CSV through a save panel |
 | Menu bar extra | `connected/ports` (plus `⚠` when a source warns), view switching, "Refresh now", a notifications switch and quit |
 | Notifications | One banner per device that appeared or disappeared — only from a bundled run (macOS refuses the request from a plain process) |
-| Preferences | `⌘,`: default view, interval, auto-refresh, notifications, appearance, language (DE/EN), grouping — persisted in the `com.zopyx.usbscope` defaults domain |
+| Preferences | `⌘,`: default view, interval, auto-refresh, notifications, appearance, language (DE/EN), grouping, and per-rule heuristic severity display — persisted in the `com.zopyx.usbscope` defaults domain |
 | Status | Summary line (ports/connected/devices/cables) and a status bar with the read time, cadence, changes and warnings |
 | Loading | three states — idle → loading → loaded. While a read is in flight the status line names the source it is on (`collecting Charging · 5/6`) next to a determinate bar, so the ~1.3 s a collect takes is not a silent wait |
-| Screenshots | `usbscope-app --snapshot out.png [--view security]` renders the window offscreen and exits — no screen-recording permission needed |
+| Screenshots | `usbscope-app --snapshot out.png [--view security]` renders the window offscreen and exits — no screen-recording permission needed; Timeline also exposes its measured values as an accessible text table |
 
 `usbscope-app --print-rows` is the headless check of the data path (row count per
 view), `--show-about` opens the About window straight away.

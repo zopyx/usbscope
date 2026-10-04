@@ -41,13 +41,13 @@ struct CellText: View {
 }
 
 private extension View {
-    func usbRowMenu(show: @escaping () -> Void, copy: @escaping () -> Void,
+    func usbRowMenu(language: AppLanguage, show: @escaping () -> Void, copy: @escaping () -> Void,
                     identifier: @escaping () -> Void, compare: @escaping () -> Void) -> some View {
         contextMenu {
-            Button(L(.showDetailsAction, .en), action: show)
-            Button(L(.copyRow, .en), action: copy)
-            Button(L(.copyIdentifier, .en), action: identifier)
-            Button(L(.compare, .en), action: compare)
+            Button(L(.showDetailsAction, language), action: show)
+            Button(L(.copyRow, language), action: copy)
+            Button(L(.copyIdentifier, language), action: identifier)
+            Button(L(.compare, language), action: compare)
         }
     }
 }
@@ -55,10 +55,23 @@ private extension View {
 /// Centered empty state for a view without rows.
 struct EmptyState: View {
     let message: String
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    init(message: String, actionTitle: String? = nil, action: (() -> Void)? = nil) {
+        self.message = message
+        self.actionTitle = actionTitle
+        self.action = action
+    }
+
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: "tray").font(.largeTitle).foregroundStyle(.tertiary)
             Text(message).foregroundStyle(.secondary)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -329,7 +342,7 @@ struct PortsView: View {
             if state.isColumnVisible(.ports, "Port") {
                 TableColumn(Strings.columnLabel("Port", state.language), value: \.nameSort) { row in
                     CellText(text: row.name, highlight: row.highlight)
-                        .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
+                        .usbRowMenu(language: state.language, show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
                                     identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
                 }
                     .width(min: 90, ideal: 110)
@@ -359,7 +372,12 @@ struct PortsView: View {
                     .width(min: 160, ideal: 320)
             }
         }
-        .overlay { if rows.isEmpty { EmptyState(message: emptyMessage(for: .ports)) } }
+        .overlay {
+            if rows.isEmpty {
+                EmptyState(message: Strings.emptyMessage(for: .ports, state.language),
+                           actionTitle: L(.refreshNow, state.language), action: state.refresh)
+            }
+        }
     }
 
     private func grouped(_ rows: [PortRow]) -> some View {
@@ -383,7 +401,12 @@ struct PortsView: View {
                 }
             }
         }
-        .overlay { if rows.isEmpty { EmptyState(message: emptyMessage(for: .ports)) } }
+        .overlay {
+            if rows.isEmpty {
+                EmptyState(message: Strings.emptyMessage(for: .ports, state.language),
+                           actionTitle: L(.refreshNow, state.language), action: state.refresh)
+            }
+        }
     }
 }
 
@@ -398,7 +421,7 @@ struct CablesView: View {
                 if state.isColumnVisible(.cables, "Port") {
                     TableColumn(Strings.columnLabel("Port", state.language), value: \.portSort) { row in
                         CellText(text: row.port, highlight: row.highlight)
-                            .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
+                            .usbRowMenu(language: state.language, show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
                                         identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
                     }
                         .width(min: 90, ideal: 110)
@@ -436,7 +459,12 @@ struct CablesView: View {
                         .width(min: 90, ideal: 120)
                 }
             }
-            .overlay { if rows.isEmpty { EmptyState(message: emptyMessage(for: .cables)) } }
+            .overlay {
+                if rows.isEmpty {
+                    EmptyState(message: Strings.emptyMessage(for: .cables, state.language),
+                               actionTitle: L(.refreshNow, state.language), action: state.refresh)
+                }
+            }
         } else {
             LoadingView()
         }
@@ -466,7 +494,7 @@ struct DevicesView: View {
             if state.isColumnVisible(.devices, "Device") {
                 TableColumn(Strings.columnLabel("Device", state.language), value: \.nameSort) { row in
                     CellText(text: row.name, highlight: row.highlight)
-                        .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
+                    .usbRowMenu(language: state.language, show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
                                     identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
                 }
                     .width(min: 140, ideal: 260)
@@ -508,7 +536,12 @@ struct DevicesView: View {
                     .width(min: 70, ideal: 90)
             }
         }
-        .overlay { if rows.isEmpty { EmptyState(message: emptyMessage(for: .devices)) } }
+        .overlay {
+            if rows.isEmpty {
+                EmptyState(message: Strings.emptyMessage(for: .devices, state.language),
+                           actionTitle: L(.refreshNow, state.language), action: state.refresh)
+            }
+        }
     }
 
     private func grouped(_ rows: [DeviceRow]) -> some View {
@@ -533,7 +566,12 @@ struct DevicesView: View {
                 }
             }
         }
-        .overlay { if rows.isEmpty { EmptyState(message: emptyMessage(for: .devices)) } }
+        .overlay {
+            if rows.isEmpty {
+                EmptyState(message: Strings.emptyMessage(for: .devices, state.language),
+                           actionTitle: L(.refreshNow, state.language), action: state.refresh)
+            }
+        }
     }
 }
 
@@ -548,7 +586,7 @@ struct ThunderboltView: View {
                 if state.isColumnVisible(.thunderbolt, "Bus") {
                     TableColumn(Strings.columnLabel("Bus", state.language), value: \.busSort) { row in
                         CellText(text: row.bus)
-                            .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
+                        .usbRowMenu(language: state.language, show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
                                         identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
                     }
                         .width(min: 140, ideal: 200)
@@ -570,7 +608,12 @@ struct ThunderboltView: View {
                         .width(min: 120, ideal: 200)
                 }
             }
-            .overlay { if rows.isEmpty { EmptyState(message: emptyMessage(for: .thunderbolt)) } }
+            .overlay {
+                if rows.isEmpty {
+                    EmptyState(message: Strings.emptyMessage(for: .thunderbolt, state.language),
+                               actionTitle: L(.refreshNow, state.language), action: state.refresh)
+                }
+            }
         } else {
             LoadingView()
         }
@@ -594,7 +637,12 @@ struct PowerView: View {
                         .width(min: 200, ideal: 340)
                 }
             }
-            .overlay { if rows.isEmpty { EmptyState(message: emptyMessage(for: .power)) } }
+            .overlay {
+                if rows.isEmpty {
+                    EmptyState(message: Strings.emptyMessage(for: .power, state.language),
+                               actionTitle: L(.refreshNow, state.language), action: state.refresh)
+                }
+            }
         } else {
             LoadingView()
         }
@@ -644,6 +692,23 @@ struct TimelineView: View {
                 if let times = geometry.timeRangeText() {
                     Text(times).font(.caption).foregroundStyle(.secondary)
                 }
+                DisclosureGroup(L(.timelineValues, lang)) {
+                    ForEach(Array(state.powerTimeline.enumerated()), id: \.offset) { _, point in
+                        let time = TimelineFormat.clock.string(from: point.at)
+                        let measured = point.watts.map { String(format: "%.2f W", $0) } ?? "—"
+                        HStack {
+                            Text(time).monospacedDigit()
+                            Spacer()
+                            Text(measured).monospacedDigit()
+                            if let stateOfCharge = point.stateOfCharge {
+                                Text(verbatim: "\(stateOfCharge)%").monospacedDigit().foregroundStyle(.secondary)
+                            }
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(time), \(measured)")
+                    }
+                }
+                .font(.caption)
             }
         }
         .padding(12)
@@ -737,7 +802,7 @@ struct SecurityView: View {
                 countsBlock
                 findingsBlock
                 storageBlock
-                Text(SecurityPresentation.honestLimits).font(.caption).foregroundStyle(.secondary)
+                Text(L(.securityHonestLimits, lang)).font(.caption).foregroundStyle(.secondary)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -750,7 +815,8 @@ struct SecurityView: View {
             if let report = state.securityReport {
                 ForEach(SecurityPresentation.counts(report), id: \.label) { item in
                     HStack {
-                        Text(item.label).foregroundStyle(styleColor(item.style)).fontWeight(.semibold)
+                        Text(Strings.securitySeverity(item.label.lowercased(), lang))
+                            .foregroundStyle(styleColor(item.style)).fontWeight(.semibold)
                         Spacer()
                         Text(verbatim: String(item.count)).monospacedDigit()
                     }
@@ -759,7 +825,7 @@ struct SecurityView: View {
             } else {
                 ProgressView().controlSize(.small)
             }
-            Text(SecurityPresentation.headline).font(.caption).foregroundStyle(.secondary)
+            Text(L(.securityHeadline, lang)).font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -772,7 +838,7 @@ struct SecurityView: View {
                     findingView(row)
                 }
             } else {
-                Text(SecurityPresentation.emptyReportText).foregroundStyle(.secondary)
+                Text(L(.securityEmptyFindings, lang)).foregroundStyle(.secondary)
             }
         }
     }
@@ -782,7 +848,7 @@ struct SecurityView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(L(.securityStorageTitle, lang)).font(.headline)
             if state.storageInventory.isEmpty {
-                Text(SecurityPresentation.emptyStorageText).foregroundStyle(.secondary)
+                Text(L(.securityEmptyStorage, lang)).foregroundStyle(.secondary)
             } else {
                 ForEach(state.storageInventory) { row in storageView(row) }
             }
@@ -795,7 +861,7 @@ struct SecurityView: View {
     private func findingView(_ row: FindingRow) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
-                Text(row.severity)
+                Text(Strings.securitySeverity(row.severity, lang))
                     .font(.caption).fontWeight(.semibold)
                     .padding(.horizontal, 6).padding(.vertical, 1)
                     .background(styleColor(row.severityStyle).opacity(0.18), in: Capsule())
@@ -828,6 +894,13 @@ struct SecurityView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Strings.findingAccessibilityLabel(severity: row.severity, rule: row.rule,
                                                               subject: row.subject, detail: row.detail, lang))
+        .contextMenu {
+            Button(L(.openSourceRow, lang)) { state.openFinding(row) }
+            Button(L(.copyTechnicalDetails, lang)) {
+                state.copyIdentifier(row.device ?? row.port ?? row.subject)
+            }
+            Button(L(.compare, lang)) { state.view = .diff }
+        }
     }
 
     private func storageView(_ row: StorageRow) -> some View {
@@ -876,7 +949,8 @@ struct Usb4View: View {
             }
             .padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 4)
             if rows.isEmpty {
-                EmptyState(message: emptyMessage(for: .usb4))
+                EmptyState(message: Strings.emptyMessage(for: .usb4, lang),
+                           actionTitle: L(.refreshNow, lang), action: state.refresh)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 4) {

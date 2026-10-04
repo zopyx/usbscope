@@ -583,7 +583,7 @@ func runReport(_ options: Options) -> Never {
         : Report.markdown(snapshot, storage: storage.devices, language: options.language)
     if let out = options.out {
         do {
-            try text.write(toFile: out, atomically: true, encoding: .utf8)
+            try AtomicFile.write(text, to: URL(fileURLWithPath: out))
         } catch {
             FileHandle.standardError.write(Data("usbscope report: cannot write \(out): \(error)\n".utf8))
             exit(1)

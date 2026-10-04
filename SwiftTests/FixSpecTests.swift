@@ -8,6 +8,11 @@ final class FixSpecTests: XCTestCase {
         private var value = 0
 
         func increment() { lock.lock(); value += 1; lock.unlock() }
+        func incrementAndRead() -> Int { lock.lock(); value += 1; let result = value; lock.unlock(); return result }
+        func decrement() { lock.lock(); value -= 1; lock.unlock() }
+        func updateMaximum(_ candidate: Int) {
+            lock.lock(); if candidate > value { value = candidate }; lock.unlock()
+        }
         var count: Int { lock.lock(); defer { lock.unlock() }; return value }
     }
 
@@ -16,6 +21,14 @@ final class FixSpecTests: XCTestCase {
                                limits: .init(timeout: 0.05, maximumStdoutBytes: 32, maximumStderrBytes: 4))
         XCTAssertTrue(result.timedOut)
         XCTAssertLessThanOrEqual(result.stderr.count, 4)
+    }
+
+    func testShellDrainsLargeStderrWithoutExceedingTheBound() {
+        let result = Shell.run(["/bin/sh", "-c", "head -c 200000 /dev/zero >&2"],
+                               limits: .init(timeout: 2, maximumStdoutBytes: 8, maximumStderrBytes: 128))
+        XCTAssertTrue(result.ok)
+        XCTAssertEqual(result.stderr.count, 128)
+        XCTAssertTrue(result.truncated)
     }
 
     func testCommandFailuresMapToStableStructuredErrors() {
@@ -50,6 +63,22 @@ final class FixSpecTests: XCTestCase {
         XCTAssertFalse(text.contains("17825792"))
     }
 
+    func testAtomicFileReplacesOnlyAfterTheNewContentIsReady() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("usbscope-atomic-\(UUID().uuidString)", isDirectory: true)
+        let destination = directory.appendingPathComponent("export.txt")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        try AtomicFile.write("old", to: destination)
+        try AtomicFile.write("new", to: destination)
+
+        XCTAssertEqual(try String(contentsOf: destination), "new")
+        let temporaryFiles = try FileManager.default.contentsOfDirectory(at: directory,
+                                                                           includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.contains(".tmp-") }
+        XCTAssertTrue(temporaryFiles.isEmpty)
+    }
+
     func testLocalQAMetricsAreInMemoryAndDiagnosticReady() throws {
         var metrics = LocalQAMetrics(launchedAt: Date(timeIntervalSince1970: 1))
         metrics.record(snapshot: Fixtures.snapshot(), sourceStatuses: [
@@ -77,6 +106,18 @@ final class FixSpecTests: XCTestCase {
         let result = Troubleshooting.evaluate(.chargeOnlyConnection, snapshot: Fixtures.snapshot())
         XCTAssertFalse(result.recommendations.isEmpty)
         XCTAssertFalse(result.recommendations[0].evidence.isEmpty)
+    }
+
+    func testSecuritySeverityOverridesChangePresentationOnly() throws {
+        let snapshot = Fixtures.snapshot()
+        let baseline = Security.analyse(snapshot)
+        let finding = try XCTUnwrap(baseline.findings.first)
+        let policy = SecuritySeverityPolicy(overrides: [finding.rule: .info])
+        let adjusted = Security.analyse(snapshot, policy: policy)
+        let adjustedFinding = try XCTUnwrap(adjusted.findings.first { $0.rule == finding.rule })
+        XCTAssertEqual(adjustedFinding.severity, .info)
+        XCTAssertEqual(adjustedFinding.evidence, finding.evidence)
+        XCTAssertEqual(adjustedFinding.detail, finding.detail)
     }
 
     func testWarningsCarrySourceSeverityAndRecovery() {
@@ -149,6 +190,38 @@ final class FixSpecTests: XCTestCase {
         XCTAssertEqual(results.1?.reason, .manual)
         let keys = results.0.map { Set($0.stageTimings.keys) } ?? []
         XCTAssertEqual(keys, ["ports"])
+    }
+
+    func testSnapshotCoordinatorSerializesARefreshBurst() async {
+        let calls = Counter()
+        let active = Counter()
+        let peak = Counter()
+        let collector: SnapshotCoordinator.Collector = { _ in
+            calls.increment()
+            let current = active.incrementAndRead()
+            peak.updateMaximum(current)
+            try? await Task.sleep(for: .milliseconds(35))
+            active.decrement()
+            return Fixtures.snapshot()
+        }
+        let coordinator = SnapshotCoordinator(collect: collector)
+        async let first = coordinator.request(.timer)
+        try? await Task.sleep(for: .milliseconds(3))
+        let rest = await withTaskGroup(of: SnapshotCoordinator.Result?.self,
+                                       returning: [SnapshotCoordinator.Result?].self) { group in
+            for reason in [SnapshotCoordinator.Reason.hotplug, .manual, .timer, .manual, .hotplug] {
+                group.addTask { await coordinator.request(reason) }
+            }
+            var values: [SnapshotCoordinator.Result?] = []
+            for await value in group { values.append(value) }
+            return values
+        }
+        _ = await first
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(peak.count, 1)
+        XCTAssertEqual(rest.count, 5)
+        XCTAssertTrue(rest.allSatisfy { $0 != nil })
+        XCTAssertTrue(rest.contains { $0?.reason == .manual })
     }
 
     func testSnapshotCoordinatorStopIsIdempotentAndRejectsNewWork() async {

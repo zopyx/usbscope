@@ -5,6 +5,14 @@ import UniformTypeIdentifiers
 import UsbScopeCore
 import UsbScopeUI
 
+private let appArchitectureName: String = {
+    #if arch(arm64)
+    "arm64"
+    #else
+    "x86_64"
+    #endif
+}()
+
 /// The `UserDefaults` slice the preferences persist into.
 ///
 /// The suite matches the Python app's domain (`com.zopyx.usbscope`) so a
@@ -67,6 +75,7 @@ final class AppState: ObservableObject {
     @Published private(set) var notificationDetail: NotificationDetail = .generic { didSet { persist() } }
     @Published var groupField: GroupField = .none { didSet { persist() } }
     @Published private(set) var monitoringProfile: MonitoringProfile = .balanced { didSet { persist() } }
+    @Published private(set) var securitySeverityPolicy = SecuritySeverityPolicy.standard { didSet { persist() } }
     @Published private(set) var hiddenColumns: [AppView: Set<String>] = [:] { didSet { persist() } }
 
     /// The quick filter on top of the search text (session only, not persisted).
@@ -168,6 +177,7 @@ final class AppState: ObservableObject {
         notificationDetail = preferences.notificationDetail
         groupField = preferences.grouping
         monitoringProfile = preferences.monitoringProfile
+        securitySeverityPolicy = SecuritySeverityPolicy(overrides: preferences.securitySeverityOverrides.compactMapValues(FindingSeverity.init(rawValue:)))
         hiddenColumns = preferences.hiddenColumns.reduce(into: [:]) { result, entry in
             if let view = AppView(rawValue: entry.key) { result[view] = Set(entry.value) }
         }
@@ -242,7 +252,11 @@ final class AppState: ObservableObject {
         isLoading = false
     }
 
-    /// Record the hotplug events and show the fresh snapshot immediately.
+    /// Record the hotplug events, then submit the snapshot to the same
+    /// coordinator used by manual and timer refreshes. The watcher has already
+    /// collected the candidate snapshot in order to diff the edge; routing its
+    /// result through the coordinator is what prevents it from racing a read
+    /// already in flight and mutating presentation state out of order.
     private func handleHotplug(_ update: UsbHotplugWatcher.Update) {
         if let eventLog, !update.events.isEmpty {
             let events = update.events
@@ -251,7 +265,13 @@ final class AppState: ObservableObject {
             // Newest first, so the Timeline shows the latest edge on top.
             self.events = Array((Array(events.reversed()) + self.events).prefix(Self.eventLimit))
         }
-        apply(update.snapshot, generation: nil)
+        let candidate = update.snapshot
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let result = await coordinator.request(.hotplug, collector: { _ in candidate })
+            guard let result else { return }
+            apply(result.snapshot, generation: nil)
+        }
     }
 
     // MARK: - Preferences
@@ -269,7 +289,8 @@ final class AppState: ObservableObject {
             monitoringProfile: monitoringProfile,
             hiddenColumns: hiddenColumns.reduce(into: [:]) { result, entry in
                 result[entry.key.rawValue] = Array(entry.value).sorted()
-            }
+            },
+            securitySeverityOverrides: securitySeverityPolicy.overrides.mapValues(\.rawValue)
         )
         store.save(preferences)
     }
@@ -282,6 +303,16 @@ final class AppState: ObservableObject {
         startMonitoring()
         if isLoading { return }
         refresh()
+    }
+
+    func securitySeverity(for rule: String) -> FindingSeverity? {
+        securitySeverityPolicy.overrides[rule]
+    }
+
+    func setSecuritySeverity(_ severity: FindingSeverity?, for rule: String) {
+        var overrides = securitySeverityPolicy.overrides
+        if let severity { overrides[rule] = severity } else { overrides.removeValue(forKey: rule) }
+        securitySeverityPolicy = SecuritySeverityPolicy(overrides: overrides)
     }
 
     func dismissFirstRun() {
@@ -517,7 +548,9 @@ final class AppState: ObservableObject {
     // MARK: - Security, timeline, USB4 fabric & diff
 
     /// The security report of the current snapshot (the Security tab).
-    var securityReport: SecurityReport? { snapshot.map(Security.analyse) }
+    var securityReport: SecurityReport? {
+        snapshot.map { Security.analyse($0, policy: securitySeverityPolicy) }
+    }
 
     /// Resolve a security observation to the current source row. If the
     /// object detached between analysis and activation, leave the user on the
@@ -703,20 +736,64 @@ final class AppState: ObservableObject {
     /// Copy the raw snapshot as JSON.
     func copyJSON() {
         guard let snapshot else { return }
-        writeClipboard(DiagnosticBundle.redactedSnapshotJSON(snapshot))
+        writeClipboard(DiagnosticBundle.redactedSnapshotJSON(snapshot, storage: storage))
     }
 
     func copyDiagnostics() {
+        guard confirmExportDisclosure(format: "clipboard-diagnostics") else { return }
+        let policy = RedactionPolicy()
+        let safeWarnings = snapshot.map { current in
+            readWarnings.map { warning in policy.redactText(warning, snapshot: current, storage: storage) }
+        } ?? readWarnings
+        let safeErrors = storageErrors.map { error in
+            var value: [String: Any] = [
+                "code": error.code.rawValue,
+                "source": error.source,
+                "operation": error.operation,
+                "severity": error.severity,
+                "user_message": error.userMessage,
+                "technical_message": error.technicalMessage,
+            ]
+            if let action = error.recoveryAction { value["recovery_action"] = action }
+            if let snapshot {
+                value = value.mapValues { item in
+                    guard let text = item as? String else { return item }
+                    return policy.redactText(text, snapshot: snapshot, storage: storage)
+                }
+            }
+            return value
+        }
         var payload: [String: Any] = [
-            "app": "usbscope", "schema_version": Serialize.schemaVersion,
+            "app": "usbscope", "version": AboutIcon.version,
+            "os": ProcessInfo.processInfo.operatingSystemVersionString,
+            "architecture": appArchitectureName,
+            "schema_version": Serialize.schemaVersion,
             "freshness": dataFreshness.rawValue, "storage_status": storageStatus.rawValue,
-            "storage_warnings": storageWarnings, "warnings": readWarnings,
+            "storage_warnings": snapshot.map { current in
+                storageWarnings.map { warning in policy.redactText(warning, snapshot: current, storage: storage) }
+            } ?? storageWarnings,
+            "warnings": safeWarnings,
+            "storage_errors": safeErrors,
+            "source_health": sourceHealth.mapValues(\.rawValue),
+            "source_timings": sourceTimings,
             "monitoring": isHotplugEventDriven ? "IOKit event-driven" : "polling/disabled",
             "metrics": qaMetrics.dictionary(),
         ]
+        if let lastAttemptAt { payload["last_attempt_at"] = ISO8601DateFormatter().string(from: lastAttemptAt) }
+        if let lastFailureAt { payload["last_failure_at"] = ISO8601DateFormatter().string(from: lastFailureAt) }
+        payload["recent_events"] = events.map { event in
+            let safeName: String
+            if let snapshot {
+                safeName = policy.redactText(event.name, snapshot: snapshot, storage: storage)
+            } else {
+                safeName = policy.redactEventIdentities ? "[REDACTED]" : event.name
+            }
+            return ["kind": event.kind.rawValue, "name": safeName,
+             "seen_at": ISO8601DateFormatter().string(from: event.seenAt)]
+        }
         if let snapshot {
             payload["snapshot"] = (try? JSONSerialization.jsonObject(
-                with: Data(DiagnosticBundle.redactedSnapshotJSON(snapshot).utf8)
+                with: Data(DiagnosticBundle.redactedSnapshotJSON(snapshot, policy: policy, storage: storage).utf8)
             )) ?? [:]
         }
         let data = (try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])) ?? Data("{}".utf8)
@@ -724,12 +801,16 @@ final class AppState: ObservableObject {
     }
 
     func copyWarnings() {
-        let warnings = readWarnings
+        let policy = RedactionPolicy()
+        let warnings = snapshot.map { current in
+            readWarnings.map { policy.redactText($0, snapshot: current, storage: storage) }
+        } ?? readWarnings
         guard !warnings.isEmpty else { return }
         writeClipboard(warnings.joined(separator: "\n"))
     }
 
     func exportDiagnostics() {
+        guard confirmExportDisclosure(format: "diagnostics") else { return }
         let panel = NSSavePanel()
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = "usbscope-diagnostics"
@@ -739,7 +820,8 @@ final class AppState: ObservableObject {
             try DiagnosticBundle.write(to: url, snapshot: snapshot,
                                        warnings: readWarnings,
                                        timings: sourceTimings.merging(lastReadDuration.map { ["snapshot": $0] } ?? [:]) { current, _ in current },
-                                       events: events, errors: storageErrors, metrics: qaMetrics)
+                                       events: events, errors: storageErrors, metrics: qaMetrics,
+                                       storage: storage)
             reportFailed = false
             reportMessage = "\(L(.diagnosticsWritten, language)): \(url.lastPathComponent)"
         } catch {
@@ -767,15 +849,7 @@ final class AppState: ObservableObject {
             : Serialize.json(snapshot)
         let text = RedactionPolicy().redactText(rawText, snapshot: snapshot, storage: storage)
         do {
-            let temporary = url.deletingLastPathComponent()
-                .appendingPathComponent(".\(url.lastPathComponent).tmp-\(UUID().uuidString)")
-            try text.write(to: temporary, atomically: true, encoding: .utf8)
-            if FileManager.default.fileExists(atPath: url.path) {
-                _ = try FileManager.default.replaceItemAt(url, withItemAt: temporary,
-                                                          backupItemName: nil, options: .usingNewMetadataOnly)
-            } else {
-                try FileManager.default.moveItem(at: temporary, to: url)
-            }
+            try AtomicFile.write(text, to: url)
             reportFailed = false
             reportMessage = "\(L(.exportWritten, language)): \(url.lastPathComponent)"
         } catch {
@@ -825,7 +899,7 @@ final class AppState: ObservableObject {
                                      redactionPolicy: RedactionPolicy())
         let destination = format.replacingExtension(of: url)
         do {
-            try text.write(to: destination, atomically: true, encoding: .utf8)
+            try AtomicFile.write(text, to: destination)
             reportFailed = false
             reportMessage = "\(L(.reportWritten, language)): \(destination.lastPathComponent)"
         } catch {

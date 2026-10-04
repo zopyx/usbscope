@@ -189,7 +189,8 @@ public enum DiagnosticBundle {
                              timings: [String: Double] = [:], events: [UsbEvent] = [],
                              errors: [SourceError] = [],
                              metrics: LocalQAMetrics? = nil,
-                             policy: RedactionPolicy = RedactionPolicy()) throws -> URL {
+                             policy: RedactionPolicy = RedactionPolicy(),
+                             storage: [StorageDevice] = []) throws -> URL {
         let fm = FileManager.default
         let parent = destination.deletingLastPathComponent()
         try fm.createDirectory(at: parent, withIntermediateDirectories: true)
@@ -206,16 +207,19 @@ public enum DiagnosticBundle {
                 ]
             } ?? []
             let errorPayload: [[String: Any]] = errors.map { error in
+                func safe(_ text: String) -> String {
+                    snapshot.map { policy.redactText(text, snapshot: $0, storage: storage) } ?? text
+                }
                 var value: [String: Any] = [
                     "code": error.code.rawValue,
-                    "source": error.source,
-                    "operation": error.operation,
-                    "severity": error.severity,
-                    "user_message": error.userMessage,
-                    "technical_message": error.technicalMessage,
+                    "source": safe(error.source),
+                    "operation": safe(error.operation),
+                    "severity": safe(error.severity),
+                    "user_message": safe(error.userMessage),
+                    "technical_message": safe(error.technicalMessage),
                 ]
                 if let recoveryAction = error.recoveryAction {
-                    value["recovery_action"] = recoveryAction
+                    value["recovery_action"] = safe(recoveryAction)
                 }
                 return value
             }
@@ -239,7 +243,7 @@ public enum DiagnosticBundle {
             if let metrics { completePayload["metrics"] = metrics.dictionary() }
             try json(completePayload).write(to: temporary.appendingPathComponent("metadata.json"), atomically: true, encoding: .utf8)
             if let snapshot {
-                try redactedSnapshotJSON(snapshot, policy: policy)
+                try redactedSnapshotJSON(snapshot, policy: policy, storage: storage)
                     .write(to: temporary.appendingPathComponent("snapshot.json"), atomically: true, encoding: .utf8)
             }
             let eventPayload = events.map { redacted(event: $0, policy: policy) }
@@ -258,9 +262,10 @@ public enum DiagnosticBundle {
     }
 
     public static func redactedSnapshotJSON(_ snapshot: Snapshot,
-                                            policy: RedactionPolicy = RedactionPolicy()) -> String {
+                                            policy: RedactionPolicy = RedactionPolicy(),
+                                            storage: [StorageDevice] = []) -> String {
         let raw = json(redacted(Serialize.dict(snapshot), policy: policy))
-        return policy.redactText(raw, snapshot: snapshot)
+        return policy.redactText(raw, snapshot: snapshot, storage: storage)
     }
 
     private static func json(_ value: Any) -> String {

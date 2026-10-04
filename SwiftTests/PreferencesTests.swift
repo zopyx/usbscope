@@ -17,6 +17,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.grouping, .none)
         XCTAssertEqual(preferences.monitoringProfile, .balanced)
         XCTAssertTrue(preferences.hiddenColumns.isEmpty)
+        XCTAssertTrue(preferences.securitySeverityOverrides.isEmpty)
     }
 
     func testSanitizedReplacesUntrustedValues() {
@@ -53,9 +54,11 @@ final class PreferencesTests: XCTestCase {
         preferences.grouping = .deviceClass
         preferences.monitoringProfile = .lowPower
         preferences.hiddenColumns = ["devices": ["Serial", "Tier"]]
+        preferences.securitySeverityOverrides = ["mass-storage": "info"]
 
         let restored = AppPreferences.decode(preferences.encoded())
         XCTAssertEqual(restored, preferences.sanitized())
+        XCTAssertEqual(restored.securitySeverityOverrides, ["mass-storage": "info"])
     }
 
     func testOlderPreferenceDocumentsDefaultTheMonitoringProfile() {

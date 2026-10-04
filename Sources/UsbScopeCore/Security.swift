@@ -25,6 +25,23 @@ public enum FindingSeverity: String, Sendable, CaseIterable, Codable {
     }
 }
 
+/// User presentation overrides for heuristic findings. The rule IDs remain
+/// stable in machine-readable output; this policy changes only the displayed
+/// severity, never the underlying observation or evidence.
+public struct SecuritySeverityPolicy: Codable, Sendable, Equatable {
+    public var overrides: [String: FindingSeverity]
+
+    public static let standard = SecuritySeverityPolicy()
+
+    public init(overrides: [String: FindingSeverity] = [:]) {
+        self.overrides = overrides
+    }
+
+    public func severity(for rule: String, default defaultSeverity: FindingSeverity) -> FindingSeverity {
+        overrides[rule] ?? defaultSeverity
+    }
+}
+
 /// One security-relevant observation about a device or a port.
 ///
 /// `rule` is a stable identifier, `subject` names the device or port it is about
@@ -80,6 +97,13 @@ public struct SecurityReport: Equatable, Sendable {
 
 /// The pure analyser — same rules and wording as `usbscope.security.analyse`.
 public enum Security {
+    /// Stable rule IDs exposed to preferences and support diagnostics.
+    public static let ruleIDs = [
+        "mass-storage", "hid-without-serial", "hid-and-storage-on-device",
+        "composite-per-interface", "composite-iad", "restricted-by-macos",
+        "restricted-transport", "no-usb-data", "hid-and-storage-on-port",
+    ]
+
     /// macOS marks a receptacle that needs no user decision with one of these.
     public static let standardAuthorizations: Set<String> = ["Not Required", "No Action"]
 
@@ -150,13 +174,21 @@ public enum Security {
     }
 
     /// Turn a snapshot into a ranked security report.
-    public static func analyse(_ snapshot: Snapshot) -> SecurityReport {
+    public static func analyse(_ snapshot: Snapshot,
+                               policy: SecuritySeverityPolicy = .standard) -> SecurityReport {
         var findings: [Finding] = []
         for device in snapshot.devices {
             findings.append(contentsOf: deviceFindings(device))
         }
         for port in snapshot.ports {
             findings.append(contentsOf: portFindings(port))
+        }
+        findings = findings.map { finding in
+            let severity = policy.severity(for: finding.rule, default: finding.severity)
+            guard severity != finding.severity else { return finding }
+            return Finding(rule: finding.rule, severity: severity, subject: finding.subject,
+                           detail: finding.detail, port: finding.port, device: finding.device,
+                           locationID: finding.locationID, evidence: finding.evidence)
         }
         findings.sort { left, right in
             if left.severity.rank != right.severity.rank { return left.severity.rank > right.severity.rank }

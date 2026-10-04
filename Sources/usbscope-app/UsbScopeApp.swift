@@ -271,6 +271,12 @@ struct ContentView: View {
                         Label(L(.of(item), lang), systemImage: item.systemImage).tag(item)
                     }
                 }
+                Section(L(.diagnostics, lang)) {
+                    Button { state.showDiagnostics = true } label: {
+                        Label(L(.openDiagnostics, lang), systemImage: "cross.case")
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 210, ideal: 250, max: 360)

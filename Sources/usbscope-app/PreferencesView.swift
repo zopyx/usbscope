@@ -1,4 +1,5 @@
 import SwiftUI
+import UsbScopeCore
 import UsbScopeUI
 
 /// The `⌘,` preferences window: default view, refresh cadence, notifications,
@@ -115,6 +116,28 @@ struct PreferencesView: View {
                             }
                         }
                         .labelsHidden()
+                    }
+                }
+                section(L(.securitySeverity, lang)) {
+                    ForEach(Security.ruleIDs, id: \.self) { rule in
+                        row(Strings.securityRuleLabel(rule, lang)) {
+                            Picker("", selection: Binding(
+                                get: { state.securitySeverity(for: rule)?.rawValue ?? "default" },
+                                set: { value in
+                                    state.setSecuritySeverity(
+                                        value == "default" ? nil : FindingSeverity(rawValue: value),
+                                        for: rule
+                                    )
+                                }
+                            )) {
+                                Text(L(.severityDefault, lang)).tag("default")
+                                ForEach(FindingSeverity.allCases, id: \.rawValue) { severity in
+                                    Text(Strings.securitySeverity(severity, lang)).tag(severity.rawValue)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                        }
                     }
                 }
             }

@@ -29,4 +29,22 @@ final class ParserFuzzTests: XCTestCase {
             Profiler.iterate(root) { _ in }
         }
     }
+
+    func testMalformedCommandPayloadsBecomeWarningsAcrossSources() {
+        let malformedJSON: Runner = { argv in
+            CommandResult(argv: argv, returncode: 0, stdout: Data("not-json".utf8))
+        }
+        let malformedPlist: Runner = { argv in
+            CommandResult(argv: argv, returncode: 0, stdout: Data("not-a-plist".utf8))
+        }
+
+        let profiler = SystemProfiler(runner: malformedJSON)
+        XCTAssertFalse(profiler.usbBuses().1.isEmpty)
+        XCTAssertFalse(profiler.thunderbolt().1.isEmpty)
+        XCTAssertFalse(ChargingSource(runner: malformedJSON).charging().1.isEmpty)
+
+        XCTAssertFalse(IoregSource(runner: malformedPlist).ports().1.isEmpty)
+        XCTAssertFalse(USBInterfaceSource(runner: malformedPlist, backend: .subprocess).interfaces().1.isEmpty)
+        XCTAssertFalse(ThunderboltFabricSource(runner: malformedJSON).fabric().1.isEmpty)
+    }
 }
