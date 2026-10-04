@@ -39,8 +39,11 @@ permissions:
 jobs:
   swift:
     name: build + test
-    # arm64 macOS; the repo requires macOS 14.4+ and is macOS-only anyway.
-    runs-on: macos-14
+    # arm64 macOS. `macos-14` still ships Swift 5.10, which cannot read a
+    # `swift-tools-version: 6.0` manifest, so the runner has to be macos-15 or
+    # newer. The deployment target stays macOS 14.4 (see Package.swift) — this only
+    # picks the toolchain that builds it.
+    runs-on: macos-15
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -50,6 +53,12 @@ jobs:
         run: |
           swift --version
           xcodebuild -version
+          # The manifest needs Swift 6; fail with a readable message instead of a
+          # cryptic manifest error if a runner ever regresses.
+          swift --version | grep -qE "Swift version 6" || {
+            echo "::error::this package needs Swift 6 (swift-tools-version: 6.0)"
+            exit 1
+          }
 
       - name: Build
         run: swift build
