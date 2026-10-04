@@ -35,7 +35,7 @@ struct AboutView: View {
                     .foregroundStyle(.tertiary)
 
                 buttons
-                Text("\(AboutInfo.license) · \(AboutInfo.copyright)")
+                Text(Strings.licenseLabel(AboutInfo.license, copyright: AboutInfo.copyright, lang))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -104,7 +104,7 @@ struct AboutView: View {
         VStack(spacing: 3) {
             Text(AboutInfo.name)
                 .font(.system(size: 27, weight: .semibold, design: .rounded))
-            Text("Version \(AboutIcon.version)")
+            Text(Strings.versionLabel(AboutIcon.version, state.language))
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)

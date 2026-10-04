@@ -35,11 +35,20 @@ public final class EventLog: @unchecked Sendable {
     public let url: URL
     private let fileManager: FileManager
     private let lock = NSLock()
+    private let maximumBytes: Int
+    private let maximumAge: TimeInterval
+    private let retainedRotations: Int
 
     /// Open (and create) the log; `url` defaults to `defaultURL()`.
-    public init(url: URL? = nil, fileManager: FileManager = .default) throws {
+    public init(url: URL? = nil, fileManager: FileManager = .default,
+                maximumBytes: Int = 2 * 1024 * 1024,
+                maximumAge: TimeInterval = 30 * 24 * 60 * 60,
+                retainedRotations: Int = 3) throws {
         self.fileManager = fileManager
         self.url = url ?? Self.defaultURL(fileManager: fileManager)
+        self.maximumBytes = max(1024, maximumBytes)
+        self.maximumAge = max(0, maximumAge)
+        self.retainedRotations = max(1, retainedRotations)
         try fileManager.createDirectory(
             at: self.url.deletingLastPathComponent(), withIntermediateDirectories: true
         )
@@ -61,6 +70,7 @@ public final class EventLog: @unchecked Sendable {
         }
         lock.lock()
         defer { lock.unlock() }
+        try rotateIfNeeded(incomingBytes: payload.count)
         if fileManager.fileExists(atPath: url.path) {
             let handle = try FileHandle(forWritingTo: url)
             defer { try? handle.close() }
@@ -69,6 +79,29 @@ public final class EventLog: @unchecked Sendable {
         } else {
             try payload.write(to: url, options: .atomic)
         }
+    }
+
+    private func rotateIfNeeded(incomingBytes: Int) throws {
+        guard fileManager.fileExists(atPath: url.path) else { return }
+        let attributes = try fileManager.attributesOfItem(atPath: url.path)
+        let size = (attributes[.size] as? NSNumber)?.intValue ?? 0
+        let modified = attributes[.modificationDate] as? Date
+        guard size + incomingBytes > maximumBytes ||
+                (maximumAge > 0 && modified.map { Date().timeIntervalSince($0) > maximumAge } == true)
+        else { return }
+        let directory = url.deletingLastPathComponent()
+        let base = url.deletingPathExtension().lastPathComponent
+        for index in stride(from: retainedRotations - 1, through: 1, by: -1) {
+            let old = directory.appendingPathComponent("\(base).\(index).jsonl")
+            let next = directory.appendingPathComponent("\(base).\(index + 1).jsonl")
+            if fileManager.fileExists(atPath: old.path) {
+                if index + 1 > retainedRotations { try? fileManager.removeItem(at: next) }
+                else { try? fileManager.moveItem(at: old, to: next) }
+            }
+        }
+        let first = directory.appendingPathComponent("\(base).1.jsonl")
+        try? fileManager.removeItem(at: first)
+        try fileManager.moveItem(at: url, to: first)
     }
 
     /// Read every parseable line, oldest first.

@@ -48,11 +48,16 @@ public enum ReportFormat: String, CaseIterable, Identifiable, Sendable {
 public enum ReportExport {
     /// Render the report in `format`, byte for byte the document the CLI writes.
     public static func text(
-        _ format: ReportFormat, snapshot: Snapshot, storage: [StorageDevice]
+        _ format: ReportFormat, snapshot: Snapshot, storage: [StorageDevice],
+        redactionPolicy: RedactionPolicy? = nil
     ) -> String {
         switch format {
-        case .markdown: Report.markdown(snapshot, storage: storage)
-        case .html: Report.html(snapshot, storage: storage)
+        case .markdown:
+            if let redactionPolicy { return Report.markdown(snapshot, storage: storage, redactionPolicy: redactionPolicy) }
+            return Report.markdown(snapshot, storage: storage)
+        case .html:
+            if let redactionPolicy { return Report.html(snapshot, storage: storage, redactionPolicy: redactionPolicy) }
+            return Report.html(snapshot, storage: storage)
         }
     }
 }

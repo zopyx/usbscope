@@ -317,6 +317,7 @@ public enum Serialize {
             "port": orNull(finding.port),
             "device": orNull(finding.device),
             "location_id": orNull(finding.locationID),
+            "evidence": finding.evidence,
         ]
     }
 

@@ -104,6 +104,12 @@ final class IORegistryReaderTests: XCTestCase {
         XCTAssertEqual(warnings, ["no registry access"])
     }
 
+    func testCanonicalOrderHandlesScalarRegistryMembersWithoutThrowing() {
+        let ordered = IORegistryReader.canonicalOrder(["b", "a", 2, 1, true])
+        XCTAssertEqual(ordered.count, 5)
+        XCTAssertEqual(String(describing: ordered.first!), "true")
+    }
+
     // MARK: - helpers
 
     private func fixturePortCount() throws -> Int {

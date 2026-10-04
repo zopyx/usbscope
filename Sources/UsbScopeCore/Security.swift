@@ -38,6 +38,7 @@ public struct Finding: Equatable, Sendable {
     public let port: String?
     public let device: String?
     public let locationID: Int?
+    public let evidence: [String: String]
 
     public init(
         rule: String,
@@ -46,7 +47,8 @@ public struct Finding: Equatable, Sendable {
         detail: String,
         port: String? = nil,
         device: String? = nil,
-        locationID: Int? = nil
+        locationID: Int? = nil,
+        evidence: [String: String] = [:]
     ) {
         self.rule = rule
         self.severity = severity
@@ -55,6 +57,7 @@ public struct Finding: Equatable, Sendable {
         self.port = port
         self.device = device
         self.locationID = locationID
+        self.evidence = evidence
     }
 }
 
@@ -91,7 +94,7 @@ public enum Security {
 
     static let massStorageDetail = "mass-storage device (class 8) — it presents a filesystem to the host"
     static let hidNoSerialDetail =
-        "HID device without a serial number — an identical device cannot be told apart across reads"
+        "No serial was reported by macOS; device identity may be less stable across reads"
     static let compositeIADDetailBase =
         "Interface Association Descriptor composite (0xEF/2/1)"
     static let deviceRestrictedDetail =
@@ -176,7 +179,13 @@ public enum Security {
                     subject: device.label,
                     detail: detail,
                     device: device.label,
-                    locationID: device.locationID
+                    locationID: device.locationID,
+                    evidence: [
+                        "field": "device.class/interfaces",
+                        "value": device.classText ?? Security.interfaceSummary(device) ?? "unavailable",
+                        "source": device.source,
+                        "rule": rule,
+                    ]
                 )
             )
         }
@@ -212,7 +221,8 @@ public enum Security {
 
         func add(_ rule: String, _ severity: FindingSeverity, _ detail: String) {
             findings.append(
-                Finding(rule: rule, severity: severity, subject: port.name, detail: detail, port: port.name)
+                Finding(rule: rule, severity: severity, subject: port.name, detail: detail, port: port.name,
+                        evidence: ["field": "port/transports", "value": port.name, "source": "ioPort", "rule": rule])
             )
         }
 

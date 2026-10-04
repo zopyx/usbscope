@@ -13,6 +13,44 @@ public enum ChangeKind: String, Sendable {
     case changed
 }
 
+public enum DeviceIdentityStrength: String, Codable, Sendable, CaseIterable {
+    case locationID
+    case serial
+    case busPortPath
+    case vendorProductName
+    case readLocal
+}
+
+public struct DeviceIdentity: Equatable, Sendable {
+    public let key: String
+    public let strength: DeviceIdentityStrength
+    public let isWeak: Bool
+
+    public init(key: String, strength: DeviceIdentityStrength) {
+        self.key = key
+        self.strength = strength
+        self.isWeak = strength == .vendorProductName || strength == .readLocal
+    }
+}
+
+/// Explain which available identity facts support a diff key. The legacy key
+/// format remains unchanged for compatibility with existing event logs and
+/// snapshot consumers.
+public func deviceIdentity(_ device: UsbDevice) -> DeviceIdentity {
+    if let locationID = device.locationID {
+        return DeviceIdentity(key: "device:location:\(String(format: "%08x", locationID))", strength: .locationID)
+    }
+    if let serial = device.serial, !serial.isEmpty {
+        return DeviceIdentity(key: "device:serial:\(serial)", strength: .serial)
+    }
+    if let bus = device.bus, !bus.isEmpty, let port = device.port, !port.isEmpty {
+        return DeviceIdentity(key: "device:path:\(bus):\(port)", strength: .busPortPath)
+    }
+    let vendor = device.vendorID.map { String(format: "%04x", $0) } ?? "????"
+    let product = device.productID.map { String(format: "%04x", $0) } ?? "????"
+    return DeviceIdentity(key: "device:\(vendor):\(product):\(device.name.lowercased())", strength: .vendorProductName)
+}
+
 /// A stable identity for a device across reads.
 ///
 /// A serial number identifies a device best; without one the vendor/product ID

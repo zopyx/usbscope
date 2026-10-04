@@ -13,8 +13,8 @@ import XCTest
 /// composite note now names the interfaces, and a HID interface without a serial is
 /// flagged).
 final class ReportTests: XCTestCase {
-    private let markdownSHA256 = "7b3ee047dd7ff24ee4cacbfc35070e3721c1991e13c07fc1551676f72bedaa21"
-    private let htmlSHA256 = "3175e83db6bb36e6ff00003b2c5d2f6f6bf41a44172d016264156677d87126af"
+    private let markdownSHA256 = "16ebb1e61cea7db2b0655dbd71ffbd35228de3ef6befa884aa5f848288ef9144"
+    private let htmlSHA256 = "fe40d08863eb1d42545b08d9998434c490d1f1425d3028b78154739e535d83c3"
 
     private func sha256(_ text: String) -> String {
         SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -88,6 +88,17 @@ final class ReportTests: XCTestCase {
         XCTAssertFalse(text.contains("<script"))
         XCTAssertTrue(text.contains("USB 1.1 Full-Speed"))
         XCTAssertTrue(text.contains("composite-per-interface"))
+    }
+
+    func testLocalizedReportsTranslatePresentationAndKeepStableValues() {
+        let snapshot = Fixtures.snapshot()
+        let markdown = Report.markdown(snapshot, storage: [], language: .german)
+        let html = Report.html(snapshot, storage: [], language: .german)
+        XCTAssertTrue(markdown.contains("# usbscope Bericht"))
+        XCTAssertTrue(markdown.contains("## Anschlüsse"))
+        XCTAssertTrue(html.contains("<html lang=\"de\">"))
+        XCTAssertTrue(html.contains("<h2>Anschlüsse</h2>"))
+        XCTAssertTrue(markdown.contains("0x1050"))
     }
 
     func testHTMLEscapesMarkup() {

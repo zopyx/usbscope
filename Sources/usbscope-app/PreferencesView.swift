@@ -59,7 +59,7 @@ struct PreferencesView: View {
                             set: { state.setInterval($0) }
                         )) {
                             ForEach(PREFERENCE_INTERVALS, id: \.self) { value in
-                                Text("\(Int(value)) s").tag(value)
+                                Text(verbatim: Strings.seconds(Int(value), lang)).tag(value)
                             }
                         }
                         .labelsHidden()
@@ -79,6 +79,18 @@ struct PreferencesView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    row(L(.notificationDetail, lang)) {
+                        Picker("", selection: Binding(
+                            get: { state.notificationDetail },
+                            set: { state.setNotificationDetail($0) }
+                        )) {
+                            Text(L(.fullDeviceDetails, state.language)).tag(NotificationDetail.full)
+                            Text(L(.genericSummary, state.language)).tag(NotificationDetail.generic)
+                            Text(L(.disabled, state.language)).tag(NotificationDetail.disabled)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                    }
                 }
                 section(L(.prefGrouping, lang)) {
                     row(L(.prefGrouping, lang)) {
@@ -108,7 +120,7 @@ struct PreferencesView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(AboutInfo.name).font(.title3.weight(.semibold))
-                Text("Version \(AboutIcon.version)")
+                Text(Strings.versionLabel(AboutIcon.version, state.language))
                     .font(.caption).monospacedDigit().foregroundStyle(.secondary)
             }
             Spacer()

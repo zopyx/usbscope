@@ -39,13 +39,15 @@ final class DeviceNotifier {
     var available: Bool { supported }
 
     /// One notification per appeared or disappeared device.
-    func notify(_ changes: ChangeSet, enabled: Bool) {
-        guard supported, enabled, authorized else { return }
+    func notify(_ changes: ChangeSet, enabled: Bool, detail: NotificationDetail = .full) {
+        guard supported, enabled, detail != .disabled, authorized else { return }
         for device in changes.added {
-            post(DeviceChangeText.describe(single(device, added: true)), subtitle: "Device connected")
+            let body = detail == .full ? DeviceChangeText.describe(single(device, added: true)) : "A USB device connected."
+            post(body, subtitle: "Device connected")
         }
         for device in changes.removed {
-            post(DeviceChangeText.describe(single(device, added: false)), subtitle: "Device disconnected")
+            let body = detail == .full ? DeviceChangeText.describe(single(device, added: false)) : "A USB device disconnected."
+            post(body, subtitle: "Device disconnected")
         }
     }
 

@@ -1,10 +1,11 @@
 # Mac App Store release
 
-Status: **not submittable.** The bundle metadata the Swift build script writes is
-in place, and the entitlements file exists, but there is no packaging step, no
-signing with an Apple Distribution certificate and no upload — and the one open
-technical question (does the sandbox let us read the data?) cannot be answered
-without an Apple-issued signature.
+Status: **packaging path implemented; submission not performed.** The repository
+now has `scripts/build-swift-mas-pkg.sh`, which requires an Apple Distribution
+identity, an installer identity, and a provisioning profile, consumes the
+entitlements, signs the sandboxed app, validates its entitlements, builds a
+signed `.pkg`, and runs `pkgutil --check-signature`. Submission and sandbox
+source validation still require Apple-issued credentials.
 
 ## What already exists
 
@@ -17,13 +18,13 @@ without an Apple-issued signature.
 | Icon | `CFBundleIconFile` = `usbscope.icns` from `assets/icon/usbscope.icns` |
 | Retina | `NSHighResolutionCapable` |
 | Export compliance | `ITSAppUsesNonExemptEncryption = false` (no cryptography to declare) |
-| Sandbox entitlements | `assets/entitlements/usbscope.entitlements` — `com.apple.security.app-sandbox` only. **Nothing consumes it yet.** |
+| Sandbox entitlements | `assets/entitlements/usbscope.entitlements` — `com.apple.security.app-sandbox`; consumed by `scripts/build-swift-mas-pkg.sh`. |
 | Nested binaries | None — the app is a single Mach-O, and macOS 14+ ships the Swift runtime, so there are no embedded frameworks/`.dylib`s to co-sign. The former multi-Mach-O signing risk is gone. |
 | In-process data reader | `Sources/UsbScopeCore/IORegistryReader.swift`, the default reader (Plan B below) |
 
-`scripts/build-swift-app.sh` is the only bundle build; it writes the Info.plist
-above, ad-hoc signs the bundle and runs it once. It does **not** touch the
-entitlements file and does **not** build a `.pkg`.
+`scripts/build-swift-app.sh` builds the general-purpose bundle. The MAS wrapper
+uses it unsigned, embeds the provisioning profile, signs with the supplied
+entitlements, validates the result, and builds the installer package.
 
 ## What needs the developer account
 
@@ -39,33 +40,19 @@ None of this can be produced from a shell; without it no Mac App Store build exi
    `Contents/embedded.provisionprofile`.
 5. **App Store Connect** app record (see the metadata below).
 
-## The build (sketch — no script exists)
+## The build
 
-There is **no** `make` target and no script for this today; the former Python
-packaging step is gone. The intended sequence for the Swift bundle is the
-standard one **[untested]**:
+Run the complete sequence with credentials installed:
 
 ```console
-# 1. embed the profile
-cp usbscope_mas.provisionprofile dist/usbscope-swift.app/Contents/embedded.provisionprofile
-# 2. sign the app with the sandbox entitlements
-codesign --force --timestamp --options runtime \
-    --entitlements assets/entitlements/usbscope.entitlements \
-    --sign "Apple Distribution: … (TEAMID)" --identifier com.zopyx.usbscope \
-    dist/usbscope-swift.app
-# 3. verify what was signed
-codesign --verify --strict --verbose=2 dist/usbscope-swift.app
-codesign -d --entitlements - dist/usbscope-swift.app   # must list com.apple.security.app-sandbox
-# 4. build and verify the installer
-productbuild --component dist/usbscope-swift.app /Applications \
-    --sign "3rd Party Mac Developer Installer: … (TEAMID)" \
-    dist/usbscope-<version>-mas.pkg
-pkgutil --check-signature dist/usbscope-<version>-mas.pkg
+scripts/build-swift-mas-pkg.sh \
+    --profile usbscope_mas.provisionprofile \
+    --app-identity "Apple Distribution: … (TEAMID)" \
+    --installer-identity "3rd Party Mac Installer: … (TEAMID)"
 ```
 
-A package whose signature does not carry the sandbox entitlement is rejected by
-App Store Connect — that check belongs in whatever script replaces the sketch
-above.
+The script rejects missing profiles, missing signing tools, missing sandbox
+entitlements, and the network-client entitlement before creating the package.
 
 ## Upload
 
@@ -137,11 +124,8 @@ from steps 1–4. See `docs/distribution.md`.
 ## Not done yet
 
 - [ ] Developer Program membership, both certificates, App ID + provisioning profile
-- [ ] A packaging script (the code block above is a sketch; the former
-      `make mas-pkg` / `scripts/make_mas_pkg.py` is gone with the Python
-      implementation, and nothing replaces it yet)
-- [ ] Wire `assets/entitlements/usbscope.entitlements` into a signing step —
-      today no build consumes it
+- [x] A packaging script: `scripts/build-swift-mas-pkg.sh`
+- [x] Wire `assets/entitlements/usbscope.entitlements` into the MAS signing step
 - [ ] Verify the sandboxed build actually reads data (the question above)
 - [ ] If it does not: keep the in-process reader as the whole data path for the
       sandboxed build and reduce/replace the `system_profiler` data

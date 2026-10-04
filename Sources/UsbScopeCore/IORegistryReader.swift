@@ -236,9 +236,18 @@ public enum IORegistryReader {
     /// reports a change that never happened. Canonical JSON (sorted keys, recursively)
     /// is stable across processes.
     private static func canonicalKey(_ member: Any) -> String {
-        if let data = try? JSONSerialization.data(withJSONObject: member, options: [.sortedKeys]) {
+        // JSONSerialization only accepts arrays/dictionaries as a top-level
+        // object. Registry OSSet members can also be scalar CF values; asking
+        // it to encode those raises an Objective-C exception, which `try?`
+        // cannot catch. Validate the root before serializing and use explicit
+        // scalar prefixes to keep ordering deterministic.
+        if JSONSerialization.isValidJSONObject(member),
+           let data = try? JSONSerialization.data(withJSONObject: member, options: [.sortedKeys]) {
             return String(decoding: data, as: UTF8.self)
         }
+        if let value = member as? String { return "string:\(value)" }
+        if let value = member as? Bool { return "bool:\(value ? "1" : "0")" }
+        if let value = member as? NSNumber { return "number:\(value.stringValue)" }
         return String(describing: member)
     }
 

@@ -4,6 +4,8 @@ import UsbScopeCore
 /// Why a snapshot JSON could not be read.
 public enum SnapshotLoadingError: Error, Equatable {
     case notAnObject
+    case unsupportedSchema(Int, current: Int)
+    case migrationFailed(String)
 }
 
 /// Load a `Snapshot` back from the JSON `usbscope json` / `usbscope baseline
@@ -31,7 +33,22 @@ public enum SnapshotLoading {
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw SnapshotLoadingError.notAnObject
         }
-        return snapshot(fromObject: object)
+        return try snapshot(fromObject: migrate(object))
+    }
+
+    /// Accept schema 0 documents produced before the explicit header and reject
+    /// newer documents instead of silently dropping fields.
+    public static func migrate(_ object: [String: Any]) throws -> [String: Any] {
+        let version = (object["schema_version"] as? NSNumber)?.intValue ?? 0
+        guard version <= Serialize.schemaVersion else {
+            throw SnapshotLoadingError.unsupportedSchema(version, current: Serialize.schemaVersion)
+        }
+        guard version == 0 else { return object }
+        var migrated = object
+        migrated["schema_version"] = Serialize.schemaVersion
+        if migrated["os_version"] == nil, let value = migrated["osVersion"] { migrated["os_version"] = value }
+        if migrated["seen_at"] == nil, let value = migrated["seenAt"] { migrated["seen_at"] = value }
+        return migrated
     }
 
     static func snapshot(fromObject object: [String: Any]) -> Snapshot {

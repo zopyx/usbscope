@@ -45,6 +45,9 @@ final class BaselineTests: XCTestCase {
         try Baseline.save(snapshot(ports: [port()]), to: path)
         let payload = try Baseline.load(path)
         XCTAssertEqual(payload["schema_version"] as? Int, 1)
+        let metadata = try XCTUnwrap(payload["baseline_metadata"] as? [String: Any])
+        XCTAssertEqual(metadata["host"] as? String, snapshot(ports: [port()]).host)
+        XCTAssertNotNil(metadata["created_at"] as? String)
         let ports = try XCTUnwrap(payload["ports"] as? [[String: Any]])
         XCTAssertEqual(ports.first?["name"] as? String, "USB-C@3")
     }

@@ -64,6 +64,7 @@ final class AppState: ObservableObject {
     @Published var appearance: Appearance = .system { didSet { persist() } }
     @Published var language: AppLanguage = .en { didSet { persist() } }
     @Published private(set) var notificationsEnabled = true { didSet { persist() } }
+    @Published private(set) var notificationDetail: NotificationDetail = .generic { didSet { persist() } }
     @Published var groupField: GroupField = .none { didSet { persist() } }
     @Published private(set) var hiddenColumns: [AppView: Set<String>] = [:] { didSet { persist() } }
 
@@ -72,6 +73,7 @@ final class AppState: ObservableObject {
 
     /// The USB mass-storage inventory of the last read (the Security tab).
     @Published private(set) var storage: [StorageDevice] = []
+    @Published private(set) var storageErrors: [SourceError] = []
 
     /// The recorded hotplug events (newest first), for the Timeline tab.
     @Published private(set) var events: [UsbEvent] = []
@@ -93,11 +95,25 @@ final class AppState: ObservableObject {
 
     /// The row whose detail sheet is open, if any.
     @Published var detailRowKey: String?
+    @Published var historicalEvent: UsbEvent?
 
     /// The outcome line of the last report export (a written file or a failure),
     /// shown in the status footer; `nil` before the first export.
     @Published private(set) var reportMessage: String?
     @Published private(set) var reportFailed = false
+    @Published private(set) var storageStatus: SourceHealth = .notApplicable
+    @Published private(set) var storageWarnings: [String] = []
+    @Published private(set) var readWarnings: [String] = []
+    @Published private(set) var sourceHealth: [String: SourceHealth] = [:]
+    @Published var showFirstRun = false
+    @Published var showDiagnostics = false
+    @Published var showCommandPalette = false
+    @Published private(set) var lastSuccessfulSnapshot: Snapshot?
+    @Published private(set) var lastAttemptAt: Date?
+    @Published private(set) var lastFailureAt: Date?
+    @Published private(set) var dataFreshness: DataFreshness = .unavailable
+    @Published private(set) var lastReadDuration: TimeInterval?
+    @Published private(set) var sourceTimings: [String: TimeInterval] = [:]
 
     private var previous: Snapshot?
     private var timer: Timer?
@@ -114,11 +130,16 @@ final class AppState: ObservableObject {
 
     /// The IOKit hotplug watcher started on launch.
     private var watcher: UsbHotplugWatcher?
+    private var refreshTask: Task<Void, Never>?
+    private let coordinator = SnapshotCoordinator()
+    private var refreshGeneration: UInt64 = 0
+    private var appliedAt: Date?
 
     var isIdle: Bool { snapshot == nil && !isLoading }
 
     /// Whether the watcher got real IOKit notifications (vs. the polling fallback).
     var isHotplugEventDriven: Bool { watcher?.isEventDriven ?? false }
+    var monitoringStatus: String { watcher?.status ?? "disabled" }
 
     /// The charging watts over time, as far as the app has seen them.
     var powerTimeline: [PowerPoint] { history.powerTimeline() }
@@ -130,6 +151,7 @@ final class AppState: ObservableObject {
     ) {
         self.store = store
         self.notifier = notifier
+        showFirstRun = !UserDefaults.standard.bool(forKey: "usbscope.firstRunExplained.v1")
         let preferences = store.load()
         view = preferences.defaultView
         interval = preferences.interval
@@ -137,6 +159,7 @@ final class AppState: ObservableObject {
         appearance = preferences.appearance
         language = preferences.language
         notificationsEnabled = preferences.notifications
+        notificationDetail = preferences.notificationDetail
         groupField = preferences.grouping
         hiddenColumns = preferences.hiddenColumns.reduce(into: [:]) { result, entry in
             if let view = AppView(rawValue: entry.key) { result[view] = Set(entry.value) }
@@ -179,6 +202,19 @@ final class AppState: ObservableObject {
         watcher = nil
     }
 
+    /// Idempotent lifecycle stop used by the app delegate and tests.
+    func shutdown() {
+        refreshGeneration &+= 1
+        refreshTask?.cancel()
+        Task { await coordinator.stop() }
+        refreshTask = nil
+        timer?.invalidate()
+        timer = nil
+        stopMonitoring()
+        progress = nil
+        isLoading = false
+    }
+
     /// Record the hotplug events and show the fresh snapshot immediately.
     private func handleHotplug(_ update: UsbHotplugWatcher.Update) {
         if let eventLog, !update.events.isEmpty {
@@ -188,7 +224,7 @@ final class AppState: ObservableObject {
             // Newest first, so the Timeline shows the latest edge on top.
             self.events = Array((Array(events.reversed()) + self.events).prefix(Self.eventLimit))
         }
-        apply(update.snapshot)
+        apply(update.snapshot, generation: nil)
     }
 
     // MARK: - Preferences
@@ -199,6 +235,7 @@ final class AppState: ObservableObject {
             interval: interval,
             autoRefresh: autoRefresh,
             notifications: notificationsEnabled,
+            notificationDetail: notificationDetail,
             appearance: appearance,
             language: language,
             grouping: groupField,
@@ -210,6 +247,12 @@ final class AppState: ObservableObject {
     }
 
     func setNotifications(_ enabled: Bool) { notificationsEnabled = enabled }
+    func setNotificationDetail(_ detail: NotificationDetail) { notificationDetail = detail }
+
+    func dismissFirstRun() {
+        UserDefaults.standard.set(true, forKey: "usbscope.firstRunExplained.v1")
+        showFirstRun = false
+    }
 
     /// Whether a column of `view` is currently visible.
     func isColumnVisible(_ view: AppView, _ title: String) -> Bool {
@@ -228,22 +271,36 @@ final class AppState: ObservableObject {
 
     func refresh() {
         guard !isLoading else { return }
+        lastAttemptAt = Date()
+        dataFreshness = snapshot == nil ? .loading : .stale
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
         isLoading = true
         errorMessage = nil
         progress = nil
-        Task { [weak self] in
-            let (result, storage) = await Task.detached(priority: .userInitiated) {
-                // The callback fires on the collecting thread, once per stage; each
-                // value hops to the main actor, so the status line follows the
-                // collection instead of only changing when it is over.
-                let snapshot = SnapshotBuilder.collect(progress: { stage, index, total in
-                    let value = SnapshotProgress(stage: stage, index: index, total: total)
-                    Task { @MainActor [weak self] in self?.progress = value }
-                })
-                return (snapshot, StorageSource().inventory().0)
+        refreshTask = Task { [weak self] in
+            let appState = self
+            let result = await appState?.coordinator.request(.manual, progress: { [weak appState] stage, index, total in
+                let value = SnapshotProgress(stage: stage, index: index, total: total)
+                Task { @MainActor [weak appState] in
+                    guard let appState, appState.refreshGeneration == generation else { return }
+                    appState.progress = value
+                }
+            })
+            let inventory = await Task.detached(priority: .userInitiated) {
+                StorageSource().inventoryResult()
             }.value
-            self?.storage = storage
-            self?.apply(result)
+            guard let result else { return }
+            guard let self, self.refreshGeneration == generation, !Task.isCancelled else { return }
+            self.storage = inventory.devices
+            self.storageStatus = inventory.status
+            self.storageWarnings = inventory.warnings
+            self.storageErrors = inventory.errors
+            self.lastReadDuration = result.duration
+            self.sourceTimings = result.stageTimings
+            if inventory.status == .failed { self.lastFailureAt = Date() }
+            self.apply(result.snapshot, generation: generation)
+            self.refreshTask = nil
         }
     }
 
@@ -253,26 +310,77 @@ final class AppState: ObservableObject {
     /// before it draws, and it has no run loop to wait on a `Task` for.
     func loadSynchronously() {
         isLoading = true
-        storage = StorageSource().inventory().0
-        apply(SnapshotBuilder.collect())
+        let inventory = StorageSource().inventoryResult()
+        storage = inventory.devices
+        storageStatus = inventory.status
+        storageWarnings = inventory.warnings
+        storageErrors = inventory.errors
+        apply(SnapshotBuilder.collect(), generation: nil)
     }
 
-    private func apply(_ fresh: Snapshot) {
+    private func apply(_ fresh: Snapshot, generation: UInt64?) {
+        if let generation, generation != refreshGeneration { return }
+        if let appliedAt, fresh.seenAt < appliedAt { return }
+        let sourceWarnings = fresh.warnings + storageWarnings
+        readWarnings = sourceWarnings
+        let complete = sourceWarnings.isEmpty && storageStatus != .partial && storageStatus != .failed && storageStatus != .stale
+        if !complete, lastSuccessfulSnapshot != nil {
+            lastFailureAt = Date()
+            dataFreshness = .stale
+            sourceHealth = health(for: fresh.warnings)
+            errorMessage = sourceWarnings.joined(separator: " · ")
+            isLoading = false
+            progress = nil
+            return
+        }
+        appliedAt = fresh.seenAt
+        if complete {
+            lastSuccessfulSnapshot = fresh
+            dataFreshness = .current
+        } else {
+            // Keep the last warning-free read as the support baseline; the
+            // displayed partial result is explicitly stale rather than being
+            // presented as a complete current snapshot.
+            dataFreshness = .stale
+        }
         changes = diffSnapshots(previous: previous, current: fresh)
         previous = fresh
         snapshot = fresh
+        if !complete { lastFailureAt = Date() }
+        sourceHealth = health(for: fresh.warnings)
         reads += 1
         isLoading = false
         progress = nil
         history.record(fresh)
-        if fresh.warnings.isEmpty {
+        if sourceWarnings.isEmpty {
             errorMessage = nil
         } else {
-            errorMessage = fresh.warnings.joined(separator: " · ")
+            errorMessage = sourceWarnings.joined(separator: " · ")
         }
         if notificationsEnabled, let changes, changes.deviceCount > 0 {
-            notifier?.notify(changes, enabled: true)
+            notifier?.notify(changes, enabled: true, detail: notificationDetail)
         }
+        reconcileSelection()
+    }
+
+    private func health(for warnings: [String]) -> [String: SourceHealth] {
+        var health = Dictionary(uniqueKeysWithValues: SnapshotStage.allCases.map { ($0.rawValue, SourceHealth.healthy) })
+        for warning in warnings {
+            let source = warning.split(separator: ":", maxSplits: 1).first.map(String.init) ?? "unknown"
+            let failed = warning.localizedCaseInsensitiveContains("failed")
+                || warning.localizedCaseInsensitiveContains("invalid")
+                || warning.localizedCaseInsensitiveContains("timeout")
+            health[source] = failed ? .failed : .partial
+        }
+        health["storage"] = storageStatus
+        return health
+    }
+
+    private func reconcileSelection() {
+        guard let snapshot else { selection.removeAll(); detailRowKey = nil; return }
+        let ids = Set(Presentation.tableRows(for: view, snapshot: snapshot).map(\.id))
+        selection.formIntersection(ids)
+        if let detailRowKey, !ids.contains(detailRowKey) { self.detailRowKey = nil }
     }
 
     // MARK: - Auto refresh
@@ -335,7 +443,7 @@ final class AppState: ObservableObject {
     var menuBarTitle: String {
         guard let snapshot else { return "usbscope" }
         let base = "\(snapshot.connectedPorts.count)/\(snapshot.ports.count)"
-        return snapshot.warnings.isEmpty ? base : "\(base) ⚠"
+        return readWarnings.isEmpty ? base : "\(base) ⚠"
     }
 
     var menuBarTooltip: String {
@@ -345,7 +453,7 @@ final class AppState: ObservableObject {
             "\(snapshot.connectedPorts.count) connected",
             "\(snapshot.devices.count) device(s)",
         ]
-        if !snapshot.warnings.isEmpty { parts.append("\(snapshot.warnings.count) warning(s)") }
+        if !readWarnings.isEmpty { parts.append("\(readWarnings.count) warning(s)") }
         return parts.joined(separator: " · ")
     }
 
@@ -360,6 +468,28 @@ final class AppState: ObservableObject {
     /// The security report of the current snapshot (the Security tab).
     var securityReport: SecurityReport? { snapshot.map(Security.analyse) }
 
+    /// Resolve a security observation to the current source row. If the
+    /// object detached between analysis and activation, leave the user on the
+    /// relevant view with a normal empty selection instead of guessing.
+    func openFinding(_ finding: FindingRow) {
+        guard let snapshot else { return }
+        if let portName = finding.port,
+           let port = snapshot.ports.first(where: { $0.name == portName }) {
+            view = .ports
+            selection = [portKey(port)]
+            detailRowKey = portKey(port)
+            return
+        }
+        if let device = snapshot.devices.first(where: {
+            if let locationID = finding.locationID { return $0.locationID == locationID }
+            return finding.device == $0.label || finding.subject == $0.label
+        }) {
+            view = .devices
+            selection = [deviceKey(device)]
+            detailRowKey = deviceKey(device)
+        }
+    }
+
     /// The storage inventory as rows, each with its eject state.
     var storageInventory: [StorageRow] { SecurityPresentation.storageRows(storage) }
 
@@ -373,6 +503,19 @@ final class AppState: ObservableObject {
 
     /// The recorded hotplug events, newest first.
     var hotplugRows: [EventRow] { eventRows(events) }
+
+    func openEvent(_ row: EventRow) {
+        guard let snapshot else { return }
+        if let device = snapshot.devices.first(where: {
+            deviceKey($0) == row.key || (row.locationID != nil && $0.locationID == row.locationID)
+        }) {
+            view = .devices
+            selection = [deviceKey(device)]
+            detailRowKey = deviceKey(device)
+        } else {
+            historicalEvent = events.first(where: { $0.key == row.key && $0.locationID == row.locationID })
+        }
+    }
 
     /// The live machine against the loaded baseline (`nil` without one).
     var baselineDiff: ChangeSet? {
@@ -399,6 +542,32 @@ final class AppState: ObservableObject {
         baselineError = nil
     }
 
+    func saveBaseline() {
+        guard let snapshot else { return }
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "usbscope-baseline.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try Baseline.save(snapshot, to: url.path)
+            baseline = snapshot; baselineName = url.lastPathComponent; baselineError = nil
+        } catch { baselineError = error.localizedDescription }
+    }
+
+    func renameBaseline() {
+        guard baseline != nil else { return }
+        let alert = NSAlert()
+        alert.messageText = "Rename baseline"
+        let field = NSTextField(string: baselineName ?? "Baseline")
+        field.frame.size = NSSize(width: 280, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        baselineName = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// Ask for a snapshot JSON (a save panel) and load it as the baseline.
     func pickBaseline() {
         let panel = NSOpenPanel()
@@ -412,6 +581,18 @@ final class AppState: ObservableObject {
     }
 
     /// Run `diskutil eject` for a storage device, then refresh the inventory.
+    func confirmEject(_ row: StorageRow) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Eject \(row.identifier)?"
+        alert.informativeText = "Volume: \(row.name)\nMount point: \(row.mount)\nMounted volumes may be unmounted."
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Eject")
+        alert.buttons.first?.keyEquivalent = "\u{1b}"
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        eject(row)
+    }
+
     func eject(_ row: StorageRow) {
         guard let argv = row.ejectCommand, ejecting == nil else { return }
         ejecting = row.id
@@ -448,18 +629,70 @@ final class AppState: ObservableObject {
 
     /// Copy the whole table (or only the selected rows) as TSV.
     func copyTable(selected: Bool) {
-        guard snapshot != nil else { return }
+        guard let snapshot else { return }
         let rows = selected
             ? visibleRows.filter { selection.contains($0.id) }
             : visibleRows
         guard !rows.isEmpty else { return }
-        writeClipboard(tsv(rows, header: selected ? false : true))
+        writeClipboard(RedactionPolicy().redactText(tsv(rows, header: selected ? false : true),
+                                                     snapshot: snapshot, storage: storage))
+    }
+
+    func copyRow(_ id: String) {
+        guard let snapshot, let row = visibleRows.first(where: { $0.id == id }) else { return }
+        writeClipboard(RedactionPolicy().redactText(row.cells.joined(separator: "\t"), snapshot: snapshot, storage: storage))
+    }
+
+    func copyIdentifier(_ id: String) {
+        guard let snapshot else { return }
+        writeClipboard(RedactionPolicy().redactText(id, snapshot: snapshot, storage: storage))
     }
 
     /// Copy the raw snapshot as JSON.
     func copyJSON() {
         guard let snapshot else { return }
-        writeClipboard(Serialize.json(snapshot))
+        writeClipboard(DiagnosticBundle.redactedSnapshotJSON(snapshot))
+    }
+
+    func copyDiagnostics() {
+        var payload: [String: Any] = [
+            "app": "usbscope", "schema_version": Serialize.schemaVersion,
+            "freshness": dataFreshness.rawValue, "storage_status": storageStatus.rawValue,
+            "storage_warnings": storageWarnings, "warnings": readWarnings,
+            "monitoring": isHotplugEventDriven ? "IOKit event-driven" : "polling/disabled",
+        ]
+        if let snapshot {
+            payload["snapshot"] = (try? JSONSerialization.jsonObject(
+                with: Data(DiagnosticBundle.redactedSnapshotJSON(snapshot).utf8)
+            )) ?? [:]
+        }
+        let data = (try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])) ?? Data("{}".utf8)
+        writeClipboard(String(decoding: data, as: UTF8.self))
+    }
+
+    func copyWarnings() {
+        let warnings = readWarnings
+        guard !warnings.isEmpty else { return }
+        writeClipboard(warnings.joined(separator: "\n"))
+    }
+
+    func exportDiagnostics() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "usbscope-diagnostics"
+        panel.message = "Export redacted diagnostics"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try DiagnosticBundle.write(to: url, snapshot: snapshot,
+                                       warnings: readWarnings,
+                                       timings: sourceTimings.merging(lastReadDuration.map { ["snapshot": $0] } ?? [:]) { current, _ in current },
+                                       events: events, errors: storageErrors)
+            reportFailed = false
+            reportMessage = "Diagnostics written: \(url.lastPathComponent)"
+        } catch {
+            reportFailed = true
+            reportMessage = "Diagnostics failed: \(error.localizedDescription)"
+        }
     }
 
     private func writeClipboard(_ text: String) {
@@ -469,16 +702,33 @@ final class AppState: ObservableObject {
     }
 
     /// Write the current view to a file via a save panel (`csv` or `json`).
-    func export(format: String) {
+    func export(format: ExportFormat) {
         guard let snapshot else { return }
+        guard confirmExportDisclosure(format: format.rawValue) else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "usbscope-\(view.rawValue).\(format)"
+        panel.nameFieldStringValue = "usbscope-\(view.rawValue).\(format.rawValue)"
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        let text = format == "csv"
+        let rawText = format == .csv
             ? Presentation.csv(for: view, snapshot: snapshot)
             : Serialize.json(snapshot)
-        try? text.write(to: url, atomically: true, encoding: .utf8)
+        let text = RedactionPolicy().redactText(rawText, snapshot: snapshot, storage: storage)
+        do {
+            let temporary = url.deletingLastPathComponent()
+                .appendingPathComponent(".\(url.lastPathComponent).tmp-\(UUID().uuidString)")
+            try text.write(to: temporary, atomically: true, encoding: .utf8)
+            if FileManager.default.fileExists(atPath: url.path) {
+                _ = try FileManager.default.replaceItemAt(url, withItemAt: temporary,
+                                                          backupItemName: nil, options: .usingNewMetadataOnly)
+            } else {
+                try FileManager.default.moveItem(at: temporary, to: url)
+            }
+            reportFailed = false
+            reportMessage = "Export written: \(url.lastPathComponent)"
+        } catch {
+            reportFailed = true
+            reportMessage = "Export failed: \(error.localizedDescription)"
+        }
     }
 
     /// Ask for a destination (a save panel with a Markdown/HTML popup), render
@@ -514,10 +764,12 @@ final class AppState: ObservableObject {
 
         let index = min(max(popup.indexOfSelectedItem, 0), ReportFormat.allCases.count - 1)
         let format = ReportFormat.allCases[index]
+        guard confirmExportDisclosure(format: format.rawValue) else { return }
         // `storage` is filled by `StorageSource().inventory().0` in `refresh()` —
         // the same call the CLI's `report` makes, so both list the same mass
         // storage as the snapshot they belong to.
-        let text = ReportExport.text(format, snapshot: snapshot, storage: storage)
+        let text = ReportExport.text(format, snapshot: snapshot, storage: storage,
+                                     redactionPolicy: RedactionPolicy())
         let destination = format.replacingExtension(of: url)
         do {
             try text.write(to: destination, atomically: true, encoding: .utf8)
@@ -527,5 +779,19 @@ final class AppState: ObservableObject {
             reportFailed = true
             reportMessage = "\(L(.reportFailed, language)): \(error.localizedDescription)"
         }
+    }
+
+    private func confirmExportDisclosure(format: String) -> Bool {
+        let key = "usbscope.exportDisclosure.v1.\(format)"
+        if UserDefaults.standard.bool(forKey: key) { return true }
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Export may contain hardware identifiers"
+        alert.informativeText = "The export is redacted by default where possible. Review the destination before sharing it."
+        alert.addButton(withTitle: "Continue")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        UserDefaults.standard.set(true, forKey: key)
+        return true
     }
 }

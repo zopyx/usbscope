@@ -50,6 +50,9 @@ sign=1
 verify=1
 archive=1
 universal=0
+signing_identity="${CODESIGN_IDENTITY:--}"
+notarize=0
+notary_profile="${NOTARY_PROFILE:-}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -61,10 +64,18 @@ while [ $# -gt 0 ]; do
     --no-verify) verify=0; shift ;;
     --no-archive) archive=0; shift ;;
     --universal) universal=1; shift ;;
+    --identity) signing_identity="${2:?--identity needs a codesign identity}"; shift 2 ;;
+    --notarize) notarize=1; shift ;;
+    --notary-profile) notary_profile="${2:?--notary-profile needs a keychain profile}"; shift 2 ;;
     -h|--help) sed -n '10,28p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+if [ "$notarize" -eq 1 ] && [ "$archive" -eq 0 ]; then
+  echo "--notarize requires archive output (omit --no-archive)" >&2
+  exit 2
+fi
 
 # The version lives in the Swift CLI's main.swift.
 version="$(sed -n 's/^let version = "\([^"]*\)".*/\1/p' "$ROOT/Sources/usbscope/main.swift" | head -1)"
@@ -173,12 +184,18 @@ echo "+ write ${bundle#"$ROOT"/}/Contents/Info.plist (plutil --lint OK)"
 
 if [ "$sign" -eq 1 ]; then
   if command -v codesign >/dev/null 2>&1; then
-    echo "\$ codesign --force --deep --sign - --identifier $BUNDLE_ID $name.app"
-    codesign --force --deep --sign - --identifier "$BUNDLE_ID" "$bundle"
+    entitlements_args=()
+    if [ -f "$ROOT/assets/entitlements/usbscope.entitlements" ]; then
+      entitlements_args=(--entitlements "$ROOT/assets/entitlements/usbscope.entitlements")
+    fi
+    sign_args=(--force --deep --sign "$signing_identity" --identifier "$BUNDLE_ID")
+    if [ "$signing_identity" != "-" ]; then sign_args+=(--options runtime); fi
+    echo "\$ codesign --force --deep --sign $signing_identity --identifier $BUNDLE_ID $name.app"
+    codesign "${sign_args[@]}" "${entitlements_args[@]}" "$bundle"
     # The verification is not optional: a bundle whose signature does not check
     # out is a broken artifact.
     codesign --verify --verbose=2 "$bundle"
-    echo "ad-hoc signed (codesign --verify OK)"
+    if [ "$signing_identity" = "-" ]; then echo "ad-hoc signed (codesign --verify OK)"; else echo "Developer ID signed (codesign --verify OK)"; fi
   else
     echo "codesign not found — skipped"
   fi
@@ -208,6 +225,10 @@ if [ "$verify" -eq 1 ]; then
   echo "  Info.plist: $BUNDLE_ID $version (min macOS $MIN_MACOS)"
 fi
 
+if [ "$sign" -eq 1 ]; then
+  "$ROOT/scripts/validate-swift-app.sh" "$bundle"
+fi
+
 size="$(du -sk "$bundle" | awk '{printf "%.1f", $1/1024}')"
 echo
 echo "${bundle#"$ROOT"/}  (${size} MiB, usbscope)"
@@ -222,6 +243,19 @@ if [ "$archive" -eq 1 ]; then
     arch="$(uname -m)"
   fi
   tarball="$DIST/$name-$version-macos-$arch.tar.gz"
+  if [ "$notarize" -eq 1 ]; then
+    [ "$signing_identity" != "-" ] || { echo "--notarize requires --identity" >&2; exit 2; }
+    [ -n "$notary_profile" ] || { echo "--notarize requires --notary-profile or NOTARY_PROFILE" >&2; exit 2; }
+    command -v xcrun >/dev/null 2>&1 || { echo "xcrun not found; cannot notarize" >&2; exit 1; }
+    notarization_zip="$DIST/$name-$version-macos-$arch-notarization.zip"
+    echo "+ create notarization input $(basename "$notarization_zip")"
+    ditto -c -k --keepParent "$bundle" "$notarization_zip"
+    echo "+ submit notarization (profile $notary_profile)"
+    xcrun notarytool submit "$notarization_zip" --keychain-profile "$notary_profile" --wait
+    xcrun stapler staple "$bundle"
+    xcrun stapler validate "$bundle"
+    rm -f "$notarization_zip"
+  fi
   echo "\$ tar -czf ${tarball#"$ROOT"/} -C dist $name.app"
   tar -czf "$tarball" -C "$DIST" "$name.app"
   ( cd "$DIST" && shasum -a 256 "$(basename "$tarball")" > SHA256SUMS )

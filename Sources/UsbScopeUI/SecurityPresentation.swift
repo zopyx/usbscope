@@ -9,6 +9,10 @@ public struct FindingRow: Identifiable, Hashable, Sendable {
     public let rule: String
     public let subject: String
     public let detail: String
+    public let evidence: [String: String]
+    public let port: String?
+    public let device: String?
+    public let locationID: Int?
 }
 
 /// One USB storage device with the state the Eject button needs.
@@ -78,7 +82,11 @@ public enum SecurityPresentation {
                 severityStyle: style(finding.severity),
                 rule: finding.rule,
                 subject: finding.subject,
-                detail: finding.detail
+                detail: finding.detail,
+                evidence: finding.evidence,
+                port: finding.port,
+                device: finding.device,
+                locationID: finding.locationID
             )
         }
     }

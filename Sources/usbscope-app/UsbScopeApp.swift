@@ -13,11 +13,19 @@ struct UsbScopeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var state = AppState()
 
+    init() {
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
                 .environmentObject(state)
+                .onAppear { delegate.state = state }
         }
+        .defaultSize(width: 1180, height: 720)
+        .defaultPosition(.center)
+        .windowResizability(.automatic)
         .commands { commands }
 
         MenuBarExtra {
@@ -56,7 +64,22 @@ struct UsbScopeApp: App {
                     )
             }
         }
-        CommandMenu("Table") {
+        CommandMenu(L(.commandsMenu, state.language)) {
+            Button(L(.commandPalette, state.language)) { state.showCommandPalette = true }
+                .keyboardShortcut("k", modifiers: [.command])
+            Button(L(.refreshAction, state.language)) { state.refresh() }.keyboardShortcut("r", modifiers: .command)
+            Button(L(.exportDiagnostics, state.language)) { state.exportDiagnostics() }
+            Button(L(.copyDiagnostics, state.language)) { state.copyDiagnostics() }
+            Button(L(.openDiagnostics, state.language)) { state.showDiagnostics = true }
+            Button(L(.saveBaseline, state.language)) { state.saveBaseline() }.disabled(state.snapshot == nil)
+            Button(L(.loadBaseline, state.language)) { state.pickBaseline() }
+            Button(L(.clearBaselineAction, state.language)) { state.clearBaseline() }.disabled(state.baseline == nil)
+            Divider()
+            ForEach(AppView.allCases) { item in
+                Button(L(.of(item), state.language)) { state.view = item }
+            }
+        }
+        CommandMenu(L(.tableMenu, state.language)) {
             Button(L(.copySelected, state.language)) { state.copyTable(selected: true) }
                 .keyboardShortcut("c", modifiers: .command)
             Button(L(.copyWholeTable, state.language)) { state.copyTable(selected: false) }
@@ -69,9 +92,9 @@ struct UsbScopeApp: App {
             }
             .keyboardShortcut("d", modifiers: .command)
             Divider()
-            Button(L(.exportJSON, state.language)) { state.export(format: "json") }
+            Button(L(.exportJSON, state.language)) { state.export(format: .json) }
                 .keyboardShortcut("s", modifiers: .command)
-            Button(L(.exportCSV, state.language)) { state.export(format: "csv") }
+            Button(L(.exportCSV, state.language)) { state.export(format: .csv) }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
         }
     }
@@ -84,6 +107,8 @@ struct UsbScopeApp: App {
 /// every view and exits — the headless self test of the app's data path (the
 /// Python app has `--snapshot` for the same reason).
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var state: AppState?
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         // `--version` prints the bundle's version and exits before any window is
         // created; it is what `scripts/build-swift-app.sh` uses to prove the
@@ -110,6 +135,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async {
+            guard let window = NSApp.windows.first(where: { $0.canBecomeMain }) else { return }
+            window.setFrameAutosaveName("usbscope-main-window")
+            window.minSize = NSSize(width: 900, height: 460)
+        }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        state?.shutdown()
+        return .terminateNow
     }
 
     /// A menu bar extra keeps working after the window closes, so the app stays
@@ -181,7 +216,60 @@ struct ContentView: View {
     private var lang: AppLanguage { state.language }
 
     var body: some View {
+        NavigationSplitView {
+            List(selection: $state.view) {
+                Section(L(.overview, lang)) {
+                    Label(L(.overview, lang), systemImage: "gauge.with.dots.needle.33percent")
+                        .tag(AppView.ports)
+                }
+                Section(L(.connections, lang)) {
+                    ForEach([AppView.cables, .devices, .thunderbolt, .usb4]) { item in
+                        Label(L(.of(item), lang), systemImage: item.systemImage).tag(item)
+                    }
+                }
+                Section(L(.of(.power), lang)) {
+                    Label(L(.of(.power), lang), systemImage: AppView.power.systemImage).tag(AppView.power)
+                }
+                Section(L(.of(.security), lang)) {
+                    Label(L(.of(.security), lang), systemImage: AppView.security.systemImage).tag(AppView.security)
+                }
+                Section(L(.history, lang)) {
+                    ForEach([AppView.timeline, .diff]) { item in
+                        Label(L(.of(item), lang), systemImage: item.systemImage).tag(item)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 210, ideal: 250, max: 360)
+            .navigationTitle(L(.appName, lang))
+        } detail: {
         VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Label(Strings.hostLabel(state.snapshot?.host ?? "—", lang), systemImage: "desktopcomputer")
+                Label(Strings.connectedPortsLabel(connected: state.snapshot?.connectedPorts.count ?? 0,
+                                                  total: state.snapshot?.ports.count ?? 0, lang), systemImage: "cable.connector")
+                Label(Strings.deviceCountLabel(state.snapshot?.devices.count ?? 0, lang), systemImage: "externaldrive")
+                let warningCount = state.readWarnings.count
+                if warningCount > 0 {
+                    Label(Strings.warningCountLabel(warningCount, lang), systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                }
+                Spacer()
+                Text(Strings.freshnessStatus(state.dataFreshness, lang))
+                    .font(.caption).foregroundStyle(state.dataFreshness == .current ? Color.secondary : Color.orange)
+                if let captured = state.snapshot?.seenAt {
+                    Text(Strings.capturedLabel(captured, lang))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if let duration = state.lastReadDuration {
+                    Text(String(format: "%.2fs", duration)).monospacedDigit().foregroundStyle(.secondary)
+                }
+            }
+            .font(.caption)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .accessibilityElement(children: .combine)
+            .help(state.dataFreshness == .stale ? (state.errorMessage ?? Strings.freshnessStatus(.stale, lang)) :
+                  Strings.capturedLabel(state.snapshot?.seenAt ?? Date(), lang))
             Group {
                 switch state.view {
                 case .ports: PortsView()
@@ -239,6 +327,21 @@ struct ContentView: View {
         .sheet(isPresented: detailSheetPresented) {
             DetailSheet().environmentObject(state)
         }
+        .sheet(isPresented: $state.showFirstRun) {
+            FirstRunSheet().environmentObject(state)
+        }
+        .sheet(isPresented: $state.showDiagnostics) {
+            DiagnosticsSheet().environmentObject(state)
+        }
+        .sheet(isPresented: $state.showCommandPalette) {
+            CommandPalette().environmentObject(state)
+        }
+        .sheet(isPresented: Binding(
+            get: { state.historicalEvent != nil },
+            set: { if !$0 { state.historicalEvent = nil } }
+        )) {
+            HistoricalEventSheet().environmentObject(state)
+        }
         .onAppear {
             if state.isIdle { state.refresh() }
             // `--show-about` opens the panel straight away: a checkout run cannot
@@ -251,6 +354,7 @@ struct ContentView: View {
                     Data("about panel opened — \(AboutInfo.name) \(AboutIcon.version)\n".utf8)
                 )
             }
+        }
         }
     }
 
@@ -295,7 +399,7 @@ struct ContentView: View {
             TextField(L(.filter, lang), text: $state.search)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 170)
-                .help("Filter every column (all terms must match)")
+                .help(L(.filterHelp, lang))
             Menu {
                 Picker(L(.filterPresets, lang), selection: $state.filterPreset) {
                     ForEach(FilterPreset.allCases) { preset in
@@ -313,6 +417,13 @@ struct ContentView: View {
                 Image(systemName: "square.on.square.dashed")
             }
             .help(L(.compareWith, lang))
+            Menu {
+                Button(L(.saveBaseline, lang)) { state.saveBaseline() }.disabled(state.snapshot == nil)
+                Button(L(.loadBaseline, lang)) { state.pickBaseline() }
+                Button(L(.renameBaseline, lang)) { state.renameBaseline() }.disabled(state.baseline == nil)
+                Button(L(.clearBaselineAction, lang)) { state.clearBaseline() }.disabled(state.baseline == nil)
+            } label: { Image(systemName: "externaldrive.badge.timemachine") }
+                .help(L(.baselineHelp, lang))
             Button {
                 state.refresh()
             } label: {
@@ -328,10 +439,10 @@ struct ContentView: View {
             .help(L(.toggleAutoRefresh, lang))
             Menu {
                 ForEach(PREFERENCE_INTERVALS, id: \.self) { value in
-                    Button("\(Int(value)) s") { state.setInterval(value) }
+                    Button(Strings.seconds(Int(value), state.language)) { state.setInterval(value) }
                 }
             } label: {
-                Text("\(Int(state.interval))s")
+                Text(verbatim: Strings.seconds(Int(state.interval), state.language))
             }
             .help(L(.intervalHelp, lang))
         }
@@ -375,20 +486,26 @@ struct ContentView: View {
                 Button(L(.copySelected, lang)) { state.copyTable(selected: true) }
                 Button(L(.copyWholeTable, lang)) { state.copyTable(selected: false) }
                 Button(L(.copyJSON, lang)) { state.copyJSON() }
+                Button(L(.copyDiagnostics, lang)) { state.copyDiagnostics() }
             } label: {
                 Image(systemName: "doc.on.doc")
             }
-            .help("Copy")
+            .help(L(.copyHelp, lang))
             Menu {
-                Button(L(.exportJSON, lang)) { state.export(format: "json") }
-                Button(L(.exportCSV, lang)) { state.export(format: "csv") }
+                Button(L(.exportJSON, lang)) { state.export(format: .json) }
+                Button(L(.exportCSV, lang)) { state.export(format: .csv) }
                 Divider()
                 Button(L(.exportReport, lang)) { state.exportReport() }
                     .disabled(state.snapshot == nil)
+                Button(L(.exportDiagnostics, lang)) { state.exportDiagnostics() }
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
-            .help("Export")
+            .help(L(.exportHelp, lang))
+            Button { state.showDiagnostics = true } label: {
+                Image(systemName: "cross.case")
+            }
+            .help(L(.diagnosticsHelp, lang))
             Button {
                 if let key = state.selection.first { state.detailRowKey = key }
             } label: {

@@ -90,6 +90,29 @@ public enum Storage {
     }
 }
 
+public enum SourceHealth: String, Codable, Sendable {
+    case healthy, partial, failed, stale, unsupported, notApplicable
+}
+
+/// Explicit storage collection outcome. An empty device list is not by itself
+/// evidence that diskutil worked and found no disks.
+public struct StorageInventory: Sendable, Equatable {
+    public let devices: [StorageDevice]
+    public let warnings: [String]
+    public let errors: [SourceError]
+    public let status: SourceHealth
+    public let capturedAt: Date
+
+    public init(devices: [StorageDevice], warnings: [String] = [], errors: [SourceError] = [],
+                status: SourceHealth, capturedAt: Date = Date()) {
+        self.devices = devices
+        self.warnings = warnings
+        self.errors = errors
+        self.status = status
+        self.capturedAt = capturedAt
+    }
+}
+
 /// Reads the USB mass-storage inventory through `diskutil`.
 ///
 /// Absence is normal, not an error: a Mac with no USB storage reports no
@@ -113,15 +136,57 @@ public struct StorageSource: Sendable {
         )) as? [String: Any]
     }
 
+    public func inventoryResult(clock: @Sendable () -> Date = { Date() }) -> StorageInventory {
+        let listingResult = run([StorageSource.binary, "list", "-plist"])
+        guard listingResult.ok else {
+            let reason = listingResult.error ?? "exit \(listingResult.returncode)"
+            return StorageInventory(devices: [], warnings: ["storage: diskutil list failed: \(reason)"],
+                                    errors: [listingResult.sourceError(source: "diskutil", operation: "list",
+                                                                        recoveryAction: "Retry the refresh or inspect diskutil permissions.")].compactMap { $0 },
+                                    status: .failed, capturedAt: clock())
+        }
+        guard let listing = (try? PropertyListSerialization.propertyList(
+            from: listingResult.stdout, options: [], format: nil
+        )) as? [String: Any] else {
+            return StorageInventory(devices: [], warnings: ["storage: diskutil list returned invalid plist"],
+                                    errors: [SourceError(code: .sourceMalformed, source: "diskutil", operation: "list",
+                                                         userMessage: "Storage information was malformed.",
+                                                         technicalMessage: "diskutil list returned invalid plist",
+                                                         recoveryAction: "Retry the refresh.")],
+                                    status: .failed, capturedAt: clock())
+        }
+        var infos: [String: [String: Any]] = [:]
+        var warnings: [String] = []
+        var errors: [SourceError] = []
+        for identifier in Storage.wholeDisks(listing) {
+            let result = run([StorageSource.binary, "info", "-plist", identifier])
+            guard result.ok,
+                  let info = (try? PropertyListSerialization.propertyList(
+                    from: result.stdout, options: [], format: nil
+            )) as? [String: Any] else {
+                warnings.append("storage: diskutil info failed for \(identifier)")
+                errors.append(result.sourceError(source: "diskutil", operation: "info \(identifier)",
+                                                 recoveryAction: "Retry the refresh or inspect the disk connection.") ??
+                               SourceError(code: .sourceMalformed, source: "diskutil", operation: "info \(identifier)",
+                                           userMessage: "Storage information was malformed.",
+                                           technicalMessage: "diskutil info returned invalid plist",
+                                           recoveryAction: "Retry the refresh."))
+                continue
+            }
+            infos[identifier] = info
+        }
+        let devices = Storage.parse(listing: listing, infos: infos)
+        return StorageInventory(devices: devices, warnings: warnings,
+                                errors: errors,
+                                status: warnings.isEmpty ? .healthy : .partial,
+                                capturedAt: clock())
+    }
+
     /// USB mass-storage devices plus the (always empty) warnings list.
     public func inventory() -> ([StorageDevice], [String]) {
-        guard let listing = plist([StorageSource.binary, "list", "-plist"]) else { return ([], []) }
-        var infos: [String: [String: Any]] = [:]
-        for identifier in Storage.wholeDisks(listing) {
-            if let info = plist([StorageSource.binary, "info", "-plist", identifier]) {
-                infos[identifier] = info
-            }
-        }
-        return (Storage.parse(listing: listing, infos: infos), [])
+        let result = inventoryResult()
+        // Keep the tuple API source-compatible for existing callers. New code
+        // must use inventoryResult() to preserve explicit failure state.
+        return (result.devices, [])
     }
 }

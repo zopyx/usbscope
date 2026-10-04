@@ -20,6 +20,76 @@ public enum Report {
     static let findingHeaders = ["Severity", "Rule", "Subject", "Why"]
     static let storageHeaders = ["Device", "Name", "Capacity", "Mode", "Mount"]
 
+    /// Human-readable report language. Schema keys, rule IDs, and raw values
+    /// remain language-neutral; only presentation labels are translated.
+    public enum Language: String, Codable, Sendable, CaseIterable {
+        case english = "en"
+        case german = "de"
+    }
+
+    private static func localized(_ text: String, _ language: Language) -> String {
+        guard language == .german else { return text }
+        let translations: [String: String] = [
+            "usbscope report": "usbscope Bericht",
+            "Machine": "Mac",
+            "Host": "Rechner",
+            "Read at": "Gelesen um",
+            "Ports": "Anschlüsse",
+            "Devices": "Geräte",
+            "Cables": "Kabel",
+            "Power": "Energie",
+            "Security findings": "Sicherheitsbefunde",
+            "USB mass storage": "USB-Massenspeicher",
+            "Warnings": "Warnungen",
+            "Port": "Anschluss",
+            "Type": "Typ",
+            "State": "Status",
+            "Mode": "Modus",
+            "Cable": "Kabel",
+            "Device": "Gerät",
+            "ID": "ID",
+            "Class": "Klasse",
+            "Tier": "Ebene",
+            "CC authentication": "CC-Authentifizierung",
+            "PD spec": "PD-Spezifikation",
+            "Power in": "Eingangsleistung",
+            "Contract": "Vertrag",
+            "Severity": "Schweregrad",
+            "Rule": "Regel",
+            "Subject": "Objekt",
+            "Why": "Warum",
+            "Name": "Name",
+            "Capacity": "Kapazität",
+            "Mount": "Einhängepunkt",
+            "connected": "verbunden",
+            "free": "frei",
+            "read-only": "schreibgeschützt",
+            "read/write": "Lesen/Schreiben",
+            "_no charging telemetry reported_": "_keine Lade-Telemetrie gemeldet_",
+            "_no receptacles reported_": "_keine Anschlüsse gemeldet_",
+            "_no USB devices attached_": "_keine USB-Geräte verbunden_",
+            "_nothing stood out in what macOS reports_": "_in den macOS-Daten nichts Auffälliges_",
+            "_no USB mass storage attached_": "_kein USB-Massenspeicher verbunden_",
+            "_none_": "_keine_",
+        ]
+        return translations[text] ?? text
+    }
+
+    private static func localizedDocument(_ text: String, _ language: Language) -> String {
+        guard language == .german else { return text }
+        var result = text
+        let phrases = [
+            "usbscope report", "Security findings", "USB mass storage", "No changes against the baseline",
+            "Machine", "Host", "Read at", "Ports", "Devices", "Cables", "Power", "Warnings",
+            "Port", "Type", "State", "Mode", "Cable", "Device", "ID", "Class", "Tier", "CC authentication",
+            "PD spec", "Power in", "Contract", "Severity", "Rule", "Subject", "Why", "Name", "Capacity", "Mount",
+            "connected", "free", "read-only", "read/write", "_no charging telemetry reported_", "_no receptacles reported_",
+            "_no USB devices attached_", "_nothing stood out in what macOS reports_", "_no USB mass storage attached_", "_none_",
+        ]
+        for phrase in phrases { result = result.replacingOccurrences(of: phrase, with: localized(phrase, language)) }
+        return result
+    }
+
     // MARK: - summary
 
     /// Naive local timestamp, matching the Python `isoformat(timespec: "seconds")`.
@@ -207,6 +277,22 @@ public enum Report {
         return text + "\n"
     }
 
+    public static func markdown(
+        _ snapshot: Snapshot, report: SecurityReport? = nil, storage: [StorageDevice] = [],
+        redactionPolicy: RedactionPolicy
+    ) -> String {
+        redactionPolicy.redactText(markdown(snapshot, report: report, storage: storage),
+                                   snapshot: snapshot, storage: storage)
+    }
+
+    /// Localized presentation while retaining the stable default English API.
+    public static func markdown(
+        _ snapshot: Snapshot, report: SecurityReport? = nil, storage: [StorageDevice] = [],
+        language: Language
+    ) -> String {
+        localizedDocument(markdown(snapshot, report: report, storage: storage), language)
+    }
+
     // MARK: - html
 
     static func escape(_ value: String) -> String {
@@ -287,5 +373,25 @@ public enum Report {
         lines.append("</body>")
         lines.append("</html>")
         return lines.joined(separator: "\n") + "\n"
+    }
+
+    public static func html(
+        _ snapshot: Snapshot, report: SecurityReport? = nil, storage: [StorageDevice] = [],
+        redactionPolicy: RedactionPolicy
+    ) -> String {
+        redactionPolicy.redactText(html(snapshot, report: report, storage: storage),
+                                   snapshot: snapshot, storage: storage)
+    }
+
+    /// Localized HTML report. The `lang` attribute is kept in sync with the
+    /// selected presentation language; machine-readable values are unchanged.
+    public static func html(
+        _ snapshot: Snapshot, report: SecurityReport? = nil, storage: [StorageDevice] = [],
+        language: Language
+    ) -> String {
+        let document = html(snapshot, report: report, storage: storage)
+        let lang = language.rawValue
+        return localizedDocument(document.replacingOccurrences(of: "<html lang=\"en\">",
+                                                                with: "<html lang=\"\(lang)\">"), language)
     }
 }

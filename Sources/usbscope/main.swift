@@ -18,6 +18,7 @@ struct Options {
     var events = false
     var interval: Double = 2.0
     var format = "md"
+    var language: Report.Language = .english
     var out: String?
 }
 
@@ -51,6 +52,7 @@ func usage() -> String {
       --events        watch: stream attach/detach events
       --interval S    watch: poll interval in seconds (default 2)
       --format FMT    report: md (default) or html
+      --language L    report language: en (default) or de
       --out FILE      report: write to FILE instead of stdout
       --version       print the version
     """
@@ -99,6 +101,12 @@ func parse(_ argv: [String]) -> Options {
             let value = nextValue("--format")
             guard value == "md" || value == "html" else { fail("--format must be md or html") }
             options.format = value
+        case "--language":
+            let value = nextValue("--language")
+            guard let language = Report.Language(rawValue: value) else {
+                fail("--language must be en or de")
+            }
+            options.language = language
         case "--out": options.out = nextValue("--out")
         default:
             if !hasPositional {
@@ -561,8 +569,8 @@ func runReport(_ options: Options) -> Never {
     let snapshot = collect(options)
     let (storage, _) = StorageSource().inventory()
     let text = options.format == "html"
-        ? Report.html(snapshot, storage: storage)
-        : Report.markdown(snapshot, storage: storage)
+        ? Report.html(snapshot, storage: storage, language: options.language)
+        : Report.markdown(snapshot, storage: storage, language: options.language)
     if let out = options.out {
         do {
             try text.write(toFile: out, atomically: true, encoding: .utf8)

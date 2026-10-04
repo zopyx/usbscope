@@ -36,3 +36,36 @@ keys keeps working):
   `class_code`, `class_text`, `subclass`, `protocol`, `endpoints` (the *count*
   macOS reports; the endpoint descriptors themselves are not published) and `name`.
   Empty for a device that publishes none.
+# Fix-spec data contract
+
+The current snapshot document remains schema version 1 for parity with the
+existing CLI and Python-compatible fixtures. New diagnostic metadata is kept in
+separate diagnostic bundles so ordinary snapshot consumers do not break.
+
+## Merge precedence
+
+For overlapping USB device fields, the normalized value is selected in this
+order: `systemProfiler` identity and user-facing connection facts, `ioPort`
+port and transport facts, `ioUSB` descriptor facts, `interfaceRegistry`
+interface descriptors, and `diskutil` storage facts. A source fills a missing
+field but does not replace an already reported higher-precedence value. Duplicate
+location IDs are retained deterministically and produce a data-quality warning.
+
+Identity diagnostics expose the hierarchy used by new code: location ID, serial,
+bus/port path, then vendor/product/name. Legacy `deviceKey` strings remain
+unchanged for event-log and snapshot compatibility; weak fallback collisions
+are surfaced as warnings instead of silently dropping a record.
+
+## Availability and provenance
+
+New APIs use `DataState` (`absent`, `unknown`, `unavailable`, `unsupported`,
+`stale`, `present`) and `FactCertainty` (`observed`, `derived`, `unavailable`,
+`stale`). Security findings include evidence containing the field path, observed
+value, source, and rule identifier. This lets reports explain both what macOS
+reported and what usbscope inferred.
+
+## Migration
+
+Schema-less legacy snapshots are treated as version 0 and migrated to the
+current header. Future schema versions are rejected with an explicit version
+mismatch rather than silently losing fields.

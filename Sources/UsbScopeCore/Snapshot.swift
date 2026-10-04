@@ -77,6 +77,27 @@ public enum SnapshotBuilder {
         return result
     }
 
+    static func indexWithWarnings(_ devices: [UsbDevice], source: String) -> ([Int: UsbDevice], [String]) {
+        var result: [Int: UsbDevice] = [:]
+        var warnings: [String] = []
+        for device in devices {
+            guard let locationID = device.locationID else { continue }
+            if result[locationID] != nil {
+                warnings.append("\(source): duplicate locationID \(locationID) for \(device.label); record retained with deterministic precedence")
+            }
+            result[locationID] = device
+        }
+        return (result, warnings)
+    }
+
+    static func identityWarnings(_ devices: [UsbDevice], source: String) -> [String] {
+        let grouped = Dictionary(grouping: devices, by: deviceKey)
+        return grouped.compactMap { key, records in
+            guard records.count > 1, records.first.map({ deviceIdentity($0).isWeak }) == true else { return nil }
+            return "\(source): ambiguous weak identity \(key) represents \(records.count) records; diff identity is read-local"
+        }.sorted()
+    }
+
     /// Read every source and merge the results into a single snapshot.
     ///
     /// Broken or missing sources never abort the collection: their message is kept
@@ -151,6 +172,7 @@ public enum SnapshotBuilder {
         clock: @Sendable () -> Date = { Date() },
         osVersion: String? = nil,
         host: String? = nil,
+        includeConflictWarnings: Bool = false,
         progress: ((SnapshotStage, Int, Int) -> Void)? = nil
     ) -> Snapshot {
         let stages = SnapshotStage.allCases
@@ -185,15 +207,32 @@ public enum SnapshotBuilder {
         warnings.append(contentsOf: registryWarnings)
         report(.registry)
 
-        let busIndex = index(buses.flatMap(\.devices))
-        let portIndex = index(ports.flatMap(\.devices))
-        let registryIndex = index(registryDevices)
+        let busIndexed = indexWithWarnings(buses.flatMap(\.devices), source: "buses")
+        let portIndexed = indexWithWarnings(ports.flatMap(\.devices), source: "ports")
+        let registryIndexed = indexWithWarnings(registryDevices, source: "registry")
+        warnings.append(contentsOf: busIndexed.1 + portIndexed.1 + registryIndexed.1)
+        warnings.append(contentsOf: identityWarnings(buses.flatMap(\.devices), source: "buses"))
+        warnings.append(contentsOf: identityWarnings(ports.flatMap(\.devices), source: "ports"))
+        warnings.append(contentsOf: identityWarnings(registryDevices, source: "registry"))
+        let busIndex = busIndexed.0
+        let portIndex = portIndexed.0
+        let registryIndex = registryIndexed.0
 
         /// Fill a device from the other sources, in order.
         func merged(_ device: UsbDevice, _ sources: [Int: UsbDevice]...) -> UsbDevice {
             var result = device
             for source in sources {
-                result = merge(result, with: source[device.locationID ?? -1])
+                if let other = source[device.locationID ?? -1] {
+                    let conflicts = SourcePrecedence.conflicts(result, other)
+                    if includeConflictWarnings, !conflicts.isEmpty, let location = device.locationID {
+                        let lhs = result.source.isEmpty ? "unknown" : result.source
+                        let rhs = other.source.isEmpty ? "unknown" : other.source
+                        warnings.append(
+                            "source conflict at locationID \(location): \(conflicts.joined(separator: ", ")) (\(lhs) vs \(rhs)); precedence retained"
+                        )
+                    }
+                    result = merge(result, with: other)
+                }
             }
             return result
         }

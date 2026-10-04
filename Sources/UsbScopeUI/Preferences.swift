@@ -42,6 +42,11 @@ public enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
+public enum NotificationDetail: String, CaseIterable, Identifiable, Codable, Sendable {
+    case full, generic, disabled
+    public var id: String { rawValue }
+}
+
 /// The refresh cadences the app offers.
 public let PREFERENCE_INTERVALS: [Double] = [1, 2, 5, 10, 30]
 
@@ -50,6 +55,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public var interval: Double = 5
     public var autoRefresh: Bool = false
     public var notifications: Bool = true
+    public var notificationDetail: NotificationDetail = .generic
     public var appearance: Appearance = .system
     public var language: AppLanguage = .en
     public var grouping: GroupField = .none
@@ -63,6 +69,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         interval: Double = 5,
         autoRefresh: Bool = false,
         notifications: Bool = true,
+        notificationDetail: NotificationDetail = .generic,
         appearance: Appearance = .system,
         language: AppLanguage = .en,
         grouping: GroupField = .none,
@@ -72,6 +79,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.interval = interval
         self.autoRefresh = autoRefresh
         self.notifications = notifications
+        self.notificationDetail = notificationDetail
         self.appearance = appearance
         self.language = language
         self.grouping = grouping
@@ -85,6 +93,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         copy.interval = PREFERENCE_INTERVALS.contains(interval) ? interval : 5
         copy.autoRefresh = autoRefresh
         copy.notifications = notifications
+        copy.notificationDetail = NotificationDetail(rawValue: notificationDetail.rawValue) ?? .generic
         copy.appearance = Appearance(rawValue: appearance.rawValue) ?? .system
         copy.language = AppLanguage(rawValue: language.rawValue) ?? .en
         copy.grouping = GroupField.fields(for: defaultView).contains(grouping) ? grouping : .none

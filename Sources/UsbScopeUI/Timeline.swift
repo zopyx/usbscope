@@ -72,6 +72,8 @@ public struct TimelineGeometry: Equatable, Sendable {
 /// One row of the hotplug event list (the `EventLog` tail).
 public struct EventRow: Identifiable, Hashable, Sendable {
     public let id: String
+    public let key: String
+    public let locationID: Int?
     /// `HH:mm:ss` of the event.
     public let time: String
     /// `attached` / `detached`.
@@ -121,6 +123,8 @@ public func eventRows(
             if let serial = event.serial, !serial.isEmpty { parts.append("serial \(serial)") }
             return EventRow(
                 id: "\(event.key)#\(index)",
+                key: event.key,
+                locationID: event.locationID,
                 time: formatter.string(from: event.seenAt),
                 kind: event.kind.rawValue,
                 name: event.name,

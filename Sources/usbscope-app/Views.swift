@@ -40,6 +40,18 @@ struct CellText: View {
     }
 }
 
+private extension View {
+    func usbRowMenu(show: @escaping () -> Void, copy: @escaping () -> Void,
+                    identifier: @escaping () -> Void, compare: @escaping () -> Void) -> some View {
+        contextMenu {
+            Button(L(.showDetailsAction, .en), action: show)
+            Button(L(.copyRow, .en), action: copy)
+            Button(L(.copyIdentifier, .en), action: identifier)
+            Button(L(.compare, .en), action: compare)
+        }
+    }
+}
+
 /// Centered empty state for a view without rows.
 struct EmptyState: View {
     let message: String
@@ -49,6 +61,217 @@ struct EmptyState: View {
             Text(message).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct FirstRunSheet: View {
+    @EnvironmentObject private var state: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(L(.aboutMenuTitle, state.language), systemImage: "info.circle")
+                .font(.title2.bold())
+            Text(L(.firstRunAbout, state.language))
+            Text(L(.firstRunLocal, state.language))
+            Text(L(.firstRunLimits, state.language))
+            Text(L(.firstRunPrivacy, state.language))
+            HStack {
+                Spacer()
+                Button(L(.continueAction, state.language)) { state.dismissFirstRun() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 460)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+struct DiagnosticsSheet: View {
+    @EnvironmentObject private var state: AppState
+    @State private var scenario: DiagnosticScenario = .slowConnection
+
+    private var evaluation: DiagnosticEvaluation? {
+        guard let snapshot = state.snapshot else { return nil }
+        return Troubleshooting.evaluate(scenario, snapshot: snapshot)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label(L(.diagnostics, state.language), systemImage: "cross.case").font(.title2.bold())
+                Spacer()
+                Button(L(.copy, state.language)) { state.copyDiagnostics() }
+                Button(L(.export, state.language)) { state.exportDiagnostics() }
+                Button(L(.done, state.language)) { state.showDiagnostics = false }.keyboardShortcut(.cancelAction)
+            }
+            Divider()
+            HStack {
+                Text(L(.sourceHealth, state.language)).font(.headline)
+                Spacer()
+                Text(state.storageStatus.rawValue)
+                    .foregroundStyle(state.storageStatus == .healthy ? Color.secondary : Color.orange)
+            }
+            ForEach(state.sourceHealth.keys.sorted(), id: \.self) { source in
+                HStack(spacing: 8) {
+                    Image(systemName: state.sourceHealth[source] == .healthy ? "checkmark.circle" : "exclamationmark.circle")
+                    Text(source).font(.caption.monospaced())
+                    Spacer()
+                    Text(state.sourceHealth[source]?.rawValue ?? L(.unknown, state.language))
+                        .font(.caption)
+                        .foregroundStyle(state.sourceHealth[source] == .healthy ? Color.secondary : Color.orange)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(Strings.sourceHealthLabel(source: source,
+                                                              status: state.sourceHealth[source]?.rawValue ?? L(.unknown, state.language),
+                                                              state.language))
+            }
+            Text(Strings.monitoringLabel(state.monitoringStatus, state.language))
+                .font(.caption).foregroundStyle(.secondary)
+            Text(Strings.freshnessLabel(state.dataFreshness.rawValue,
+                                        duration: state.lastReadDuration.map { String(format: "%.2fs", $0) } ?? "—",
+                                        state.language))
+                .font(.caption).foregroundStyle(.secondary)
+            if !state.sourceTimings.isEmpty {
+                DisclosureGroup("Source timings") {
+                    ForEach(state.sourceTimings.keys.sorted(), id: \.self) { source in
+                        HStack {
+                            Text(source).font(.caption.monospaced())
+                            Spacer()
+                            Text(String(format: "%.3fs", state.sourceTimings[source] ?? 0))
+                                .font(.caption.monospacedDigit())
+                        }
+                    }
+                }
+            }
+            let warningRows = WarningPresentation.rows(state.readWarnings)
+            if !warningRows.isEmpty {
+                HStack {
+                    Text(L(.warnings, state.language)).font(.headline)
+                    Spacer()
+                    Button(L(.copyTechnicalDetails, state.language)) { state.copyWarnings() }
+                }
+                ForEach(warningRows) { warning in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label(Strings.warningLabel(source: warning.source, severity: warning.severity, state.language), systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                        Text(Strings.warningFieldLabel(field: warning.field, message: warning.message, state.language))
+                        Text(warning.remediation).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Divider()
+            Text(L(.guidedTroubleshooting, state.language)).font(.headline)
+            Picker("Scenario", selection: $scenario) {
+                ForEach(DiagnosticScenario.allCases, id: \.self) { item in
+                    Text(item.rawValue.replacingOccurrences(of: "Connection", with: " connection").capitalized).tag(item)
+                }
+            }
+            if let evaluation {
+                Text(evaluation.summary)
+                ForEach(evaluation.recommendations, id: \.title) { recommendation in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(recommendation.title).fontWeight(.semibold)
+                        Text(recommendation.action)
+                        Text(Strings.evidenceLabel(recommendation.evidence.joined(separator: " · "), state.language))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                Text(L(.refreshToEvaluate, state.language)).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(20)
+        .frame(minWidth: 560, minHeight: 420)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+struct HistoricalEventSheet: View {
+    @EnvironmentObject private var state: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(L(.historicalDeviceEvent, state.language), systemImage: "clock.arrow.circlepath")
+                .font(.title2.bold())
+            if let event = state.historicalEvent {
+                Text(event.name).font(.headline)
+                Text(Strings.eventLabel(kind: event.kind.rawValue.capitalized,
+                                        time: TimelineFormat.clock.string(from: event.seenAt), state.language))
+                if let vendor = event.vendor { Text(Strings.vendorLabel(vendor, state.language)) }
+                if let locationID = event.locationID { Text(Strings.locationLabel(String(locationID), state.language)) }
+                Text(L(.historicalIdentity, state.language))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            HStack { Spacer(); Button(L(.done, state.language)) { state.historicalEvent = nil }.keyboardShortcut(.cancelAction) }
+        }
+        .padding(24)
+        .frame(width: 420, height: 240)
+    }
+}
+
+struct CommandPalette: View {
+    @EnvironmentObject private var state: AppState
+    @State private var query = ""
+
+    private struct Command: Identifiable {
+        let id: String
+        let title: String
+        let symbol: String
+        let action: () -> Void
+    }
+
+    private var commands: [Command] {
+        [
+            Command(id: "overview", title: L(.overview, state.language), symbol: "gauge") { state.view = .ports; state.showCommandPalette = false },
+            Command(id: "ports", title: L(.of(.ports), state.language), symbol: "cable.connector") { state.view = .ports; state.showCommandPalette = false },
+            Command(id: "cables", title: L(.of(.cables), state.language), symbol: "link") { state.view = .cables; state.showCommandPalette = false },
+            Command(id: "devices", title: L(.of(.devices), state.language), symbol: "externaldrive.connected.to.line.below") { state.view = .devices; state.showCommandPalette = false },
+            Command(id: "power", title: L(.of(.power), state.language), symbol: "bolt.fill") { state.view = .power; state.showCommandPalette = false },
+            Command(id: "security", title: L(.of(.security), state.language), symbol: "lock.shield") { state.view = .security; state.showCommandPalette = false },
+            Command(id: "timeline", title: L(.of(.timeline), state.language), symbol: "chart.xyaxis.line") { state.view = .timeline; state.showCommandPalette = false },
+            Command(id: "usb4", title: L(.of(.usb4), state.language), symbol: "point.3.connected.trianglepath.dotted") { state.view = .usb4; state.showCommandPalette = false },
+            Command(id: "diff", title: L(.of(.diff), state.language), symbol: "arrow.left.arrow.right") { state.view = .diff; state.showCommandPalette = false },
+            Command(id: "refresh", title: L(.refreshNow, state.language), symbol: "arrow.clockwise") { state.showCommandPalette = false; state.refresh() },
+            Command(id: "diagnostics", title: L(.diagnostics, state.language), symbol: "cross.case") { state.showCommandPalette = false; state.showDiagnostics = true },
+            Command(id: "copy-diagnostics", title: L(.aboutCopy, state.language), symbol: "doc.on.doc") { state.showCommandPalette = false; state.copyDiagnostics() },
+            Command(id: "export-diagnostics", title: L(.export, state.language), symbol: "square.and.arrow.up") { state.showCommandPalette = false; state.exportDiagnostics() },
+            Command(id: "save-baseline", title: L(.saveBaseline, state.language), symbol: "externaldrive.badge.timemachine") { state.showCommandPalette = false; state.saveBaseline() },
+            Command(id: "load-baseline", title: L(.loadBaseline, state.language), symbol: "folder") { state.showCommandPalette = false; state.pickBaseline() },
+            Command(id: "clear-baseline", title: L(.clearBaselineAction, state.language), symbol: "trash") { state.showCommandPalette = false; state.clearBaseline() },
+        ]
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField(L(.commandPalette, state.language), text: $query)
+                    .textFieldStyle(.plain)
+                    .onSubmit { filtered.first?.action() }
+                Button(L(.done, state.language)) { state.showCommandPalette = false }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(12)
+            Divider()
+            List(filtered) { command in
+                Button { command.action() } label: {
+                    Label(command.title, systemImage: command.symbol)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .padding(.vertical, 5)
+            }
+        }
+        .frame(width: 460, height: 420)
+    }
+
+    private var filtered: [Command] {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !needle.isEmpty else { return commands }
+        return commands.filter { $0.title.lowercased().contains(needle) }
     }
 }
 
@@ -75,7 +298,7 @@ struct GroupHeader: View {
         HStack {
             Text(title).font(.headline)
             Spacer()
-            Text("\(count)").monospacedDigit().foregroundStyle(.secondary)
+            Text(verbatim: String(count)).monospacedDigit().foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
     }
@@ -104,7 +327,11 @@ struct PortsView: View {
     private func table(_ rows: [PortRow]) -> some View {
         Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
             if state.isColumnVisible(.ports, "Port") {
-                TableColumn("Port", value: \.nameSort) { CellText(text: $0.name, highlight: $0.highlight) }
+                TableColumn("Port", value: \.nameSort) { row in
+                    CellText(text: row.name, highlight: row.highlight)
+                        .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
+                                    identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
+                }
                     .width(min: 90, ideal: 110)
             }
             if state.isColumnVisible(.ports, "Type") {
@@ -169,7 +396,11 @@ struct CablesView: View {
             let rows = state.filtered(cableRows(snapshot, changes: state.changes))
             Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
                 if state.isColumnVisible(.cables, "Port") {
-                    TableColumn("Port", value: \.portSort) { CellText(text: $0.port, highlight: $0.highlight) }
+                    TableColumn("Port", value: \.portSort) { row in
+                        CellText(text: row.port, highlight: row.highlight)
+                            .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
+                                        identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
+                    }
                         .width(min: 90, ideal: 110)
                 }
                 if state.isColumnVisible(.cables, "Cable") {
@@ -233,7 +464,11 @@ struct DevicesView: View {
     private func table(_ rows: [DeviceRow]) -> some View {
         Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
             if state.isColumnVisible(.devices, "Device") {
-                TableColumn("Device", value: \.nameSort) { CellText(text: $0.name, highlight: $0.highlight) }
+                TableColumn("Device", value: \.nameSort) { row in
+                    CellText(text: row.name, highlight: row.highlight)
+                        .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
+                                    identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
+                }
                     .width(min: 140, ideal: 260)
             }
             if state.isColumnVisible(.devices, "Vendor") {
@@ -311,7 +546,11 @@ struct ThunderboltView: View {
             let rows = state.filtered(thunderboltRows(snapshot))
             Table(rows, selection: $state.selection, sortOrder: $sortOrder) {
                 if state.isColumnVisible(.thunderbolt, "Bus") {
-                    TableColumn("Bus", value: \.busSort) { CellText(text: $0.bus) }
+                    TableColumn("Bus", value: \.busSort) { row in
+                        CellText(text: row.bus)
+                            .usbRowMenu(show: { state.detailRowKey = row.id }, copy: { state.copyRow(row.id) },
+                                        identifier: { state.copyIdentifier(row.id) }, compare: { state.view = .diff })
+                    }
                         .width(min: 140, ideal: 200)
                 }
                 if state.isColumnVisible(.thunderbolt, "Receptacle") {
@@ -400,6 +639,8 @@ struct TimelineView: View {
                 }
                 .frame(height: 150)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
+                .accessibilityLabel(L(.chargingPowerChart, lang))
+                .accessibilityValue(geometry.rangeText ?? "No measured values")
                 if let times = geometry.timeRangeText() {
                     Text(times).font(.caption).foregroundStyle(.secondary)
                 }
@@ -439,7 +680,7 @@ struct TimelineView: View {
             HStack {
                 Text(L(.timelineEventsTitle, lang)).font(.headline)
                 Spacer()
-                Text("\(rows.count)").monospacedDigit().foregroundStyle(.secondary)
+                Text(verbatim: String(rows.count)).monospacedDigit().foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
             .padding(.top, 10)
@@ -460,6 +701,15 @@ struct TimelineView: View {
                                 Text(row.name).fontWeight(.semibold)
                                 Text(row.detail).foregroundStyle(.secondary).lineLimit(1)
                                 Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { state.openEvent(row) }
+                            .contextMenu {
+                                Button(L(.showDevice, lang)) { state.openEvent(row) }
+                                Button(L(.copyIdentifier, lang)) {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(row.key, forType: .string)
+                                }
                             }
                         }
                     }
@@ -502,7 +752,7 @@ struct SecurityView: View {
                     HStack {
                         Text(item.label).foregroundStyle(styleColor(item.style)).fontWeight(.semibold)
                         Spacer()
-                        Text("\(item.count)").monospacedDigit()
+                        Text(verbatim: String(item.count)).monospacedDigit()
                     }
                     .frame(maxWidth: 320)
                 }
@@ -555,26 +805,52 @@ struct SecurityView: View {
                 Text(row.subject).foregroundStyle(.secondary)
             }
             Text(row.detail).font(.callout)
+            if row.port != nil || row.device != nil || row.locationID != nil {
+                Button(L(.openSourceRow, lang)) { state.openFinding(row) }
+                    .buttonStyle(.link)
+                    .accessibilityHint("Shows the port or device this observation describes")
+            }
+            if !row.evidence.isEmpty {
+                DisclosureGroup("Evidence") {
+                    ForEach(row.evidence.keys.sorted(), id: \.self) { key in
+                        HStack(alignment: .top, spacing: 6) {
+                            Text(key).font(.caption.monospaced()).foregroundStyle(.secondary)
+                            Text(row.evidence[key] ?? "")
+                                .font(.caption)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+                .font(.caption)
+            }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Strings.findingAccessibilityLabel(severity: row.severity, rule: row.rule,
+                                                              subject: row.subject, detail: row.detail, lang))
     }
 
     private func storageView(_ row: StorageRow) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(row.identifier) · \(row.name)").fontWeight(.semibold)
-                Text("\(row.capacity) · \(row.mode) · \(row.mount)")
+                Text(verbatim: "\(row.identifier) · \(row.name)").fontWeight(.semibold)
+                Text(verbatim: "\(row.capacity) · \(row.mode) · \(row.mount)")
                     .font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
             if state.ejecting == row.id {
                 ProgressView().controlSize(.small)
             }
-            Button(L(.eject, lang)) { state.eject(row) }
+            Button(L(.eject, lang)) { state.confirmEject(row) }
                 .disabled(!row.ejectEnabled || state.ejecting != nil)
                 .help(row.ejectReason ?? L(.eject, lang))
         }
         .padding(.vertical, 2)
+        .contextMenu {
+            Button(L(.copyIdentifier, lang)) { state.copyIdentifier(row.identifier) }
+            Button(L(.eject, lang)) { state.confirmEject(row) }
+                .disabled(!row.ejectEnabled || state.ejecting != nil)
+        }
     }
 }
 
@@ -664,7 +940,7 @@ struct DiffView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Button(L(.compareWith, lang)) { state.pickBaseline() }
-                Button(L(.exportJSON, lang)) { state.export(format: "json") }
+                Button(L(.exportJSON, lang)) { state.export(format: .json) }
                 Button(L(.clearBaseline, lang)) { state.clearBaseline() }
                     .disabled(state.baseline == nil)
                 Spacer()
@@ -690,7 +966,7 @@ struct DiffView: View {
                     ForEach(DiffPresentation.counts(changes), id: \.kind) { item in
                         HStack(spacing: 5) {
                             Circle().fill(highlightColor(highlightFor(item.kind))).frame(width: 8, height: 8)
-                            Text("\(item.count) \(L(.of(item.kind), lang))").monospacedDigit()
+                            Text(verbatim: "\(item.count) \(L(.of(item.kind), lang))").monospacedDigit()
                         }
                     }
                 }
@@ -743,12 +1019,31 @@ struct DiffView: View {
 struct DetailSheet: View {
     @EnvironmentObject private var state: AppState
 
+    private func explanation(for label: String) -> String? {
+        switch label {
+        case "USB link", "Mode (bit/s)", "Speed":
+            return "Negotiated link state reported by macOS for this read; it is not the maximum capability the port or cable advertises."
+        case "Cable", "e-marker":
+            return "Cable capability comes from the port controller and, when present, its electronically marked cable data. It does not prove the current data rate."
+        case "Power contract", "PD menu":
+            return "The contract is the selected USB Power Delivery result. The PD menu lists advertised options; it is not the negotiated value."
+        case "Transports", "Transport":
+            return "These are the transport functions macOS reports for the port. Active means selected for the current connection."
+        case "Restricted by macOS", "Authorization":
+            return "This is an observation from macOS transport or authorization state, not a malware or security verdict."
+        case "Liquid detected", "Liquid state":
+            return "Liquid status is a controller-reported safety signal. An unavailable value means macOS did not expose the field."
+        default:
+            return nil
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(L(.showDetails, state.language)).font(.headline)
                 Spacer()
-                Button("Done") { state.detailRowKey = nil }
+                Button(L(.done, state.language)) { state.detailRowKey = nil }
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
@@ -756,12 +1051,18 @@ struct DetailSheet: View {
             ScrollView {
                 let pairs = state.detailPairs
                 if pairs.isEmpty {
-                    Text("No details for the selection.").foregroundStyle(.secondary).padding()
+                    Text(L(.noDetails, state.language)).foregroundStyle(.secondary).padding()
                 } else {
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 6) {
                         ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
                             GridRow {
-                                Text(pair.0).foregroundStyle(.secondary).gridColumnAlignment(.leading)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(pair.0).foregroundStyle(.secondary)
+                                    if let help = explanation(for: pair.0) {
+                                        Text(help).font(.caption2).foregroundStyle(.secondary)
+                                    }
+                                }
+                                .gridColumnAlignment(.leading)
                                 Text(pair.1).textSelection(.enabled)
                             }
                         }

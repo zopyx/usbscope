@@ -60,9 +60,22 @@ public struct BaselineDiff: Equatable, Sendable {
 }
 
 public enum Baseline {
+    public static func metadata(for snapshot: Snapshot, createdAt: Date = Date()) -> [String: Any] {
+        let formatter = ISO8601DateFormatter()
+        return [
+            "created_at": formatter.string(from: createdAt),
+            "host": snapshot.host,
+            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "os_version": snapshot.osVersion,
+        ]
+    }
+
     /// Write the current snapshot as a baseline JSON document.
     public static func save(_ snapshot: Snapshot, to path: String) throws {
-        try (Serialize.json(snapshot) + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        var document = Serialize.dict(snapshot)
+        document["baseline_metadata"] = metadata(for: snapshot)
+        let data = try JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys])
+        try (String(decoding: data, as: UTF8.self) + "\n").write(toFile: path, atomically: true, encoding: .utf8)
     }
 
     /// Read and validate a baseline document.

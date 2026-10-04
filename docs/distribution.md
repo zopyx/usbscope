@@ -218,6 +218,18 @@ password** generated at appleid.apple.com, not the Apple ID password.
 
 ### 5. Submit for notarisation
 
+The automated path is:
+
+```console
+scripts/build-swift-app.sh --identity "Developer ID Application: ..." \\
+  --notarize --notary-profile "AC_USBSCOPE"
+```
+
+The script creates a temporary zip for `notarytool`, waits for acceptance,
+staples and validates the app, then creates the final tarball and checksum from
+the stapled bundle. `--notarize` requires an explicit identity, profile, and
+archive output.
+
 ```console
 xcrun notarytool submit dist/usbscope-swift.zip \
   --keychain-profile "AC_USBSCOPE" --wait
@@ -275,6 +287,11 @@ Mach-O), checks the result with `lipo` and fails loudly if the binary came out
 thin, and names the archive `...-macos-universal2.tar.gz` instead of the host
 architecture. Run on this machine **[ran]**:
 
+Every signed app build also runs `scripts/validate-swift-app.sh`, which checks
+the bundle identifier, minimum macOS version, executable, signature, and
+architectures. Pass `--gatekeeper` to that validator for a credentialed release
+artifact.
+
 ```console
 $ scripts/build-swift-app.sh --universal
 ...
@@ -306,24 +323,22 @@ The default stays native-only, and no universal artifact is shipped — only the
 
 ## (d) What a real release still needs — explicit checklist
 
-None of the distribution items below exist yet. Until they do, the artifacts under
-`dist/` stay **ad-hoc signed, native-only by default and not notarised** — a
-tarball and a DMG are produced, but both wrap the ad-hoc bundle and neither is a
-release. `docs/index.md` / this file say exactly that.
+The release-capable signing path is implemented, but this checkout has no
+Developer ID credentials, so the artifacts under `dist/` remain **ad-hoc signed,
+native-only by default and not notarised**. A credentialed release run is still
+an operational prerequisite before publication.
 
 - [ ] Developer ID Application certificate issued and installed (only Apple
       Development certs exist on this machine **[ran]**).
-- [ ] Real Developer ID signing in `scripts/build-swift-app.sh` — today it does
-      `codesign --force --deep --sign -` (ad hoc), with the signing authority
-      hard-coded to `-`.
-- [ ] Hardened Runtime (`--options runtime`) and a secure timestamp
-      (`--timestamp`).
-- [ ] A container to *notarise*, built from a Developer-ID signed bundle —
+- [x] Developer ID signing mode in `scripts/build-swift-app.sh`; pass the
+      certificate with `--identity`. The default remains intentionally ad hoc.
+- [x] Hardened Runtime is enabled whenever a non-ad-hoc identity is used.
+- [x] A temporary zip container to *notarise*, built from a Developer-ID signed bundle —
       *unsigned packaging exists*: `scripts/build-swift-dmg.sh` (`make swift-app-dmg`)
       builds a verified, compressed DMG and `ditto -c -k --keepParent` makes a zip,
       but both wrap the ad-hoc bundle, so neither is notarisation-ready.
-- [ ] `xcrun notarytool submit` wired into the build, and `xcrun stapler staple`
-      after it.
+- [x] `xcrun notarytool submit` and `xcrun stapler staple` are wired into the
+      build; credentials and an Apple-issued certificate remain prerequisites.
 - [ ] A release pipeline (tag → build → sign → notarise → staple → upload);
       artifacts are currently produced by hand.
 - [ ] CI that signs/notarises — `.github/workflows/ci.yml` only runs

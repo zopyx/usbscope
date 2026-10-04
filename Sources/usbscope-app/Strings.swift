@@ -1,4 +1,5 @@
 import Foundation
+import UsbScopeCore
 import UsbScopeUI
 
 /// A small typed strings table for the user-facing chrome.
@@ -89,6 +90,68 @@ enum StringKey: String, CaseIterable {
     case aboutCopy
     case aboutCopied
     case aboutWaiting
+    case showDetailsAction
+    case copyRow
+    case copyIdentifier
+    case compare
+    case firstRunAbout
+    case firstRunLocal
+    case firstRunLimits
+    case firstRunPrivacy
+    case firstRunNotifications
+    case continueAction
+    case diagnostics
+    case copy
+    case export
+    case done
+    case sourceHealth
+    case unknown
+    case monitoring
+    case freshness
+    case warnings
+    case copyTechnicalDetails
+    case guidedTroubleshooting
+    case refreshToEvaluate
+    case historicalDeviceEvent
+    case vendor
+    case locationID
+    case historicalIdentity
+    case commandPalette
+    case showDevice
+    case openSourceRow
+    case noDetails
+    case chargingPowerChart
+    case filterHelp
+    case fullDeviceDetails
+    case genericSummary
+    case disabled
+    case version
+    case overview
+    case connections
+    case history
+    case host
+    case connectedPorts
+    case deviceCount
+    case warningCount
+    case commandsMenu
+    case tableMenu
+    case saveBaseline
+    case loadBaseline
+    case renameBaseline
+    case clearBaselineAction
+    case openDiagnostics
+    case exportDiagnostics
+    case copyDiagnostics
+    case refreshAction
+    case baselineHelp
+    case copyHelp
+    case exportHelp
+    case diagnosticsHelp
+    case notificationDetail
+    case currentStatus
+    case staleStatus
+    case loadingStatus
+    case capturedAt
 
     /// The key for an `AppView`.
     static func of(_ view: AppView) -> StringKey {
@@ -245,6 +308,68 @@ enum Strings {
         case .aboutCopy: "Copy diagnostics"
         case .aboutCopied: "Copied"
         case .aboutWaiting: "Reading this Mac…"
+        case .showDetailsAction: "Show Details"
+        case .copyRow: "Copy Row"
+        case .copyIdentifier: "Copy Identifier"
+        case .compare: "Compare"
+        case .firstRunAbout: "usbscope collects USB information locally from macOS system sources. It does not send telemetry."
+        case .firstRunLocal: "Some fields depend on macOS, hardware, or sandbox permissions. Missing values are shown as unavailable, not guessed."
+        case .firstRunLimits: "Exports can contain hardware identifiers such as serials, host names, and location IDs. Diagnostic bundles redact these by default."
+        case .firstRunPrivacy: "Notifications are optional and can be changed in Preferences."
+        case .firstRunNotifications: "Notifications"
+        case .continueAction: "Continue"
+        case .diagnostics: "Diagnostics"
+        case .copy: "Copy"
+        case .export: "Export…"
+        case .done: "Done"
+        case .sourceHealth: "Source health"
+        case .unknown: "unknown"
+        case .monitoring: "Monitoring"
+        case .freshness: "Freshness"
+        case .warnings: "Warnings"
+        case .copyTechnicalDetails: "Copy technical details"
+        case .guidedTroubleshooting: "Guided troubleshooting"
+        case .refreshToEvaluate: "Refresh to evaluate the current machine."
+        case .historicalDeviceEvent: "Historical device event"
+        case .vendor: "Vendor"
+        case .locationID: "Location ID"
+        case .historicalIdentity: "This is the last recorded identity for the event; the device is not present in the current snapshot."
+        case .commandPalette: "Command Palette…"
+        case .showDevice: "Show device"
+        case .openSourceRow: "Open source row"
+        case .noDetails: "No details for the selection."
+        case .chargingPowerChart: "Charging power chart"
+        case .filterHelp: "Filter every column (all terms must match)"
+        case .fullDeviceDetails: "Full device details"
+        case .genericSummary: "Generic summary"
+        case .disabled: "Disabled"
+        case .version: "Version"
+        case .overview: "Overview"
+        case .connections: "Connections"
+        case .history: "History"
+        case .host: "Host"
+        case .connectedPorts: "connected / ports"
+        case .deviceCount: "devices"
+        case .warningCount: "warnings"
+        case .commandsMenu: "Commands"
+        case .tableMenu: "Table"
+        case .saveBaseline: "Save baseline…"
+        case .loadBaseline: "Load baseline…"
+        case .renameBaseline: "Rename baseline…"
+        case .clearBaselineAction: "Clear baseline"
+        case .openDiagnostics: "Open diagnostics"
+        case .exportDiagnostics: "Export diagnostics…"
+        case .copyDiagnostics: "Copy diagnostics"
+        case .refreshAction: "Refresh"
+        case .baselineHelp: "Baseline"
+        case .copyHelp: "Copy"
+        case .exportHelp: "Export"
+        case .diagnosticsHelp: "Diagnostics"
+        case .notificationDetail: "Notification detail"
+        case .currentStatus: "Current"
+        case .staleStatus: "Stale"
+        case .loadingStatus: "Loading"
+        case .capturedAt: "Captured"
         }
     }
 
@@ -332,6 +457,68 @@ enum Strings {
         case .aboutCopy: "Diagnose kopieren"
         case .aboutCopied: "Kopiert"
         case .aboutWaiting: "Dieser Mac wird gelesen…"
+        case .showDetailsAction: "Details anzeigen"
+        case .copyRow: "Zeile kopieren"
+        case .copyIdentifier: "Kennung kopieren"
+        case .compare: "Vergleichen"
+        case .firstRunAbout: "usbscope erfasst USB-Informationen lokal aus macOS-Systemquellen. Es werden keine Telemetriedaten gesendet."
+        case .firstRunLocal: "Einige Felder hängen von macOS, der Hardware oder Sandbox-Berechtigungen ab. Fehlende Werte werden als nicht verfügbar angezeigt, nicht erraten."
+        case .firstRunLimits: "Exporte können Hardware-Kennungen wie Seriennummern, Rechnernamen und Location IDs enthalten. Diagnosepakete schwärzen diese standardmäßig."
+        case .firstRunPrivacy: "Mitteilungen sind optional und können in den Einstellungen geändert werden."
+        case .firstRunNotifications: "Mitteilungen"
+        case .continueAction: "Weiter"
+        case .diagnostics: "Diagnose"
+        case .copy: "Kopieren"
+        case .export: "Exportieren…"
+        case .done: "Fertig"
+        case .sourceHealth: "Quellstatus"
+        case .unknown: "unbekannt"
+        case .monitoring: "Überwachung"
+        case .freshness: "Aktualität"
+        case .warnings: "Warnungen"
+        case .copyTechnicalDetails: "Technische Details kopieren"
+        case .guidedTroubleshooting: "Geführte Fehlersuche"
+        case .refreshToEvaluate: "Aktualisieren, um diesen Mac auszuwerten."
+        case .historicalDeviceEvent: "Historisches Geräteereignis"
+        case .vendor: "Hersteller"
+        case .locationID: "Location ID"
+        case .historicalIdentity: "Dies ist die zuletzt erfasste Identität des Ereignisses; das Gerät ist in der aktuellen Momentaufnahme nicht vorhanden."
+        case .commandPalette: "Befehlspalette…"
+        case .showDevice: "Gerät anzeigen"
+        case .openSourceRow: "Quellzeile öffnen"
+        case .noDetails: "Keine Details für die Auswahl."
+        case .chargingPowerChart: "Ladeleistungsdiagramm"
+        case .filterHelp: "Alle Spalten filtern (alle Begriffe müssen passen)"
+        case .fullDeviceDetails: "Vollständige Gerätedetails"
+        case .genericSummary: "Allgemeine Zusammenfassung"
+        case .disabled: "Deaktiviert"
+        case .version: "Version"
+        case .overview: "Übersicht"
+        case .connections: "Verbindungen"
+        case .history: "Verlauf"
+        case .host: "Rechner"
+        case .connectedPorts: "verbunden / Anschlüsse"
+        case .deviceCount: "Geräte"
+        case .warningCount: "Warnungen"
+        case .commandsMenu: "Befehle"
+        case .tableMenu: "Tabelle"
+        case .saveBaseline: "Vergleichsbasis speichern…"
+        case .loadBaseline: "Vergleichsbasis laden…"
+        case .renameBaseline: "Vergleichsbasis umbenennen…"
+        case .clearBaselineAction: "Vergleichsbasis löschen"
+        case .openDiagnostics: "Diagnose öffnen"
+        case .exportDiagnostics: "Diagnose exportieren…"
+        case .copyDiagnostics: "Diagnose kopieren"
+        case .refreshAction: "Aktualisieren"
+        case .baselineHelp: "Vergleichsbasis"
+        case .copyHelp: "Kopieren"
+        case .exportHelp: "Exportieren"
+        case .diagnosticsHelp: "Diagnose"
+        case .notificationDetail: "Mitteilungsdetails"
+        case .currentStatus: "Aktuell"
+        case .staleStatus: "Veraltet"
+        case .loadingStatus: "Wird geladen"
+        case .capturedAt: "Erfasst"
         }
     }
 }
@@ -339,4 +526,91 @@ enum Strings {
 /// Terse localisation helper: `L(.refreshNow, state.language)`.
 func L(_ key: StringKey, _ language: AppLanguage) -> String {
     Strings.text(key, language)
+}
+
+extension Strings {
+    static func hostLabel(_ host: String, _ language: AppLanguage) -> String {
+        "\(L(.host, language)): \(host)"
+    }
+
+    static func connectedPortsLabel(connected: Int, total: Int, _ language: AppLanguage) -> String {
+        language == .de ? "\(connected) verbunden / \(total) Anschlüsse" : "\(connected) connected / \(total) ports"
+    }
+
+    static func deviceCountLabel(_ count: Int, _ language: AppLanguage) -> String {
+        language == .de ? "\(count) Geräte" : "\(count) devices"
+    }
+
+    static func warningCountLabel(_ count: Int, _ language: AppLanguage) -> String {
+        language == .de ? "\(count) Warnungen" : "\(count) warnings"
+    }
+
+    static func freshnessLabel(_ freshness: String, duration: String, _ language: AppLanguage) -> String {
+        language == .de ? "Aktualität: \(freshness) · Lesedauer: \(duration)" : "Freshness: \(freshness) · read duration: \(duration)"
+    }
+
+    static func evidenceLabel(_ evidence: String, _ language: AppLanguage) -> String {
+        language == .de ? "Beleg: \(evidence)" : "Evidence: \(evidence)"
+    }
+
+    static func eventLabel(kind: String, time: String, _ language: AppLanguage) -> String {
+        language == .de ? "\(kind) um \(time)" : "\(kind) at \(time)"
+    }
+
+    static func sourceHealthLabel(source: String, status: String, _ language: AppLanguage) -> String {
+        "\(source): \(status)"
+    }
+
+    static func monitoringLabel(_ status: String, _ language: AppLanguage) -> String {
+        "\(L(.monitoring, language)): \(status)"
+    }
+
+    static func warningFieldLabel(field: String, message: String, _ language: AppLanguage) -> String {
+        "\(field): \(message)"
+    }
+
+    static func vendorLabel(_ value: String, _ language: AppLanguage) -> String {
+        "\(L(.vendor, language)): \(value)"
+    }
+
+    static func locationLabel(_ value: String, _ language: AppLanguage) -> String {
+        "\(L(.locationID, language)): \(value)"
+    }
+
+    static func seconds(_ value: Int, _ language: AppLanguage) -> String {
+        language == .de ? "\(value) s" : "\(value) s"
+    }
+
+    static func versionLabel(_ value: String, _ language: AppLanguage) -> String {
+        "\(L(.version, language)) \(value)"
+    }
+
+    static func warningLabel(source: String, severity: String, _ language: AppLanguage) -> String {
+        "\(source) · \(severity)"
+    }
+
+    static func findingAccessibilityLabel(severity: String, rule: String, subject: String,
+                                          detail: String, _ language: AppLanguage) -> String {
+        "\(severity), \(rule), \(subject). \(detail)"
+    }
+
+    static func licenseLabel(_ license: String, copyright: String, _ language: AppLanguage) -> String {
+        "\(license) · \(copyright)"
+    }
+
+    static func freshnessStatus(_ freshness: DataFreshness, _ language: AppLanguage) -> String {
+        switch freshness {
+        case .current: L(.currentStatus, language)
+        case .stale: L(.staleStatus, language)
+        case .loading: L(.loadingStatus, language)
+        case .unavailable: L(.unknown, language)
+        }
+    }
+
+    static func capturedLabel(_ date: Date, _ language: AppLanguage) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .medium
+        return "\(L(.capturedAt, language)): \(formatter.string(from: date))"
+    }
 }

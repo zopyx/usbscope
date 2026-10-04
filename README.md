@@ -89,3 +89,38 @@ fallback.
 There is **no prebuilt binary** — no signed or notarised release is published
 yet, so build from source with `swift build`. What a real release still needs is
 listed in [docs/distribution.md](docs/distribution.md).
+# Product and support contract
+
+usbscope is a local-only diagnostic tool for four audiences: people
+troubleshooting a cable or charge/data issue, developers inspecting negotiated
+USB state, IT administrators collecting repeatable machine snapshots, and
+privacy-conscious users who need to see exactly what is exported. The Overview
+answers the first three questions—what is connected, where it is connected, and
+what mode is negotiated—before specialist views.
+
+Security findings are observations and heuristics, not malware detection or a
+security verdict. Missing identifiers mean that macOS did not report them; they
+do not prove a device is malicious.
+
+## Compatibility matrix
+
+| Configuration | Status | Notes |
+| --- | --- | --- |
+| macOS 14.4+ | supported | Minimum package target |
+| Current macOS on Apple Silicon | tested | In-process IOKit reader preferred |
+| Current macOS on Intel | supported | Subprocess fallback retained |
+| Sandboxed bundle | supported where APIs are available | Unsupported sources are reported as partial/failed |
+| Direct bundle / CLI | supported | Uses absolute system-tool paths and bounded subprocess reads |
+
+Source availability varies by Mac model and OS release. Unknown fields are
+non-fatal and remain unavailable rather than being guessed. Snapshot JSON keeps
+schema version 1 for compatibility; loaders reject unsupported versions with a
+useful error. Diagnostic bundles use a separate format version and redact
+serials, host names, location IDs, paths, and event identities by default.
+
+The app records no network telemetry. Local diagnostic timing can include total
+read duration, per-source status, warnings, and subprocess timings.
+
+Further contracts are documented in [the product brief](docs/product-brief.md),
+[the failure matrix](docs/failure-matrix.md), [the privacy inventory](docs/privacy-inventory.md),
+and [the hardware capture matrix](docs/capture-matrix.md).
