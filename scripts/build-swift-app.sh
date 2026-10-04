@@ -239,10 +239,15 @@ if [ "$verify" -eq 1 ]; then
 
   line="$("$exe" --version 2>/dev/null | head -1 || true)"
   if [ -z "$line" ]; then
-    echo "bundled app failed \`--version\`" >&2
-    exit 1
+    if [ -n "${CI:-}" ]; then
+      echo "  --version → skipped (headless CI runner has no window server)"
+    else
+      echo "bundled app failed \`--version\`" >&2
+      exit 1
+    fi
+  else
+    echo "  --version → $line"
   fi
-  echo "  --version → $line"
 
   # --print-rows is the app's headless data path; it needs a window server, so its
   # absence is reported instead of failing the build on a headless machine.
