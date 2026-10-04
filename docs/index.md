@@ -559,6 +559,16 @@ parity once and are easy to reintroduce:
   Python's `platform.node()` is `gethostname(3)`; the Swift side calls
   `gethostname` to match.
 
+The `IOPort` plane — the port, cable, power and transport records — is read
+**in-process** through IOKit by default (`IORegistryReader`), which drops one
+subprocess from launch; the historical `/usr/sbin/ioreg` spawn is kept as a
+**fallback**, used whenever the in-process read fails or reports no port, and
+either path produces byte-identical JSON (`IORegSourceBackend` pins the choice;
+an explicitly injected `IoregSource` still wins, which is what keeps the golden
+fixture path unchanged). Whether IOKit can read that plane **inside a real App
+Store sandbox remains unverified** — that needs an Apple-issued signature and
+provisioning profile, not an ad-hoc one (see [app-store.md](app-store.md)).
+
 The Rich terminal rendering is **not** part of the port — the Swift CLI carries
 its own small renderer. What the two implementations must agree on is the domain
 model, the data adapters and the JSON.
