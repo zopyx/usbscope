@@ -149,11 +149,16 @@ final class AppState: ObservableObject {
     }
 
     /// Read the tail of the hotplug log into memory for the Timeline tab.
+    ///
+    /// The read is file IO, so it stays off the main actor. The hop back has to be a
+    /// MainActor-inheriting `Task`, not `Task.detached` + `MainActor.run`: the latter
+    /// makes `self` task-isolated, and capturing it in a main-actor closure is a
+    /// data-race error on Swift 6.1.2.
     private func loadEventHistory() {
         guard let eventLog else { return }
-        Task.detached(priority: .utility) { [weak self] in
-            let loaded = (try? eventLog.read()) ?? []
-            await MainActor.run { self?.events = Array(loaded.suffix(Self.eventLimit).reversed()) }
+        Task { @MainActor [weak self] in
+            let loaded = await Task.detached(priority: .utility) { (try? eventLog.read()) ?? [] }.value
+            self?.events = Array(loaded.suffix(Self.eventLimit).reversed())
         }
     }
 
@@ -413,16 +418,16 @@ final class AppState: ObservableObject {
         ejectMessage = nil
         let failed = L(.ejectFailed, language)
         let identifier = row.identifier
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let result = Shell.run(argv)
+        // Same shape as `loadEventHistory`: the subprocess stays off the main actor,
+        // the state change happens on it.
+        Task { @MainActor [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { Shell.run(argv) }.value
             let message = result.ok
                 ? "\(identifier) ejected"
                 : "\(failed): \(identifier) (\(result.error ?? "exit \(result.returncode)"))"
-            await MainActor.run {
-                self?.ejecting = nil
-                self?.ejectMessage = message
-                self?.refresh()
-            }
+            self?.ejecting = nil
+            self?.ejectMessage = message
+            self?.refresh()
         }
     }
 
