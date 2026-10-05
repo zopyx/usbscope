@@ -930,6 +930,33 @@ extension Strings {
         return "\(L(.monitoring, language)): \(mode) · \(L(.monitoringInterval, language)): \(cadence) · \(L(.monitoringLastEvent, language)): \(event)"
     }
 
+    static func progressText(_ progress: SnapshotProgress?, _ language: AppLanguage) -> String {
+        guard let progress else { return "\(L(.collecting, language)) …" }
+        let stage: String
+        if language == .de {
+            switch progress.stage {
+            case .ports: stage = "Anschlüsse"
+            case .buses: stage = "Busse"
+            case .interfaces: stage = "Schnittstellen"
+            case .thunderbolt: stage = "Thunderbolt"
+            case .hardware: stage = "Hardware"
+            case .charging: stage = "Laden"
+            case .registry: stage = "Registry"
+            }
+        } else {
+            switch progress.stage {
+            case .ports: stage = "Ports"
+            case .buses: stage = "Buses"
+            case .interfaces: stage = "Interfaces"
+            case .thunderbolt: stage = "Thunderbolt"
+            case .hardware: stage = "Hardware"
+            case .charging: stage = "Charging"
+            case .registry: stage = "Registry"
+            }
+        }
+        return "\(L(.collecting, language)) \(stage) · \(progress.index)/\(progress.total)"
+    }
+
     static func warningFieldLabel(field: String, message: String, _ language: AppLanguage) -> String {
         "\(field): \(message)"
     }

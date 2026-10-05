@@ -65,6 +65,7 @@ require_pattern "$APP/UsbScopeApp.swift" "autosavesConfiguration = true" "native
 require_pattern "$APP/AppState.swift" "lastHotplugAt" "monitoring records the last hot-plug event"
 require_pattern "$APP/Views.swift" "monitoringPollInterval" "monitoring exposes its polling cadence"
 require_pattern "$APP/Strings.swift" "monitoringLastEvent" "monitoring details remain localized"
+require_pattern "$APP/AppState.swift" "Strings.progressText" "loading progress uses app localization"
 
 forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"

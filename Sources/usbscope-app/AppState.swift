@@ -637,7 +637,7 @@ final class AppState: ObservableObject {
     /// `collecting Charging · 5/6` while a read is in flight, `collecting …`
     /// before the first stage reports.
     var loadingLine: String {
-        ProgressPresentation.text(progress, verb: L(.collecting, language))
+        Strings.progressText(progress, language)
     }
 
     var summaryLine: String {
