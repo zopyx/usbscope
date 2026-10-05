@@ -7,7 +7,7 @@ public enum Presentation {
     // MARK: - Header & status
 
     /// Window title: model, chip and macOS version.
-    public static func headerText(_ snapshot: Snapshot, language: AppLanguage = .en) -> String {
+    public static func headerText(_ snapshot: Snapshot) -> String {
         var parts = [snapshot.model, snapshot.chip].compactMap { $0 }
         if !snapshot.osVersion.isEmpty { parts.append("macOS \(snapshot.osVersion)") }
         let tail = parts.isEmpty ? snapshot.host : parts.joined(separator: " · ")
@@ -85,6 +85,55 @@ public enum Presentation {
         items.compactMap { $0 }
     }
 
+    /// Localise the detail-sheet chrome without translating raw hardware names,
+    /// identifiers, modes, or source values. The default remains byte-for-byte
+    /// compatible with the CLI/shared presentation callers.
+    private static func localizedDetails(_ items: [(String, String)], language: AppLanguage) -> [(String, String)] {
+        guard language == .de else { return items }
+        let labels: [String: String] = [
+            "Port": "Anschluss", "Description": "Beschreibung", "Type": "Typ",
+            "Connected": "Verbunden", "Number": "Nummer", "Connect type": "Verbindungstyp",
+            "USB link": "USB-Verbindung", "Advertised modes": "Angekündigte Modi",
+            "Negotiated mode": "Ausgehandelter Modus", "Maximum observed rate": "Maximale beobachtete Rate",
+            "USB link active": "USB-Verbindung aktiv", "USB speed": "USB-Geschwindigkeit",
+            "Super speed active": "SuperSpeed aktiv", "Transports": "Transporte",
+            "Cable": "Kabel", "e-marker": "e-Marker", "Cable authentication": "Kabelauthentifizierung",
+            "Cable hash": "Kabel-Hash", "PD specification": "PD-Spezifikation", "Power in": "Eingangsleistung",
+            "Liquid detected": "Flüssigkeit erkannt", "Authorization": "Autorisierung",
+            "Controller firmware": "Controller-Firmware", "DisplayPort pin assignment": "DisplayPort-Pinbelegung",
+            "Plug orientation": "Steckerorientierung", "Devices": "Geräte", "USB mode": "USB-Modus",
+            "Pin assignment": "Pinbelegung", "Accessory mode": "Zubehörmodus", "Power contract": "Leistungsvertrag",
+            "Power mode": "Leistungsmodus", "Active power mode": "Aktiver Leistungsmodus",
+            "Supported power modes": "Unterstützte Leistungsmodi", "Power current limits": "Leistungsstromgrenzen",
+            "Power sources": "Leistungsquellen", "Selected source": "Ausgewählte Quelle", "PD menu": "PD-Menü",
+            "Liquid state": "Flüssigkeitsstatus", "Liquid measurement": "Flüssigkeitsmessung",
+            "Liquid pin": "Flüssigkeits-Pin", "Liquid mitigations": "Flüssigkeitsmaßnahmen",
+            "Liquid override": "Flüssigkeitsüberschreibung", "Device": "Gerät", "Vendor": "Hersteller",
+            "VID:PID": "VID:PID", "Device class": "Geräteklasse", "Class / subclass / protocol": "Klasse / Unterklasse / Protokoll",
+            "USB specification": "USB-Spezifikation", "Control packet size": "Steuerpaketgröße",
+            "Configurations": "Konfigurationen", "Enumeration speed": "Enumerationsgeschwindigkeit",
+            "Hub tier": "Hub-Ebene", "Parent hub": "Übergeordneter Hub", "Device address": "Geräteadresse",
+            "Speed": "Geschwindigkeit", "Mode (bit/s)": "Modus (Bit/s)", "Port type": "Anschlusstyp",
+            "Transport": "Transport", "Bus": "Bus", "Connection": "Verbindung", "Device version": "Geräteversion",
+            "Generation": "Generation", "Serial": "Seriennummer", "Location ID": "Standort-ID",
+            "Restricted by macOS": "Von macOS eingeschränkt", "Source": "Quelle", "Provenance": "Herkunft",
+            "Interfaces": "Schnittstellen", "Receptacle": "Buchse", "Status": "Status", "Link": "Verbindung"
+        ]
+        func translate(_ value: String) -> String {
+            switch value {
+            case "yes": return "ja"
+            case "no": return "nein"
+            case "active": return "aktiv"
+            case "idle": return "inaktiv"
+            case "class unknown": return "Klasse unbekannt"
+            default: return value
+            }
+        }
+        return items.map { item in
+            (labels[item.0] ?? translate(item.0), translate(item.1))
+        }
+    }
+
     private static func list(_ values: [Int]) -> String {
         values.map(String.init).joined(separator: ", ")
     }
@@ -98,21 +147,21 @@ public enum Presentation {
     }
 
     /// Summary of a provider's PD menu: count, voltage range, ceiling, PDO types.
-    static func powerMenuPair(_ source: PowerSource) -> (String, String)? {
+    static func powerMenuPair(_ source: PowerSource, language: AppLanguage = .en) -> (String, String)? {
         guard !source.options.isEmpty else { return nil }
         let volts = source.options.compactMap(\.voltageMv)
         let watts = source.options.compactMap(\.watts)
         let kinds = Set(source.options.compactMap(\.kindLabel)).sorted()
-        var parts = ["\(source.options.count) option(s)"]
+        var parts = [language == .de ? "\(source.options.count) Option(en)" : "\(source.options.count) option(s)"]
         if let low = volts.min(), let high = volts.max() {
             parts.append("\(low / 1000)–\(high / 1000) V")
         }
-        if let top = watts.max() { parts.append("up to \(Format.g(top)) W") }
+        if let top = watts.max() { parts.append(language == .de ? "bis zu \(Format.g(top)) W" : "up to \(Format.g(top)) W") }
         if !kinds.isEmpty { parts.append(kinds.joined(separator: ", ")) }
-        return ("PD menu", parts.joined(separator: " · "))
+        return (language == .de ? "PD-Menü" : "PD menu", parts.joined(separator: " · "))
     }
 
-    private static func extraPairs(_ port: UsbPort) -> [(String, String)] {
+    private static func extraPairs(_ port: UsbPort, language: AppLanguage = .en) -> [(String, String)] {
         let contract = port.powerContract
         let limits = port.powerCurrentLimits
         var items: [(String, String)?] = [
@@ -129,7 +178,7 @@ public enum Presentation {
             items.append(pair("Power sources", port.powerSources.map(\.name).joined(separator: ", ")))
             items.append(pair("Selected source", port.powerSources.first { $0.selected }?.name))
             if let selected = port.powerSources.first(where: { $0.selected }) {
-                items.append(powerMenuPair(selected))
+                items.append(powerMenuPair(selected, language: language))
             }
             for source in port.powerSources {
                 for (index, option) in source.options.enumerated() {
@@ -144,15 +193,15 @@ public enum Presentation {
         items.append(pair("Liquid pin", port.liquidPin))
         items.append(pair("Liquid mitigations", port.liquidMitigations))
         items.append(pair("Liquid override", port.liquidOverride))
-        return pairs(items)
+        return localizedDetails(pairs(items), language: language)
     }
 
     /// Every known fact about a port, as label/value pairs.
-    public static func portDetails(_ port: UsbPort) -> [(String, String)] {
+    public static func portDetails(_ port: UsbPort, language: AppLanguage = .en) -> [(String, String)] {
         let transport = port.usbTransport
         let cable = port.cable
         let transfers = port.transports
-            .map { "\($0.kind) \($0.active ? "active" : "idle")" }
+            .map { "\($0.kind) \($0.active ? (language == .de ? "aktiv" : "active") : (language == .de ? "inaktiv" : "idle"))" }
             .joined(separator: " · ")
         var items: [(String, String)?] = [
             pair("Port", port.name),
@@ -182,12 +231,12 @@ public enum Presentation {
             pair("Plug orientation", port.plugOrientation),
             pair("Devices", port.devices.map { "\($0.name) (\($0.idString))" }.joined(separator: ", ")),
         ]
-        items.append(contentsOf: extraPairs(port).map { Optional($0) })
-        return pairs(items)
+        items.append(contentsOf: extraPairs(port, language: language).map { Optional($0) })
+        return localizedDetails(pairs(items), language: language)
     }
 
     /// Cable/port-controller facts (the cables view) as label/value pairs.
-    public static func cableDetails(_ port: UsbPort) -> [(String, String)] {
+    public static func cableDetails(_ port: UsbPort, language: AppLanguage = .en) -> [(String, String)] {
         let cable = port.cable
         let usb = port.usbTransport
         var items: [(String, String)?] = [
@@ -206,12 +255,12 @@ public enum Presentation {
             pair("Controller firmware", port.firmware),
             pair("USB link", usb?.mode.label),
         ]
-        items.append(contentsOf: extraPairs(port).map { Optional($0) })
-        return pairs(items)
+        items.append(contentsOf: extraPairs(port, language: language).map { Optional($0) })
+        return localizedDetails(pairs(items), language: language)
     }
 
     /// Every known fact about a device as label/value pairs.
-    public static func deviceDetails(_ device: UsbDevice) -> [(String, String)] {
+    public static func deviceDetails(_ device: UsbDevice, language: AppLanguage = .en) -> [(String, String)] {
         var details = pairs([
             pair("Device", device.label),
             pair("Vendor", device.vendor),
@@ -249,23 +298,27 @@ public enum Presentation {
         if !device.interfaces.isEmpty {
             details.append(("Interfaces", "\(device.interfaces.count)"))
             for interface in device.interfaces {
-                details.append((interface.label, interfaceDetail(interface)))
+                details.append((interface.label, interfaceDetail(interface, language: language)))
             }
         }
-        return details
+        return localizedDetails(details, language: language)
     }
 
     /// `HID (3/1/1) · 2 endpoint(s) · config 1` — how one interface reads.
-    public static func interfaceDetail(_ interface: DeviceInterface) -> String {
-        var parts = [interface.classText ?? "class unknown"]
-        if let endpoints = interface.endpoints { parts.append("\(endpoints) endpoint(s)") }
-        if let configuration = interface.configuration { parts.append("config \(configuration)") }
+    public static func interfaceDetail(_ interface: DeviceInterface, language: AppLanguage = .en) -> String {
+        var parts = [interface.classText ?? (language == .de ? "Klasse unbekannt" : "class unknown")]
+        if let endpoints = interface.endpoints {
+            parts.append(language == .de ? "\(endpoints) Endpunkt(e)" : "\(endpoints) endpoint(s)")
+        }
+        if let configuration = interface.configuration {
+            parts.append(language == .de ? "Konfiguration \(configuration)" : "config \(configuration)")
+        }
         return parts.joined(separator: " · ")
     }
 
     /// Thunderbolt receptacle facts as label/value pairs.
-    public static func thunderboltDetails(_ port: ThunderboltPort) -> [(String, String)] {
-        pairs([
+    public static func thunderboltDetails(_ port: ThunderboltPort, language: AppLanguage = .en) -> [(String, String)] {
+        localizedDetails(pairs([
             pair("Bus", port.bus),
             pair("Receptacle", port.receptacle),
             pair("Connected", port.connected),
@@ -273,7 +326,7 @@ public enum Presentation {
             pair("Link", port.speed),
             pair("Device", port.device),
             pair("Vendor", port.vendor),
-        ])
+        ]), language: language)
     }
 
     /// Detail pairs for the object a table row stands for (keyed by the row id).
@@ -283,21 +336,21 @@ public enum Presentation {
         case .cables:
             let name = String(rowKey.dropFirst("port:".count))
             guard let port = snapshot.ports.first(where: { $0.name == name }) else { return [] }
-            return cableDetails(port)
+            return cableDetails(port, language: language)
         case .power:
             let label = String(rowKey.dropFirst("power:".count))
             guard let charging = snapshot.charging else { return [] }
             return chargingPairs(charging, language: language).filter { $0.0 == label }.map { ($0.0, $0.1) }
         default:
             if rowKey.hasPrefix("device:") {
-                return snapshot.devices.first { deviceKey($0) == rowKey }.map(deviceDetails) ?? []
+                return snapshot.devices.first { deviceKey($0) == rowKey }.map { deviceDetails($0, language: language) } ?? []
             }
             if rowKey.hasPrefix("tb:") {
-                return snapshot.thunderbolt.first { thunderboltKey($0) == rowKey }.map(thunderboltDetails) ?? []
+                return snapshot.thunderbolt.first { thunderboltKey($0) == rowKey }.map { thunderboltDetails($0, language: language) } ?? []
             }
             if rowKey.hasPrefix("port:") {
                 let name = String(rowKey.dropFirst("port:".count))
-                return snapshot.ports.first { $0.name == name }.map(portDetails) ?? []
+                return snapshot.ports.first { $0.name == name }.map { portDetails($0, language: language) } ?? []
             }
             return []
         }

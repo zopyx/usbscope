@@ -578,7 +578,7 @@ final class AppState: ObservableObject {
     }
 
     var title: String {
-        snapshot.map { Presentation.headerText($0, language: language) } ?? "usbscope"
+        snapshot.map(Presentation.headerText) ?? "usbscope"
     }
 
     /// The compact menu bar title: `connected/ports`, plus a warning symbol.

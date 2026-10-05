@@ -149,6 +149,10 @@ final class PresentationTests: XCTestCase {
         let cablePairs = Dictionary(uniqueKeysWithValues: Presentation.cableDetails(port))
         XCTAssertEqual(cablePairs["Cable"], "unknown")
         XCTAssertEqual(cablePairs["USB link"], "USB 1.1 Full-Speed · 12 Mbit/s")
+
+        let german = Dictionary(uniqueKeysWithValues: Presentation.portDetails(port, language: .de))
+        XCTAssertEqual(german["Anschluss"], "USB-C@3")
+        XCTAssertEqual(german["Verbunden"], "ja")
     }
 
     func testDeviceDetails() throws {
@@ -157,6 +161,10 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(pairs["VID:PID"], "0x1050:0x0407")
         XCTAssertEqual(pairs["Port"], "USB-C@3")
         XCTAssertEqual(pairs["Location ID"], "0x01100000")
+
+        let german = Dictionary(uniqueKeysWithValues: Presentation.deviceDetails(device, language: .de))
+        XCTAssertEqual(german["Gerät"], "Yubico YubiKey OTP+FIDO+CCID")
+        XCTAssertEqual(german["Anschluss"], "USB-C@3")
     }
 
     func testDetailsForARowKey() {
@@ -187,7 +195,7 @@ final class PresentationTests: XCTestCase {
         )
         XCTAssertTrue(Presentation.statusText(snapshot, interval: 5, reads: 1, changes: nil, language: .de)
             .contains("automatisch 5 s"))
-        XCTAssertTrue(Presentation.headerText(snapshot, language: .de).hasPrefix("usbscope —"))
+        XCTAssertTrue(Presentation.headerText(snapshot).hasPrefix("usbscope —"))
     }
 
     // MARK: - Text exports
