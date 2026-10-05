@@ -499,10 +499,12 @@ struct ContentView: View {
                     : "line.3.horizontal.decrease.circle.fill")
             }
             .help(L(.filterPresets, lang))
+            .accessibilityLabel(L(.filterPresets, lang))
             Button { state.pickBaseline() } label: {
                 Image(systemName: "square.on.square.dashed")
             }
             .help(L(.compareWith, lang))
+            .accessibilityLabel(L(.compareWith, lang))
             Menu {
                 Button(L(.saveBaseline, lang)) { state.saveBaseline() }.disabled(state.snapshot == nil)
                 Button(L(.loadBaseline, lang)) { state.pickBaseline() }
@@ -510,6 +512,7 @@ struct ContentView: View {
                 Button(L(.clearBaselineAction, lang)) { state.clearBaseline() }.disabled(state.baseline == nil)
             } label: { Image(systemName: "externaldrive.badge.timemachine") }
                 .help(L(.baselineHelp, lang))
+                .accessibilityLabel(L(.baselineHelp, lang))
             Button {
                 state.refresh()
             } label: {
@@ -517,12 +520,14 @@ struct ContentView: View {
             }
             .disabled(state.isLoading)
             .help(L(.refreshNow, lang) + " (⌘R)")
+            .accessibilityLabel(L(.refreshNow, lang))
             Toggle(
                 isOn: Binding(get: { state.autoRefresh }, set: { state.setAutoRefresh($0) })
             ) {
                 Image(systemName: "timer")
             }
             .help(L(.toggleAutoRefresh, lang))
+            .accessibilityLabel(L(.toggleAutoRefresh, lang))
             Menu {
                 ForEach(PREFERENCE_INTERVALS, id: \.self) { value in
                     Button(Strings.seconds(Int(value), state.language)) { state.setInterval(value) }
@@ -531,6 +536,7 @@ struct ContentView: View {
                 Text(verbatim: Strings.seconds(Int(state.interval), state.language))
             }
             .help(L(.intervalHelp, lang))
+            .accessibilityLabel(L(.intervalHelp, lang))
             }
         }
         if !GroupField.fields(for: state.view).isEmpty {
@@ -546,6 +552,7 @@ struct ContentView: View {
                     Image(systemName: "rectangle.3.group")
                 }
                 .help(L(.groupBy, lang))
+                .accessibilityLabel(L(.groupBy, lang))
             }
         }
         if AppView.tableViews.contains(state.view) {
@@ -566,6 +573,7 @@ struct ContentView: View {
                     Image(systemName: "tablecells")
                 }
                 .help(L(.columns, lang))
+                .accessibilityLabel(L(.columns, lang))
             }
         }
         ToolbarItem(id: "action-controls", placement: .automatic) {
@@ -579,6 +587,7 @@ struct ContentView: View {
                 Image(systemName: "doc.on.doc")
             }
             .help(L(.copyHelp, lang))
+            .accessibilityLabel(L(.copyHelp, lang))
             Menu {
                 Button(L(.exportJSON, lang)) { state.export(format: .json) }
                 Button(L(.exportCSV, lang)) { state.export(format: .csv) }
@@ -590,10 +599,12 @@ struct ContentView: View {
                 Image(systemName: "square.and.arrow.up")
             }
             .help(L(.exportHelp, lang))
+            .accessibilityLabel(L(.exportHelp, lang))
             Button { state.showDiagnostics = true } label: {
                 Image(systemName: "cross.case")
             }
             .help(L(.diagnosticsHelp, lang))
+            .accessibilityLabel(L(.diagnosticsHelp, lang))
             Button {
                 if let key = state.selection.first { state.detailRowKey = key }
             } label: {
@@ -601,6 +612,7 @@ struct ContentView: View {
             }
             .disabled(state.selection.isEmpty)
             .help(L(.showDetails, lang) + " (⌘D)")
+            .accessibilityLabel(L(.showDetails, lang))
             }
         }
     }
