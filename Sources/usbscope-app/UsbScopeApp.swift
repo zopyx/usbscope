@@ -197,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 enum SelfTest {
     /// Build the presentation of every view from a live snapshot and print it.
     static func runAndExit() -> Never {
-        let snapshot = SnapshotBuilder.collect()
+        let snapshot = SnapshotCollectionService().collectSynchronously()
         print(Presentation.headerText(snapshot))
         print(Presentation.summaryText(snapshot))
         for view in AppView.tableViews {
@@ -218,7 +218,7 @@ enum SelfTest {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("usbscope-bundle-smoke-(UUID().uuidString)", isDirectory: true)
         do {
-            let snapshot = SnapshotBuilder.collect(includeConflictWarnings: true)
+            let snapshot = SnapshotCollectionService().collectSynchronously()
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             try AtomicFile.write(Serialize.json(snapshot), to: root.appendingPathComponent("snapshot.json"))
             try AtomicFile.write(Presentation.csv(for: .ports, snapshot: snapshot),

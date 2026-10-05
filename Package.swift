@@ -6,7 +6,7 @@ import PackageDescription
 // SwiftTests/Golden pin the JSON shape.
 //
 // Layout:
-//   UsbScopeCore   the domain model, the OS adapters and the JSON serialiser
+//   UsbScopeCore   the domain model, OS adapters/services and JSON serialiser
 //   UsbScopeUI     the presentation layer (table rows, details, diffing) — no
 //                  SwiftUI, so it is unit-testable without a window server
 //   usbscope       the CLI

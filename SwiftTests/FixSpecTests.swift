@@ -16,6 +16,21 @@ final class FixSpecTests: XCTestCase {
         var count: Int { lock.lock(); defer { lock.unlock() }; return value }
     }
 
+    private struct RecordingExecutor: CommandExecutor {
+        let result: CommandResult
+
+        func run(_ argv: [String]) -> CommandResult {
+            CommandResult(argv: argv, returncode: result.returncode, stdout: result.stdout,
+                          error: result.error, stderr: result.stderr,
+                          timedOut: result.timedOut, truncated: result.truncated)
+        }
+
+        func run(_ argv: [String], limits: Shell.Limits,
+                 cancellation: (@Sendable () -> Bool)?) -> CommandResult {
+            run(argv)
+        }
+    }
+
     func testShellTimeoutAndStderrAreBounded() {
         let result = Shell.run(["/bin/sh", "-c", "printf 'diagnostic' >&2; sleep 1"],
                                limits: .init(timeout: 0.05, maximumStdoutBytes: 32, maximumStderrBytes: 4))
@@ -48,6 +63,15 @@ final class FixSpecTests: XCTestCase {
         let result = executor.run(["/bin/sh", "-c", "printf 123456789; sleep 1"])
         XCTAssertTrue(result.timedOut)
         XCTAssertLessThanOrEqual(result.stdout.count, 8)
+    }
+
+    func testCommandExecutionServiceUsesTheInjectableExecutor() async {
+        let service = CommandExecutionService(executor: RecordingExecutor(
+            result: CommandResult(argv: [], returncode: 0, stdout: Data("ok".utf8))))
+        let result = await service.run(["fixture-command", "--safe"])
+        XCTAssertTrue(result.ok)
+        XCTAssertEqual(result.argv, ["fixture-command", "--safe"])
+        XCTAssertEqual(String(data: result.stdout, encoding: .utf8), "ok")
     }
 
     func testSchemaMigrationRejectsFutureDocuments() {

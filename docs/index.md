@@ -428,10 +428,10 @@ The whole project is this one Swift package (`Package.swift`,
 
 | Part | Path |
 | --- | --- |
-| Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, `ioreg`, `system_profiler`, charging, snapshot, JSON serialiser, formatting, the hotplug watcher, the event log and history |
+| Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, OS adapters, `SnapshotCollectionService`/`CommandExecutionService`, snapshot coordination, JSON serialiser, formatting, the hotplug watcher, the event log and history |
 | Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, `Highlight`, detail pairs, TSV/CSV export, filter presets, grouping, diff presentation (no SwiftUI, so it is unit-testable headless) |
 | CLI executable `usbscope` | `Sources/usbscope/main.swift` |
-| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the ten views on top of `UsbScopeUI` |
+| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the ten views and state/preferences layer on top of `UsbScopeUI`; collection and subprocess access goes through Core services |
 | Test suite | `SwiftTests/` |
 | Fixtures | `SwiftTests/Fixtures/` — 14 real and synthetic payloads |
 | Golden | `SwiftTests/Golden/snapshot.json` — a frozen regression reference (below) |

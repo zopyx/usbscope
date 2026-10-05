@@ -199,6 +199,8 @@ final class AppState: ObservableObject {
     private var watcher: UsbHotplugWatcher?
     private var refreshTask: Task<Void, Never>?
     private let coordinator = SnapshotCoordinator()
+    private let collectionService = SnapshotCollectionService()
+    private let commandService = CommandExecutionService()
     private var refreshGeneration: UInt64 = 0
     private var appliedAt: Date?
     private var qaMetrics = LocalQAMetrics()
@@ -266,9 +268,7 @@ final class AppState: ObservableObject {
         guard watcher == nil else { return }
         let profile = monitoringProfile == .lowPower ? SnapshotCollectionProfile.lowPower : .full
         let watcher = UsbHotplugWatcher(collect: {
-            SnapshotBuilder.collect(includeConflictWarnings: true,
-                                    metadataCache: SnapshotBuilder.stableMetadataCache,
-                                    profile: profile)
+            self.collectionService.collectSynchronously(profile: profile)
         })
         watcher.start { [weak self] update in
             Task { @MainActor in self?.handleHotplug(update) }
@@ -446,25 +446,18 @@ final class AppState: ObservableObject {
         progress = nil
         let profile = monitoringProfile == .lowPower ? SnapshotCollectionProfile.lowPower : .full
         refreshTask = Task { [weak self] in
-            let appState = self
+            guard let appState = self else { return }
             let collector: SnapshotCoordinator.Collector = { progress in
-                await Task.detached(priority: .userInitiated) {
-                    SnapshotBuilder.collect(includeConflictWarnings: true,
-                                            metadataCache: SnapshotBuilder.stableMetadataCache,
-                                            profile: profile,
-                                            progress: progress)
-                }.value
+                await appState.collectionService.collect(profile: profile, progress: progress)
             }
-            let result = await appState?.coordinator.request(.manual, collector: collector, progress: { [weak appState] stage, index, total in
+            let result = await appState.coordinator.request(.manual, collector: collector, progress: { [weak appState] stage, index, total in
                 let value = SnapshotProgress(stage: stage, index: index, total: total)
                 Task { @MainActor [weak appState] in
                     guard let appState, appState.refreshGeneration == generation else { return }
                     appState.progress = value
                 }
             })
-            let inventory = await Task.detached(priority: .userInitiated) {
-                StorageSource().inventoryResult()
-            }.value
+            let inventory = await appState.collectionService.inventory()
             guard let result else { return }
             guard let self, self.refreshGeneration == generation, !Task.isCancelled else { return }
             self.storage = inventory.devices
@@ -485,15 +478,13 @@ final class AppState: ObservableObject {
     /// before it draws, and it has no run loop to wait on a `Task` for.
     func loadSynchronously() {
         isLoading = true
-        let inventory = StorageSource().inventoryResult()
+        let inventory = collectionService.inventorySynchronously()
         storage = inventory.devices
         storageStatus = inventory.status
         storageWarnings = inventory.warnings
         storageErrors = inventory.errors
         let profile = monitoringProfile == .lowPower ? SnapshotCollectionProfile.lowPower : .full
-        apply(SnapshotBuilder.collect(includeConflictWarnings: true,
-                                      metadataCache: SnapshotBuilder.stableMetadataCache,
-                                      profile: profile), generation: nil)
+        apply(collectionService.collectSynchronously(profile: profile), generation: nil)
     }
 
     /// Apply a decoded fixture for deterministic offscreen rendering. This is
@@ -814,13 +805,14 @@ final class AppState: ObservableObject {
         // Same shape as `loadEventHistory`: the subprocess stays off the main actor,
         // the state change happens on it.
         Task { @MainActor [weak self] in
-            let result = await Task.detached(priority: .userInitiated) { Shell.run(argv) }.value
+            guard let self else { return }
+            let result = await self.commandService.run(argv)
             let message = result.ok
                 ? "\(identifier) \(L(.ejected, language))"
                 : "\(failed): \(identifier) (\(result.error ?? "exit \(result.returncode)"))"
-            self?.ejecting = nil
-            self?.ejectMessage = message
-            self?.refresh()
+            self.ejecting = nil
+            self.ejectMessage = message
+            self.refresh()
         }
     }
 
@@ -1027,7 +1019,7 @@ final class AppState: ObservableObject {
         let index = min(max(popup.indexOfSelectedItem, 0), ReportFormat.allCases.count - 1)
         let format = ReportFormat.allCases[index]
         guard confirmExportDisclosure(format: format.rawValue) else { return }
-        // `storage` is filled by `StorageSource().inventory().0` in `refresh()` —
+        // `storage` is filled by the collection service in `refresh()` —
         // the same call the CLI's `report` makes, so both list the same mass
         // storage as the snapshot they belong to.
         let text = ReportExport.text(format, snapshot: snapshot, storage: storage,

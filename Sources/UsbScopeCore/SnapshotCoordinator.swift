@@ -45,11 +45,7 @@ public actor SnapshotCoordinator {
     private var stopped = false
 
     public init(collect: @escaping Collector = { progress in
-        await Task.detached(priority: .userInitiated) {
-            SnapshotBuilder.collect(includeConflictWarnings: true,
-                                    metadataCache: SnapshotBuilder.stableMetadataCache,
-                                    progress: progress)
-        }.value
+        await SnapshotCollectionService().collect(progress: progress)
     }) {
         self.collect = collect
     }

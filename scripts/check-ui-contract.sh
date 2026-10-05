@@ -24,6 +24,22 @@ require_pattern() {
     fi
 }
 
+forbidden_pattern() {
+    local file="$1"
+    local pattern="$2"
+    local description="$3"
+    local found=0
+    if command -v rg >/dev/null 2>&1; then
+        rg -q --fixed-strings -- "$pattern" "$file" && found=1 || true
+    else
+        grep -Fq -- "$pattern" "$file" && found=1 || true
+    fi
+    if [ "$found" -ne 0 ]; then
+        echo "UI architecture failed: $description" >&2
+        exit 1
+    fi
+}
+
 require_pattern "$APP/Views.swift" ".accessibilityLabel(text.text)" "table cells expose their text"
 require_pattern "$APP/Views.swift" ".accessibilityElement(children: .combine)" "dynamic rows expose combined VoiceOver elements"
 require_pattern "$APP/Views.swift" "struct SourceHealthControl: View" "source-health control remains present"
@@ -36,6 +52,11 @@ require_pattern "$APP/UsbScopeApp.swift" ".keyboardShortcut(\"k\", modifiers: [.
 require_pattern "$APP/UsbScopeApp.swift" "ForEach(AppView.allCases)" "every view remains reachable from the command menus"
 require_pattern "$APP/SnapshotRenderer.swift" "root.dynamicTypeSize(.accessibility3)" "snapshot renderer covers accessibility text size"
 require_pattern "$ROOT/scripts/check-swift-accessibility-baselines.sh" "--accessibility-size" "accessibility-size baseline gate remains wired"
+
+forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
+forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"
+forbidden_pattern "$APP/AppState.swift" "StorageSource()" "app state must use SnapshotCollectionService for storage"
+forbidden_pattern "$APP/AppState.swift" "Shell.run" "app state must use CommandExecutionService"
 
 require_pattern "$SMOKE" "for view in ports cables devices thunderbolt power timeline security usb4 diff warnings;" "installed smoke covers all ten views"
 
