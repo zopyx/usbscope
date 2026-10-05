@@ -160,4 +160,16 @@ final class CoreTests: XCTestCase {
         let port = UsbPort(description: "Port-USB-C@3", kind: "USB-C")
         XCTAssertEqual(port.name, "USB-C@3")
     }
+
+    func testSnapshotKeepsSameNamedDevicesWhenTheirIdentityFactsDiffer() {
+        let first = UsbDevice(name: "Hub", vendorID: 0x1111, productID: 0x0001)
+        let second = UsbDevice(name: "Hub", vendorID: 0x2222, productID: 0x0002)
+        let snapshot = Snapshot(
+            host: "test", osVersion: "1", seenAt: Date(timeIntervalSince1970: 1),
+            buses: [Bus(name: "USB", devices: [first, second])]
+        )
+
+        XCTAssertEqual(snapshot.devices.count, 2)
+        XCTAssertEqual(Set(snapshot.devices.map(\.idString)), ["0x1111:0x0001", "0x2222:0x0002"])
+    }
 }

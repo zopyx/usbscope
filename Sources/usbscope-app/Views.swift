@@ -293,11 +293,15 @@ struct DiagnosticsSheet: View {
                 }
             }
             if let evaluation {
-                Text(evaluation.summary)
+                Text(Strings.diagnosticSummary(evaluation.scenario, outcome: evaluation.outcome,
+                                               state.language))
                 ForEach(evaluation.recommendations, id: \.title) { recommendation in
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(recommendation.title).fontWeight(.semibold)
-                        Text(recommendation.action)
+                        Text(Strings.diagnosticRecommendationTitle(evaluation.scenario,
+                                                                    state.language))
+                            .fontWeight(.semibold)
+                        Text(Strings.diagnosticRecommendationAction(evaluation.scenario,
+                                                                    state.language))
                         Text(Strings.evidenceLabel(recommendation.evidence.joined(separator: " · "), state.language))
                             .font(.caption).foregroundStyle(.secondary)
                     }

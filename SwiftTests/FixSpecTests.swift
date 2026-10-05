@@ -188,6 +188,13 @@ final class FixSpecTests: XCTestCase {
         XCTAssertEqual(deviceKey(serial), "device:serial:S")
     }
 
+    func testMergedWeakIdentityIsReportedAsAmbiguous() {
+        let records = [UsbDevice(name: "Hub"), UsbDevice(name: "Hub")]
+        let warnings = SnapshotBuilder.identityWarnings(records, source: "merged")
+        XCTAssertEqual(warnings.count, 1)
+        XCTAssertTrue(warnings[0].contains("ambiguous weak identity"))
+    }
+
     func testDiagnosticBundleRedactsWarningsAtomically() throws {
         let destination = FileManager.default.temporaryDirectory
             .appendingPathComponent("usbscope-diagnostic-\(UUID().uuidString)", isDirectory: true)

@@ -663,13 +663,18 @@ public struct Snapshot: Equatable, Sendable {
         self.warnings = warnings
     }
 
-    /// All known devices, deduplicated by location ID (or by name as fallback).
+    /// All known devices, deduplicated by the same identity key used by diffing.
+    ///
+    /// A name-only fallback silently merged two identical-looking devices. The
+    /// identity key keeps vendor/product and read-local identity components in
+    /// the result; genuinely ambiguous weak duplicates are reported by the
+    /// snapshot builder instead of being mistaken for one device.
     public var devices: [UsbDevice] {
         var seen = Set<String>()
         var collected: [UsbDevice] = []
         let all = buses.flatMap(\.devices) + ports.flatMap(\.devices)
         for device in all {
-            let key = device.locationID.map { "loc:\($0)" } ?? "name:\(device.name)"
+            let key = deviceKey(device)
             if seen.insert(key).inserted { collected.append(device) }
         }
         return collected

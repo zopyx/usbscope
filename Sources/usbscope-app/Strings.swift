@@ -943,6 +943,67 @@ extension Strings {
         }
     }
 
+    static func diagnosticSummary(_ scenario: DiagnosticScenario, outcome: DataState,
+                                  _ language: AppLanguage) -> String {
+        let unknown = outcome == .unknown
+        if language == .de {
+            switch scenario {
+            case .slowConnection:
+                return unknown ? "Der Snapshot enthält nicht genug Daten, um eine langsame Verbindung zu erkennen." : "Mindestens eine verbundene Verbindung ist auf einen niedrigeren Modus ausgehandelt."
+            case .chargeOnlyConnection:
+                return unknown ? "Der Snapshot weist keine reine Ladeverbindung eindeutig aus." : "Ein verbundener Anschluss hat keinen aktiven USB-Datentransport."
+            case .deviceMissing:
+                return unknown ? "Kein verbundener Anschluss wurde gemeldet; das fehlende Gerät kann nicht eingegrenzt werden." : "Der Snapshot enthält verbundene Anschlüsse; ohne Zielgerät kann kein fehlendes Objekt abgeleitet werden."
+            case .restrictedDevice:
+                return unknown ? "macOS meldet in diesem Snapshot kein eingeschränktes Gerät." : "macOS meldet mindestens ein eingeschränktes Gerät."
+            }
+        }
+        switch scenario {
+        case .slowConnection:
+            return unknown ? "No connected port has enough data to identify a slow link." : "One or more connected links are negotiated at a lower mode."
+        case .chargeOnlyConnection:
+            return unknown ? "The snapshot does not identify a charge-only connection." : "A connected port has no active USB data transport."
+        case .deviceMissing:
+            return unknown ? "No connected port was reported; the missing device cannot be localized." : "The snapshot contains connected ports; no missing object can be inferred without a target."
+        case .restrictedDevice:
+            return unknown ? "macOS did not report a restricted device in this snapshot." : "macOS reports one or more restricted devices."
+        }
+    }
+
+    static func diagnosticRecommendationTitle(_ scenario: DiagnosticScenario, _ language: AppLanguage) -> String {
+        if language == .de {
+            switch scenario {
+            case .slowConnection: return "Verbindung prüfen"
+            case .chargeOnlyConnection: return "Kabel und Zubehörmodus prüfen"
+            case .deviceMissing: return "Anschluss aktualisieren und prüfen"
+            case .restrictedDevice: return "Einschränkung prüfen"
+            }
+        }
+        switch scenario {
+        case .slowConnection: return "Check the link"
+        case .chargeOnlyConnection: return "Check cable and accessory mode"
+        case .deviceMissing: return "Refresh and inspect the port"
+        case .restrictedDevice: return "Review the restriction"
+        }
+    }
+
+    static func diagnosticRecommendationAction(_ scenario: DiagnosticScenario, _ language: AppLanguage) -> String {
+        if language == .de {
+            switch scenario {
+            case .slowConnection: return "Ein bekannt gutes Kabel verwenden, direkt am Mac anschließen und den ausgehandelten Modus nach der Aktualisierung vergleichen."
+            case .chargeOnlyConnection: return "Ein anderes datenfähiges Kabel verwenden, Zwischen-Hubs entfernen und aktualisieren."
+            case .deviceMissing: return "Direkt verbinden, aktualisieren und Anschluss- und Geräteanzahl mit einer Basisaufnahme vergleichen."
+            case .restrictedDevice: return "Autorisierungs- und Transportdetails prüfen; nur vertrauenswürdiges Zubehör erneut verbinden."
+            }
+        }
+        switch scenario {
+        case .slowConnection: return "Try a known-good cable and connect directly to the Mac; compare the negotiated mode after refresh."
+        case .chargeOnlyConnection: return "Try another data-capable cable, remove intermediate hubs, and refresh."
+        case .deviceMissing: return "Reconnect directly, refresh, and compare the port and device counts with a baseline."
+        case .restrictedDevice: return "Inspect the device’s authorization and transport details; reconnect only if you trust the accessory."
+        }
+    }
+
     static func detailExplanation(for label: String, _ language: AppLanguage) -> String? {
         switch label {
         case "USB link", "Mode (bit/s)", "Speed":

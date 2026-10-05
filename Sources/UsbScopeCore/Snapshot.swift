@@ -297,6 +297,8 @@ public enum SnapshotBuilder {
             copy.devices = port.devices.map { withInterfaces(merged($0, busIndex, registryIndex)) }
             return copy
         }
+        let mergedDevices = mergedBuses.flatMap(\.devices) + mergedPorts.flatMap(\.devices)
+        warnings.append(contentsOf: identityWarnings(mergedDevices, source: "merged"))
         let orphans = portIndex.merging(registryIndex) { current, _ in current }
             .filter { busIndex[$0.key] == nil }
             .map { withInterfaces($0.value) }
