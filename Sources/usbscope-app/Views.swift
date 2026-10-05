@@ -37,6 +37,7 @@ struct CellText: View {
             .fontWeight(text.style == .bold || highlight != nil ? .semibold : .regular)
             .lineLimit(1)
             .help(text.text)
+            .accessibilityLabel(text.text)
     }
 }
 
@@ -888,6 +889,8 @@ struct TimelineView: View {
                             }
                             .contentShape(Rectangle())
                             .onTapGesture { state.openEvent(row) }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityHint(L(.showDevice, lang))
                             .contextMenu {
                                 Button(L(.showDevice, lang)) { state.openEvent(row) }
                                 Button(L(.copyIdentifier, lang)) {
@@ -940,6 +943,7 @@ struct SecurityView: View {
                         Text(verbatim: String(item.count)).monospacedDigit()
                     }
                     .frame(maxWidth: 320)
+                    .accessibilityElement(children: .combine)
                 }
             } else {
                 ProgressView().controlSize(.small)
@@ -1091,6 +1095,11 @@ struct Usb4View: View {
                             }
                             .padding(.leading, CGFloat(row.depth) * 18)
                             .padding(.vertical, 1)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(
+                                [row.title, row.detail, row.rawLink].compactMap { $0 }.filter { !$0.isEmpty }
+                                    .joined(separator: ", ")
+                            )
                         }
                     }
                     .padding(.horizontal, 12)
