@@ -95,4 +95,16 @@ final class ReportExportTests: XCTestCase {
             ReportExport.text(.html, snapshot: snapshot, storage: storage).contains("disk7")
         )
     }
+
+    func testSelectedLanguageReachesBothReportFormats() {
+        let snapshot = Fixtures.snapshot()
+        XCTAssertTrue(
+            ReportExport.text(.markdown, snapshot: snapshot, storage: [], language: .german)
+                .contains("# usbscope Bericht")
+        )
+        XCTAssertTrue(
+            ReportExport.text(.html, snapshot: snapshot, storage: [], language: .german)
+                .contains("<html lang=\"de\">")
+        )
+    }
 }

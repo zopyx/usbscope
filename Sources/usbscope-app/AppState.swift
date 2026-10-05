@@ -964,7 +964,8 @@ final class AppState: ObservableObject {
         // the same call the CLI's `report` makes, so both list the same mass
         // storage as the snapshot they belong to.
         let text = ReportExport.text(format, snapshot: snapshot, storage: storage,
-                                     redactionPolicy: RedactionPolicy())
+                                     redactionPolicy: RedactionPolicy(),
+                                     language: language == .de ? .german : .english)
         let destination = format.replacingExtension(of: url)
         do {
             try AtomicFile.write(text, to: destination)

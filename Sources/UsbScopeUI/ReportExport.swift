@@ -49,15 +49,17 @@ public enum ReportExport {
     /// Render the report in `format`, byte for byte the document the CLI writes.
     public static func text(
         _ format: ReportFormat, snapshot: Snapshot, storage: [StorageDevice],
-        redactionPolicy: RedactionPolicy? = nil
+        redactionPolicy: RedactionPolicy? = nil,
+        language: Report.Language = .english
     ) -> String {
+        let rendered: String
         switch format {
         case .markdown:
-            if let redactionPolicy { return Report.markdown(snapshot, storage: storage, redactionPolicy: redactionPolicy) }
-            return Report.markdown(snapshot, storage: storage)
+            rendered = Report.markdown(snapshot, storage: storage, language: language)
         case .html:
-            if let redactionPolicy { return Report.html(snapshot, storage: storage, redactionPolicy: redactionPolicy) }
-            return Report.html(snapshot, storage: storage)
+            rendered = Report.html(snapshot, storage: storage, language: language)
         }
+        guard let redactionPolicy else { return rendered }
+        return redactionPolicy.redactText(rendered, snapshot: snapshot, storage: storage)
     }
 }
