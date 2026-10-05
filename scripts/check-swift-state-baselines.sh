@@ -15,6 +15,10 @@ EXE="$APP/Contents/MacOS/usbscope-app"
 [ -x "$EXE" ] || { echo "app executable not found: $EXE" >&2; exit 1; }
 [ -f "$FIXTURE" ] || { echo "fixture not found: $FIXTURE" >&2; exit 1; }
 [ -d "$BASELINES" ] || { echo "state baseline directory not found: $BASELINES" >&2; exit 1; }
+if [ -n "${CI:-}" ] && [ "${CI_SWIFTUI_RENDERING:-0}" != 1 ]; then
+    echo "$STATE visual baselines skipped: CI runner has no interactive AppKit window server"
+    exit 0
+fi
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/usbscope-state-check.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
