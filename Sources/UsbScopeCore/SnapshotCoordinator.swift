@@ -57,6 +57,7 @@ public actor SnapshotCoordinator {
             if activeReason == nil || reason.priority > activeReason!.priority { activeReason = reason }
             let started = Date()
             let collected = await active.value
+            guard !stopped else { return nil }
             return makeResult(collected, started: started, reason: activeReason ?? reason)
         }
         let chosen = reason
@@ -82,6 +83,10 @@ public actor SnapshotCoordinator {
         active = task
         let collected = await task.value
         active = nil
+        guard !stopped else {
+            activeReason = nil
+            return nil
+        }
         let finalReason = activeReason ?? chosen
         activeReason = nil
         return makeResult(collected, started: started, reason: finalReason)

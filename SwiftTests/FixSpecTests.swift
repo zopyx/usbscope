@@ -279,6 +279,18 @@ final class FixSpecTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func testSnapshotCoordinatorDropsAnInFlightResultAfterStop() async {
+        let coordinator = SnapshotCoordinator(collect: { _ in
+            try? await Task.sleep(for: .milliseconds(40))
+            return Fixtures.snapshot()
+        })
+        async let result = coordinator.request(.manual)
+        try? await Task.sleep(for: .milliseconds(5))
+        await coordinator.stop()
+        let resultValue = await result
+        XCTAssertNil(resultValue)
+    }
+
     func testStableMetadataCacheExpiresAndInvalidates() {
         let cache = StableMetadataCache(lifetime: 10)
         let captured = Date(timeIntervalSince1970: 100)
