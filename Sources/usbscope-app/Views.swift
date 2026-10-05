@@ -1084,7 +1084,10 @@ struct SecurityView: View {
     private var storageBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(L(.securityStorageTitle, lang)).font(.headline)
-            if state.storageStatus != .healthy {
+            let storageReadFailed = state.storageStatus == .failed
+                || state.storageStatus == .partial
+                || state.storageStatus == .stale
+            if storageReadFailed {
                 let status = state.storageStatus
                 Label(status == .failed ? L(.storageUnavailable, lang) : L(.storagePartial, lang),
                       systemImage: status == .failed ? "xmark.circle" : "exclamationmark.circle")
@@ -1098,7 +1101,7 @@ struct SecurityView: View {
                 }
             }
             if state.storageInventory.isEmpty {
-                if state.storageStatus == .healthy {
+                if !storageReadFailed {
                     Text(L(.securityEmptyStorage, lang)).foregroundStyle(.secondary)
                 } else {
                     Button(L(.refreshNow, lang)) { state.refresh() }

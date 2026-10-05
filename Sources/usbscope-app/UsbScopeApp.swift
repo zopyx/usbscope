@@ -139,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 MainActor.assumeIsolated {
                     SnapshotRenderer.run(path: request.path, view: request.view,
                                      baseline: request.baseline, fixture: request.fixture,
-                                     accessibilitySize: request.accessibilitySize)
+                                     accessibilitySize: request.accessibilitySize, dark: request.dark)
                 }
         }
     }

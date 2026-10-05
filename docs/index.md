@@ -544,6 +544,12 @@ with `make swift-app-accessibility-check`; reviewed images live under
 `docs/screenshots/fixture-baselines/accessibility3/`. This is a deterministic
 layout gate, not a substitute for VoiceOver on the signed app.
 
+The ten views also have a deterministic dark-appearance gate with
+`make swift-app-dark-check`; reviewed images live under
+`docs/screenshots/fixture-baselines/dark/`. The light, dark, and accessibility
+renders are fixture-backed, so host hardware and current time do not change the
+visual comparison.
+
 ## Prebuilt binary (CLI)
 
 **No prebuilt binary is published.** There is no signed or notarised release, and

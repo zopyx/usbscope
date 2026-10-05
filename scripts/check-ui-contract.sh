@@ -52,6 +52,8 @@ require_pattern "$APP/UsbScopeApp.swift" ".keyboardShortcut(\"k\", modifiers: [.
 require_pattern "$APP/UsbScopeApp.swift" "ForEach(AppView.allCases)" "every view remains reachable from the command menus"
 require_pattern "$APP/SnapshotRenderer.swift" "root.dynamicTypeSize(.accessibility3)" "snapshot renderer covers accessibility text size"
 require_pattern "$ROOT/scripts/check-swift-accessibility-baselines.sh" "--accessibility-size" "accessibility-size baseline gate remains wired"
+require_pattern "$APP/SnapshotRenderer.swift" "arguments.contains(\"--dark\")" "dark appearance rendering remains available"
+require_pattern "$ROOT/scripts/check-swift-dark-baselines.sh" "--dark" "dark visual baseline gate remains wired"
 
 forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"

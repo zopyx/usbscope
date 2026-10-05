@@ -14,14 +14,15 @@ import UsbScopeUI
 ///
 /// `--view` accepts any `AppView` raw value (`ports`, `cables`, `devices`,
 /// `thunderbolt`, `power`, `timeline`, `security`, `usb4`, `diff`, `warnings`).
+/// `--dark` forces the deterministic dark appearance for visual baselines.
 enum SnapshotRenderer {
     /// Parse `--snapshot` / `--view` / `--baseline` / `--fixture` /
-    /// `--accessibility-size` from the command line; `nil`
+    /// `--accessibility-size` and `--dark` from the command line; `nil`
     /// when no screenshot was asked for.
     ///
     /// `--view` without `--snapshot` is ignored (the app just opens that view);
     /// `--baseline` loads a snapshot JSON into the Diff tab before the render.
-    static func requested() -> (path: String, view: AppView, baseline: String?, fixture: String?, accessibilitySize: Bool)? {
+    static func requested() -> (path: String, view: AppView, baseline: String?, fixture: String?, accessibilitySize: Bool, dark: Bool)? {
         let arguments = CommandLine.arguments
         guard let index = arguments.firstIndex(of: "--snapshot"), index + 1 < arguments.count else {
             return nil
@@ -40,13 +41,13 @@ enum SnapshotRenderer {
         if let fixtureIndex = arguments.firstIndex(of: "--fixture"), fixtureIndex + 1 < arguments.count {
             fixture = arguments[fixtureIndex + 1]
         }
-        return (path, view, baseline, fixture, arguments.contains("--accessibility-size"))
+        return (path, view, baseline, fixture, arguments.contains("--accessibility-size"), arguments.contains("--dark"))
     }
 
     /// Build the window offscreen, write the PNG and exit.
     @MainActor
     static func run(path: String, view: AppView, baseline: String? = nil, fixture: String? = nil,
-                    accessibilitySize: Bool = false) -> Never {
+                    accessibilitySize: Bool = false, dark: Bool = false) -> Never {
         let state = AppState(
             store: PreferencesStore(backend: MemoryPreferencesBackend()),
             notifier: nil,
@@ -71,7 +72,7 @@ enum SnapshotRenderer {
             )
         }
 
-        guard let image = image(state: state, accessibilitySize: accessibilitySize) else {
+        guard let image = image(state: state, accessibilitySize: accessibilitySize, dark: dark) else {
             FileHandle.standardError.write(Data("usbscope-app: could not render the window\n".utf8))
             exit(1)
         }
@@ -98,7 +99,7 @@ enum SnapshotRenderer {
 
     /// Lay the content out offscreen and cache it into an `NSImage`.
     @MainActor
-    static func image(state: AppState, accessibilitySize: Bool = false) -> NSImage? {
+    static func image(state: AppState, accessibilitySize: Bool = false, dark: Bool = false) -> NSImage? {
         // The hosting view has no opaque background of its own, so an offscreen
         // cache would render its default (black) text on a transparent bitmap.
         // Paint the window background first, in the current appearance, so the
@@ -107,9 +108,12 @@ enum SnapshotRenderer {
             Color(nsColor: .windowBackgroundColor)
             ContentView().environmentObject(state)
         }
-        let hostedRoot: AnyView = accessibilitySize
+        let sizedRoot: AnyView = accessibilitySize
             ? AnyView(root.dynamicTypeSize(.accessibility3))
             : AnyView(root)
+        let hostedRoot = dark
+            ? AnyView(sizedRoot.environment(\.colorScheme, .dark))
+            : AnyView(sizedRoot)
         let hosting = NSHostingView(rootView: hostedRoot)
         hosting.frame = NSRect(origin: .zero, size: size)
 
@@ -122,6 +126,7 @@ enum SnapshotRenderer {
             defer: false
         )
         window.contentView = hosting
+        if dark { window.appearance = NSAppearance(named: .darkAqua) }
         window.backgroundColor = .windowBackgroundColor
         window.setFrame(NSRect(origin: .zero, size: size), display: false)
         window.layoutIfNeeded()
