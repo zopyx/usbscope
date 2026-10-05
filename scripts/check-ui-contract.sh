@@ -12,7 +12,13 @@ require_pattern() {
     local file="$1"
     local pattern="$2"
     local description="$3"
-    if ! rg -q --fixed-strings -- "$pattern" "$file"; then
+    local found=0
+    if command -v rg >/dev/null 2>&1; then
+        rg -q --fixed-strings -- "$pattern" "$file" || found=1
+    else
+        grep -Fq -- "$pattern" "$file" || found=1
+    fi
+    if [ "$found" -ne 0 ]; then
         echo "UI contract failed: $description" >&2
         exit 1
     fi
