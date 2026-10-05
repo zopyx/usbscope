@@ -890,6 +890,13 @@ extension Strings {
         language == .de ? "\(kind) um \(time)" : "\(kind) at \(time)"
     }
 
+    static func eventKind(_ kind: UsbEventKind, _ language: AppLanguage) -> String {
+        switch kind {
+        case .attached: return language == .de ? "Verbunden" : "Attached"
+        case .detached: return language == .de ? "Getrennt" : "Detached"
+        }
+    }
+
     static func sourceHealthLabel(source: String, status: String, _ language: AppLanguage) -> String {
         "\(source): \(status)"
     }

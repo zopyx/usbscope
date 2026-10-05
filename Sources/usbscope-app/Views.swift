@@ -234,7 +234,7 @@ struct DiagnosticsSheet: View {
             HStack {
                 Text(L(.sourceHealth, state.language)).font(.headline)
                 Spacer()
-                Text(state.storageStatus.rawValue)
+                Text(Strings.sourceStatus(state.storageStatus, state.language))
                     .foregroundStyle(state.storageStatus == .healthy ? Color.secondary : Color.orange)
             }
             ForEach(state.sourceHealth.keys.sorted(), id: \.self) { source in
@@ -384,7 +384,7 @@ struct HistoricalEventSheet: View {
                 .font(.title2.bold())
             if let event = state.historicalEvent {
                 Text(event.name).font(.headline)
-                Text(Strings.eventLabel(kind: event.kind.rawValue.capitalized,
+                Text(Strings.eventLabel(kind: Strings.eventKind(event.kind, state.language),
                                         time: TimelineFormat.clock.string(from: event.seenAt), state.language))
                 if let vendor = event.vendor { Text(Strings.vendorLabel(vendor, state.language)) }
                 if let locationID = event.locationID { Text(Strings.locationLabel(String(locationID), state.language)) }
