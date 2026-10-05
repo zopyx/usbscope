@@ -878,8 +878,9 @@ extension Strings {
         language == .de ? "\(count) Warnungen" : "\(count) warnings"
     }
 
-    static func freshnessLabel(_ freshness: String, duration: String, _ language: AppLanguage) -> String {
-        language == .de ? "Aktualität: \(freshness) · Lesedauer: \(duration)" : "Freshness: \(freshness) · read duration: \(duration)"
+    static func freshnessLabel(_ freshness: DataFreshness, duration: String, _ language: AppLanguage) -> String {
+        let status = freshnessStatus(freshness, language)
+        return language == .de ? "Aktualität: \(status) · Lesedauer: \(duration)" : "Freshness: \(status) · read duration: \(duration)"
     }
 
     static func evidenceLabel(_ evidence: String, _ language: AppLanguage) -> String {

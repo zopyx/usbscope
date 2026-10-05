@@ -74,6 +74,7 @@ forbidden_pattern "$APP/AppState.swift" "Shell.run" "app state must use CommandE
 forbidden_pattern "$APP/Views.swift" ".onTapGesture" "interactive rows must use keyboard-accessible buttons"
 forbidden_pattern "$APP/Views.swift" "storageStatus.rawValue" "storage health must use localized source status"
 forbidden_pattern "$APP/Views.swift" "event.kind.rawValue.capitalized" "event kinds must use localized labels"
+forbidden_pattern "$APP/Views.swift" "dataFreshness.rawValue" "freshness status must use localized labels"
 
 require_pattern "$SMOKE" "for view in ports cables devices thunderbolt power timeline security usb4 diff warnings;" "installed smoke covers all ten views"
 

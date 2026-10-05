@@ -256,7 +256,7 @@ struct DiagnosticsSheet: View {
                                          lastEvent: state.lastHotplugAt,
                                          state.language))
                 .font(.caption).foregroundStyle(.secondary)
-            Text(Strings.freshnessLabel(state.dataFreshness.rawValue,
+            Text(Strings.freshnessLabel(state.dataFreshness,
                                         duration: state.lastReadDuration.map { String(format: "%.2fs", $0) } ?? "—",
                                         state.language))
                 .font(.caption).foregroundStyle(.secondary)
