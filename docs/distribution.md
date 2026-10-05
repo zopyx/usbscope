@@ -261,19 +261,20 @@ you can also submit without it and poll with
 `xcrun notarytool log <submission-id>` prints the reason **[subcommand
 verified]**.
 
-**What to submit.** An `.app` cannot be stapled directly — `stapler` supports
-*"UDIF disk images, code-signed executable bundles, and signed flat installer
-packages"* **[ran: `xcrun stapler` usage]** — so the bundle must travel inside a
-`.zip`/`.dmg`/`.pkg`. `ditto -c -k --keepParent dist/usbscope-swift.app
-dist/usbscope-swift.zip` produces such a container, and `scripts/build-swift-dmg.sh`
-already builds a `.dmg`. What does **not** exist yet is a container built from a
-*Developer-ID signed* bundle: the DMG today wraps the ad-hoc bundle, which is not
-what a notarised release would ship.
+**What to submit.** `notarytool` receives a container such as a `.zip`, `.dmg`,
+or `.pkg`; `stapler` then supports stapling the accepted ticket to the
+code-signed executable bundle itself (as the build script does), or to a
+supported container where applicable. `ditto -c -k --keepParent
+dist/usbscope-swift.app dist/usbscope-swift.zip` produces the notarization
+input, and `scripts/build-swift-dmg.sh` can package the stapled app afterward.
+What does **not** exist yet is a container built from a *Developer-ID signed*
+bundle: the DMG today wraps the ad-hoc bundle, which is not what a notarised
+release would ship.
 
 ### 6. Staple the ticket
 
 ```console
-xcrun stapler staple dist/usbscope-swift.zip     # or the .dmg/.pkg container
+xcrun stapler staple dist/usbscope-swift.app     # staple the accepted bundle
 ```
 
 `stapler staple [-q] [-v] path` is the real form **[ran: `xcrun stapler`
