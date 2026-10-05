@@ -154,6 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.identifier = Self.mainWindowIdentifier
             window.setFrameAutosaveName("usbscope-main-window")
             window.minSize = NSSize(width: 900, height: 460)
+            self.configureToolbar(window)
         }
     }
 
@@ -182,7 +183,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func mainWindowDidBecomeMain(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
               window.identifier == Self.mainWindowIdentifier else { return }
+        configureToolbar(window)
         state?.setMainWindowVisible(true)
+    }
+
+    /// Keep the native toolbar's customization menu and configuration across
+    /// launches. SwiftUI supplies stable item IDs in ContentView.toolbar; this
+    /// AppKit boundary enables the persistence behavior for the actual window.
+    private func configureToolbar(_ window: NSWindow) {
+        window.toolbar?.allowsUserCustomization = true
+        window.toolbar?.autosavesConfiguration = true
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

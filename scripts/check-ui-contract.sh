@@ -60,6 +60,8 @@ require_pattern "$ROOT/scripts/check-swift-state-baselines.sh" 'case "$STATE" in
 require_pattern "$APP/AppState.swift" "private var shuttingDown = false" "AppState has a synchronous shutdown gate"
 require_pattern "$APP/AppState.swift" "guard !shuttingDown else { return }" "AppState blocks state changes after shutdown"
 require_pattern "$APP/AppState.swift" "guard !self.shuttingDown else { return }" "AppState blocks asynchronous work after shutdown"
+require_pattern "$APP/UsbScopeApp.swift" "allowsUserCustomization = true" "native toolbar customization remains enabled"
+require_pattern "$APP/UsbScopeApp.swift" "autosavesConfiguration = true" "native toolbar configuration remains persistent"
 
 forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"
