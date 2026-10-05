@@ -16,7 +16,12 @@ trap 'rm -rf "$tmp"' EXIT
 
 for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do
     png="$tmp/$view.png"
-    run_with_timeout 120 "$EXE" --snapshot "$png" --view "$view" --fixture "$FIXTURE" >/dev/null 2>&1
+    log="$tmp/$view.log"
+    if ! run_with_timeout 120 "$EXE" --snapshot "$png" --view "$view" --fixture "$FIXTURE" >"$log" 2>&1; then
+        echo "fixture snapshot command failed: $view" >&2
+        sed -n '1,160p' "$log" >&2
+        exit 1
+    fi
     [ -s "$png" ] || { echo "fixture snapshot is empty: $view" >&2; exit 1; }
     echo "fixture snapshot $view: $(stat -f '%z bytes' "$png")"
 done
