@@ -1,6 +1,7 @@
 # Release validation matrix
 
-Automated checks run on every change:
+Automated checks run on every change (the GitHub workflow runs the bundle and
+all fixture visual gates on the same arm64 macOS runner):
 
 | Area | Command | Expected result |
 | --- | --- | --- |

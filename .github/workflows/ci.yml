@@ -78,6 +78,21 @@ jobs:
       - name: Installed bundle smoke
         run: scripts/smoke-swift-app.sh dist/usbscope-swift.app
 
+      - name: Fixture snapshot smoke
+        run: scripts/snapshot-fixture-smoke.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json
+
+      - name: Light visual baselines
+        run: scripts/check-swift-visual-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines
+
+      - name: Accessibility visual baselines
+        run: scripts/check-swift-accessibility-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines/accessibility3
+
+      - name: Dark visual baselines
+        run: scripts/check-swift-dark-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines/dark
+
+      - name: Empty and partial visual baselines
+        run: make swift-app-state-check
+
       - name: Upload the app bundle (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v7.0.1
