@@ -18,7 +18,7 @@ VERSION := $(shell sed -n 's/^let version = "\([^"]*\)".*/\1/p' Sources/usbscope
 .PHONY: help doctor env build test check clean distclean version \
         swift swift-build swift-test swift-golden swift-run-app swift-app-check swift-app-bundle \
         swift-app-dmg swift-app-smoke swift-app-fixture-smoke swift-app-visual-check \
-        swift-app-accessibility-check swift-app-dark-check \
+        swift-app-accessibility-check swift-app-dark-check swift-app-state-check \
         ui-contract run watch snapshot checksums man completions
 
 ## ---------------------------------------------------------------------------
@@ -110,6 +110,12 @@ swift-app-accessibility-check: swift-app-bundle ## compare fixture renders at ac
 
 swift-app-dark-check: swift-app-bundle ## compare fixture renders in dark appearance
 	scripts/check-swift-dark-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines/dark
+
+swift-app-state-check: swift-app-bundle ## compare empty/partial fixture renders in light and dark appearance
+	scripts/check-swift-state-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines/empty empty
+	scripts/check-swift-state-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines/partial partial
+	scripts/check-swift-state-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines/dark-empty empty --dark
+	scripts/check-swift-state-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines/dark-partial partial --dark
 
 ui-contract: ## verify keyboard, accessibility, navigation and snapshot hooks
 	scripts/check-ui-contract.sh

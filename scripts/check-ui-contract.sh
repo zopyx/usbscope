@@ -54,6 +54,9 @@ require_pattern "$APP/SnapshotRenderer.swift" "root.dynamicTypeSize(.accessibili
 require_pattern "$ROOT/scripts/check-swift-accessibility-baselines.sh" "--accessibility-size" "accessibility-size baseline gate remains wired"
 require_pattern "$APP/SnapshotRenderer.swift" "arguments.contains(\"--dark\")" "dark appearance rendering remains available"
 require_pattern "$ROOT/scripts/check-swift-dark-baselines.sh" "--dark" "dark visual baseline gate remains wired"
+require_pattern "$APP/SnapshotRenderer.swift" "arguments.contains(\"--empty\")" "empty-state rendering remains available"
+require_pattern "$APP/SnapshotRenderer.swift" "arguments.contains(\"--partial\")" "partial-state rendering remains available"
+require_pattern "$ROOT/scripts/check-swift-state-baselines.sh" 'case "$STATE" in empty|partial)' "empty/partial visual baseline gate remains wired"
 
 forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"

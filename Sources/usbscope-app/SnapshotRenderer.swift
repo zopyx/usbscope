@@ -15,14 +15,16 @@ import UsbScopeUI
 /// `--view` accepts any `AppView` raw value (`ports`, `cables`, `devices`,
 /// `thunderbolt`, `power`, `timeline`, `security`, `usb4`, `diff`, `warnings`).
 /// `--dark` forces the deterministic dark appearance for visual baselines.
+/// `--empty` and `--partial` render explicit no-device and source-warning states.
 enum SnapshotRenderer {
     /// Parse `--snapshot` / `--view` / `--baseline` / `--fixture` /
-    /// `--accessibility-size` and `--dark` from the command line; `nil`
+    /// `--accessibility-size`, `--dark`, `--empty`, and `--partial` from the
+    /// command line; `nil`
     /// when no screenshot was asked for.
     ///
     /// `--view` without `--snapshot` is ignored (the app just opens that view);
     /// `--baseline` loads a snapshot JSON into the Diff tab before the render.
-    static func requested() -> (path: String, view: AppView, baseline: String?, fixture: String?, accessibilitySize: Bool, dark: Bool)? {
+    static func requested() -> (path: String, view: AppView, baseline: String?, fixture: String?, accessibilitySize: Bool, dark: Bool, state: RenderState)? {
         let arguments = CommandLine.arguments
         guard let index = arguments.firstIndex(of: "--snapshot"), index + 1 < arguments.count else {
             return nil
@@ -41,22 +43,33 @@ enum SnapshotRenderer {
         if let fixtureIndex = arguments.firstIndex(of: "--fixture"), fixtureIndex + 1 < arguments.count {
             fixture = arguments[fixtureIndex + 1]
         }
-        return (path, view, baseline, fixture, arguments.contains("--accessibility-size"), arguments.contains("--dark"))
+        let state: RenderState = arguments.contains("--empty") ? .empty :
+            (arguments.contains("--partial") ? .partial : .loaded)
+        return (path, view, baseline, fixture, arguments.contains("--accessibility-size"), arguments.contains("--dark"), state)
     }
+
+    enum RenderState { case loaded, empty, partial }
 
     /// Build the window offscreen, write the PNG and exit.
     @MainActor
     static func run(path: String, view: AppView, baseline: String? = nil, fixture: String? = nil,
-                    accessibilitySize: Bool = false, dark: Bool = false) -> Never {
+                    accessibilitySize: Bool = false, dark: Bool = false,
+                    state renderState: RenderState = .loaded) -> Never {
         let state = AppState(
             store: PreferencesStore(backend: MemoryPreferencesBackend()),
             notifier: nil,
             monitoring: false
         )
         state.view = view
-        if let fixture {
+        if renderState == .empty {
+            state.loadSnapshotForRendering(Snapshot(host: "Fixture Mac", osVersion: "14.4",
+                                                    seenAt: Date(timeIntervalSince1970: 1_735_689_600)))
+        } else if let fixture {
             do {
-                let snapshot = try SnapshotLoading.snapshot(from: URL(fileURLWithPath: fixture))
+                var snapshot = try SnapshotLoading.snapshot(from: URL(fileURLWithPath: fixture))
+                if renderState == .partial {
+                    snapshot.warnings.append("fixture: optional source unavailable")
+                }
                 state.loadSnapshotForRendering(snapshot)
             } catch {
                 FileHandle.standardError.write(Data("usbscope-app: could not load fixture \(fixture): \(error)\n".utf8))

@@ -550,6 +550,11 @@ The ten views also have a deterministic dark-appearance gate with
 renders are fixture-backed, so host hardware and current time do not change the
 visual comparison.
 
+`make swift-app-state-check` additionally compares empty and partial-source
+renders in both appearances. The renderer accepts `--empty` and `--partial` so
+the loading, no-device, and source-warning states can be reviewed without
+depending on attached hardware.
+
 ## Prebuilt binary (CLI)
 
 **No prebuilt binary is published.** There is no signed or notarised release, and
