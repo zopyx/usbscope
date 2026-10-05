@@ -16,6 +16,7 @@
 #   scripts/build-swift-app.sh --no-archive # only the .app, no tarball/checksum
 #   scripts/build-swift-app.sh --universal  # build arm64 + x86_64 (fat), not native-only
 #   scripts/build-swift-app.sh --entitlements FILE # apply entitlements for a signed mode
+#   scripts/build-swift-app.sh --signing-mode MODE # debug|adhoc|developer-id|mas
 #
 # `--universal` adds `--arch arm64 --arch x86_64` to the `swift build`, so the
 # produced executable is a fat Mach-O (checked with `lipo`); without it the build
@@ -24,7 +25,7 @@
 # (`codesign -s -`), so it is neither Developer-ID signed nor notarised either.
 #
 # On top of the bundle it writes the archive a release would hand out
-# (`dist/usbscope-swift-<version>-macos-<arch>.tar.gz`) and `dist/SHA256SUMS` for
+# (`dist/usbscope-swift-<version>-macos-<arch>-<signing-mode>.tar.gz`) and `dist/SHA256SUMS` for
 # it, which `make checksums` re-verifies. `scripts/build-swift-dmg.sh` packs the
 # same bundle into a DMG.
 #
@@ -54,6 +55,7 @@ verify=1
 archive=1
 universal=0
 signing_identity="${CODESIGN_IDENTITY:--}"
+signing_mode=""
 notarize=0
 notary_profile="${NOTARY_PROFILE:-}"
 entitlements=""
@@ -69,6 +71,7 @@ while [ $# -gt 0 ]; do
     --no-archive) archive=0; shift ;;
     --universal) universal=1; shift ;;
     --identity) signing_identity="${2:?--identity needs a codesign identity}"; shift 2 ;;
+    --signing-mode) signing_mode="${2:?--signing-mode needs debug|adhoc|developer-id|mas}"; shift 2 ;;
     --entitlements) entitlements="${2:?--entitlements needs a plist path}"; shift 2 ;;
     --notarize) notarize=1; shift ;;
     --notary-profile) notary_profile="${2:?--notary-profile needs a keychain profile}"; shift 2 ;;
@@ -76,6 +79,37 @@ while [ $# -gt 0 ]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+# Keep the old flags compatible while making the release intent explicit in the
+# artifact. An identity implies Developer ID; a debug configuration without an
+# identity is a debug ad-hoc build; the remaining default is a test ad-hoc build.
+if [ -z "$signing_mode" ]; then
+  if [ "$configuration" = "debug" ] && [ "$signing_identity" = "-" ]; then
+    signing_mode="debug"
+  elif [ "$signing_identity" = "-" ]; then
+    signing_mode="adhoc"
+  else
+    signing_mode="developer-id"
+  fi
+fi
+
+case "$signing_mode" in
+  debug)
+    [ "$configuration" = "debug" ] || { echo "debug signing mode requires --debug/--configuration debug" >&2; exit 2; }
+    [ "$signing_identity" = "-" ] || { echo "debug signing mode requires ad-hoc signing" >&2; exit 2; }
+    ;;
+  adhoc)
+    [ "$signing_identity" = "-" ] || { echo "adhoc signing mode cannot use an Apple identity" >&2; exit 2; }
+    ;;
+  developer-id)
+    [ "$signing_identity" != "-" ] || { echo "developer-id signing mode requires --identity or CODESIGN_IDENTITY" >&2; exit 2; }
+    ;;
+  mas)
+    [ "$sign" -eq 0 ] || { echo "mas mode is signed by scripts/build-swift-mas-pkg.sh; use --no-sign" >&2; exit 2; }
+    [ "$archive" -eq 0 ] || { echo "mas mode does not produce a direct-distribution archive" >&2; exit 2; }
+    ;;
+  *) echo "unknown signing mode: $signing_mode (expected debug, adhoc, developer-id, or mas)" >&2; exit 2 ;;
+esac
 
 if [ "$notarize" -eq 1 ] && [ "$archive" -eq 0 ]; then
   echo "--notarize requires archive output (omit --no-archive)" >&2
@@ -192,6 +226,8 @@ cat > "$bundle/Contents/Info.plist" <<PLIST
   <string>$version</string>
   <key>CFBundleVersion</key>
   <string>$build_number</string>
+  <key>USBScopeSigningMode</key>
+  <string>$signing_mode</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_MACOS</string>
   <key>NSHighResolutionCapable</key>
@@ -225,7 +261,16 @@ if [ "$sign" -eq 1 ]; then
     # The verification is not optional: a bundle whose signature does not check
     # out is a broken artifact.
     codesign --verify --verbose=2 "$bundle"
-    if [ "$signing_identity" = "-" ]; then echo "ad-hoc signed (codesign --verify OK)"; else echo "Developer ID signed (codesign --verify OK)"; fi
+    if [ "$signing_mode" = "developer-id" ]; then
+      signature_details="$(codesign -dvv "$bundle" 2>&1 || true)"
+      echo "$signature_details" | grep -q 'Authority=Developer ID Application:' || {
+        echo "developer-id mode did not produce a Developer ID Application signature" >&2
+        exit 1
+      }
+      echo "Developer ID signed (codesign --verify OK)"
+    else
+      echo "ad-hoc signed (codesign --verify OK)"
+    fi
   else
     echo "codesign not found — skipped"
   fi
@@ -281,7 +326,7 @@ if [ "$archive" -eq 1 ]; then
   else
     arch="$(uname -m)"
   fi
-  tarball="$DIST/$name-$version-macos-$arch.tar.gz"
+  tarball="$DIST/$name-$version-macos-$arch-$signing_mode.tar.gz"
   if [ "$notarize" -eq 1 ]; then
     [ "$signing_identity" != "-" ] || { echo "--notarize requires --identity" >&2; exit 2; }
     [ -n "$notary_profile" ] || { echo "--notarize requires --notary-profile or NOTARY_PROFILE" >&2; exit 2; }

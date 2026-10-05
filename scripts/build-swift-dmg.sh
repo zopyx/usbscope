@@ -2,7 +2,7 @@
 #
 # Pack an already-built `dist/usbscope-swift.app` into a macOS disk image:
 #
-#   dist/usbscope-swift-<version>-macos-<arch>.dmg
+#   dist/usbscope-swift-<version>-macos-<arch>-<signing-mode>.dmg
 #
 # Usage
 # -----
@@ -72,7 +72,13 @@ case "$archs" in
   *) arch="$(uname -m)" ;;
 esac
 
-dmg="$DIST/$PRODUCT_NAME-$version-macos-$arch.dmg"
+signing_mode="$(plutil -extract USBScopeSigningMode raw "$app/Contents/Info.plist" 2>/dev/null || true)"
+[ -n "$signing_mode" ] || { echo "bundle is missing USBScopeSigningMode" >&2; exit 1; }
+case "$signing_mode" in
+  debug|adhoc|developer-id|mas) ;;
+  *) echo "bundle has unknown USBScopeSigningMode: $signing_mode" >&2; exit 1 ;;
+esac
+dmg="$DIST/$PRODUCT_NAME-$version-macos-$arch-$signing_mode.dmg"
 
 # Everything is staged in a private temp dir. The trap tears the staging dir down
 # and detaches the test mount even on failure, so no loop device or staged file is

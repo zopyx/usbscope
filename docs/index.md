@@ -456,7 +456,7 @@ target runs `swift` or a shell command.
 | `make swift-run-app` | run the SwiftUI app (`usbscope-app`) |
 | `make swift-app-check` | headless self test of the app's data path (row count per view) |
 | `make swift-app-bundle` | build `dist/usbscope-swift.app` (release, ad-hoc signed, verified) |
-| `make swift-app-dmg` | pack the app into a compressed, read-only DMG (`hdiutil`, unsigned) |
+| `make swift-app-dmg` | pack the app into a compressed, read-only DMG (`hdiutil`, mode-tagged) |
 | `make snapshot` | render the app window to `docs/screenshots/app-<view>.png` (offscreen) |
 | `make checksums` | verify `dist/SHA256SUMS`, written over the tarball and the DMG |
 | `make man` / `make completions` | install the CLI manual page / the zsh + bash completions into `~` (no sudo) |

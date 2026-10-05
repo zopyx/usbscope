@@ -28,6 +28,11 @@ build_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO")"
 case "$build_version" in
   ''|*[!0-9]*|0) echo "CFBundleVersion must be a positive integer: $build_version" >&2; exit 1 ;;
 esac
+signing_mode="$(/usr/libexec/PlistBuddy -c 'Print :USBScopeSigningMode' "$INFO" 2>/dev/null || true)"
+case "$signing_mode" in
+  debug|adhoc|developer-id|mas) ;;
+  *) echo "USBScopeSigningMode must be debug, adhoc, developer-id, or mas: ${signing_mode:-<missing>}" >&2; exit 1 ;;
+esac
 
 # Keep the bundle's executable metadata aligned with the plist. This catches a
 # malformed hand-assembled artifact before signature or Gatekeeper checks hide
@@ -41,7 +46,7 @@ plist_executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$INF
 codesign --verify --deep --strict --verbose=2 "$APP"
 archs="$(lipo -archs "$EXEC" 2>/dev/null || true)"
 [ -n "$archs" ] || { echo "cannot inspect executable architectures" >&2; exit 1; }
-echo "validated $(basename "$APP"): $bundle_id, version=$marketing_version ($build_version), macOS >= $min_os, arch=$archs"
+echo "validated $(basename "$APP"): $bundle_id, version=$marketing_version ($build_version), mode=$signing_mode, macOS >= $min_os, arch=$archs"
 
 entitlements="$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)"
 has_sandbox=0

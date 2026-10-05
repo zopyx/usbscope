@@ -5,9 +5,9 @@ pretends a step is done that has not been done.
 
 The project builds one thing today — the app bundle `dist/usbscope-swift.app`,
 produced by `scripts/build-swift-app.sh` — and two ways to hand it out. The build
-script packs the bundle into `dist/usbscope-swift-<version>-macos-<arch>.tar.gz`;
+script packs the bundle into `dist/usbscope-swift-<version>-macos-<arch>-<signing-mode>.tar.gz`;
 `scripts/build-swift-dmg.sh` (`make swift-app-dmg`) packs the same bundle into a
-compressed `dist/usbscope-swift-<version>-macos-<arch>.dmg`. Both artifacts get a
+compressed `dist/usbscope-swift-<version>-macos-<arch>-<signing-mode>.dmg`. Both artifacts get a
 line in `dist/SHA256SUMS`, which `make checksums` re-verifies. The build is
 native-only by default; `scripts/build-swift-app.sh --universal` optionally builds
 a fat arm64 + x86_64 bundle. There is still no published release, no prebuilt CLI
@@ -32,6 +32,17 @@ Tool versions on the machine this was written on: macOS 27.0.1 (build 26A434),
 `GITHUB_RUN_NUMBER`; credentialed release automation may provide `BUILD_NUMBER`.
 Local builds fall back to the Git revision count, and the bundle script rejects
 missing, zero, or non-numeric values before writing `Info.plist`.
+
+### Signing modes
+
+Every bundle carries `USBScopeSigningMode`, and every archive/DMG includes the
+same mode in its filename. The direct builder accepts `--signing-mode debug`,
+`adhoc`, or `developer-id`; legacy `--debug` and `--identity` flags infer the
+corresponding mode. Debug and ad-hoc modes require an ad-hoc signature, while
+Developer ID mode requires an Apple Developer ID Application signature and
+fails closed if the resulting certificate is not Developer ID. The MAS wrapper
+uses `--signing-mode mas`, consumes the sandbox entitlements, and emits a
+separately named `-mas.pkg`.
 
 ---
 
@@ -80,14 +91,14 @@ dist/usbscope-swift.app: rejected                                               
 ### The DMG (`scripts/build-swift-dmg.sh`)
 
 `make swift-app-dmg` turns the bundle above into
-`dist/usbscope-swift-<version>-macos-<arch>.dmg` using `hdiutil` alone — no sudo,
+`dist/usbscope-swift-<version>-macos-<arch>-adhoc.dmg` using `hdiutil` alone — no sudo,
 no Apple account, no `create-dmg`/`appdmg`. The volume is named `usbscope`, holds
 `usbscope-swift.app` next to an `/Applications` symlink (the usual drag-to-install
 layout), and is written as a compressed, read-only `UDZO` image. Everything is
 staged in a `mktemp -d` directory that a `trap` removes and the test mount is
 detached, so no staged file or loop device is left behind. The architecture in the
 name is read from the binary inside the bundle, so a `--universal` bundle yields a
-`...-universal2.dmg` automatically.
+`...-universal2-<signing-mode>.dmg` automatically.
 
 Real output from this machine **[ran]**:
 
@@ -95,17 +106,17 @@ Real output from this machine **[ran]**:
 $ scripts/build-swift-dmg.sh
 + hdiutil: /usr/bin/hdiutil
 $ ditto dist/usbscope-swift.app usbscope-swift.app
-$ hdiutil create -volname usbscope -srcfolder <staged> -ov -format UDZO dist/usbscope-swift-0.9.0-macos-universal2.dmg
-created: dist/usbscope-swift-0.9.0-macos-universal2.dmg
-$ hdiutil verify dist/usbscope-swift-0.9.0-macos-universal2.dmg
-hdiutil: verify: checksum of ".../usbscope-swift-0.9.0-macos-universal2.dmg" is VALID
-$ hdiutil attach dist/usbscope-swift-0.9.0-macos-universal2.dmg -nobrowse -readonly -mountpoint <staged mount>
+$ hdiutil create -volname usbscope -srcfolder <staged> -ov -format UDZO dist/usbscope-swift-0.9.0-macos-universal2-adhoc.dmg
+created: dist/usbscope-swift-0.9.0-macos-universal2-adhoc.dmg
+$ hdiutil verify dist/usbscope-swift-0.9.0-macos-universal2-adhoc.dmg
+hdiutil: verify: checksum of ".../usbscope-swift-0.9.0-macos-universal2-adhoc.dmg" is VALID
+$ hdiutil attach dist/usbscope-swift-0.9.0-macos-universal2-adhoc.dmg -nobrowse -readonly -mountpoint <staged mount>
   mounted volume contents: Applications usbscope-swift.app
   mounted copy --version → usbscope-app 0.9.0
 $ hdiutil detach <staged mount>
 "disk12" ejected.
 
-dist/usbscope-swift-0.9.0-macos-universal2.dmg  (2.4 MiB)
+dist/usbscope-swift-0.9.0-macos-universal2-adhoc.dmg  (2.4 MiB)
 ```
 
 `hdiutil create` / `attach` / `detach` print a deprecation warning pointing at
@@ -114,8 +125,8 @@ same `dist/SHA256SUMS`, so `make checksums` covers both artifacts:
 
 ```console
 $ make checksums
-usbscope-swift-0.9.0-macos-universal2.tar.gz: OK
-usbscope-swift-0.9.0-macos-universal2.dmg: OK
+usbscope-swift-0.9.0-macos-universal2-adhoc.tar.gz: OK
+usbscope-swift-0.9.0-macos-universal2-adhoc.dmg: OK
 ```
 
 `--no-verify` skips the mount/run test. The DMG passes `hdiutil verify` and mounts
@@ -292,7 +303,7 @@ executable arm64` shown in section (a).
 `scripts/build-swift-app.sh --universal` opts into a fat build. It adds
 `--arch arm64 --arch x86_64` to the `swift build` (so the linker emits a fat
 Mach-O), checks the result with `lipo` and fails loudly if the binary came out
-thin, and names the archive `...-macos-universal2.tar.gz` instead of the host
+thin, and names the archive `...-macos-universal2-<signing-mode>.tar.gz` instead of the host
 architecture. Run on this machine **[ran]**:
 
 Every signed app build also runs `scripts/validate-swift-app.sh`, which checks
@@ -325,7 +336,7 @@ bundle is still only *ad-hoc* signed (the `Format` / `Signature` lines above), s
 it is neither Developer-ID signed nor notarised, exactly like the native build.
 The default stays native-only, and no universal artifact is shipped — only the
 `--universal` run changes the bundle, the archive name and (via
-`scripts/build-swift-dmg.sh`) the `...-universal2.dmg` name.
+`scripts/build-swift-dmg.sh`) the `...-universal2-<signing-mode>.dmg` name.
 
 ---
 
@@ -360,7 +371,7 @@ an operational prerequisite before publication.
 - [ ] A published release of any kind — nothing is tagged or uploaded; the tarball
       and the DMG exist only under `dist/`.
 - [x] `SHA256SUMS` for the release artifacts: `scripts/build-swift-app.sh` packs the
-      bundle into `dist/usbscope-swift-<version>-macos-<arch>.tar.gz`,
+      bundle into `dist/usbscope-swift-<version>-macos-<arch>-<signing-mode>.tar.gz`,
       `scripts/build-swift-dmg.sh` packs it into the matching `.dmg`, and
       `dist/SHA256SUMS` carries a line for each; `make checksums` re-verifies both
       (and fails on a mismatch). These are checksums over *unsigned* artifacts,

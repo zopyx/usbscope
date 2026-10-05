@@ -39,7 +39,7 @@ command -v productbuild >/dev/null 2>&1 || { echo "productbuild is required" >&2
 command -v pkgutil >/dev/null 2>&1 || { echo "pkgutil is required" >&2; exit 1; }
 
 mkdir -p "$DIST"
-"$ROOT/scripts/build-swift-app.sh" --configuration "$CONFIGURATION" --no-sign --no-archive --no-verify
+"$ROOT/scripts/build-swift-app.sh" --configuration "$CONFIGURATION" --signing-mode mas --no-sign --no-archive --no-verify
 
 cp -p "$PROFILE" "$APP/Contents/embedded.provisionprofile"
 codesign --force --timestamp --options runtime \
