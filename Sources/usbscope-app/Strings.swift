@@ -129,6 +129,11 @@ enum StringKey: String, CaseIterable {
     case sourceHealth
     case unknown
     case monitoring
+    case monitoringEventDriven
+    case monitoringPolling
+    case monitoringUnavailable
+    case monitoringInterval
+    case monitoringLastEvent
     case freshness
     case warnings
     case warningField
@@ -417,6 +422,11 @@ enum Strings {
         case .sourceHealth: "Source health"
         case .unknown: "unknown"
         case .monitoring: "Monitoring"
+        case .monitoringEventDriven: "IOKit events"
+        case .monitoringPolling: "Polling fallback"
+        case .monitoringUnavailable: "Unavailable"
+        case .monitoringInterval: "interval"
+        case .monitoringLastEvent: "last event"
         case .freshness: "Freshness"
         case .warnings: "Warnings"
         case .warningField: "Field"
@@ -635,6 +645,11 @@ enum Strings {
         case .sourceHealth: "Quellstatus"
         case .unknown: "unbekannt"
         case .monitoring: "Überwachung"
+        case .monitoringEventDriven: "IOKit-Ereignisse"
+        case .monitoringPolling: "Polling-Fallback"
+        case .monitoringUnavailable: "nicht verfügbar"
+        case .monitoringInterval: "Intervall"
+        case .monitoringLastEvent: "letztes Ereignis"
         case .freshness: "Aktualität"
         case .warnings: "Warnungen"
         case .warningField: "Feld"
@@ -890,8 +905,22 @@ extension Strings {
         }
     }
 
-    static func monitoringLabel(_ status: String, _ language: AppLanguage) -> String {
-        "\(L(.monitoring, language)): \(status)"
+    static func monitoringLabel(_ status: String, interval: TimeInterval?,
+                                lastEvent: Date?, _ language: AppLanguage) -> String {
+        let lower = status.lowercased()
+        let mode: String
+        if lower.contains("unavailable") || lower == "disabled" {
+            mode = L(.monitoringUnavailable, language)
+        } else if lower.contains("iokit notifications") {
+            mode = L(.monitoringEventDriven, language)
+        } else if lower.contains("polling") {
+            mode = L(.monitoringPolling, language)
+        } else {
+            mode = status
+        }
+        let cadence = interval.map { String(format: "%.1f s", $0) } ?? "—"
+        let event = lastEvent?.formatted(date: .abbreviated, time: .shortened) ?? "—"
+        return "\(L(.monitoring, language)): \(mode) · \(L(.monitoringInterval, language)): \(cadence) · \(L(.monitoringLastEvent, language)): \(event)"
     }
 
     static func warningFieldLabel(field: String, message: String, _ language: AppLanguage) -> String {

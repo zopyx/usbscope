@@ -251,7 +251,10 @@ struct DiagnosticsSheet: View {
                                                               status: Strings.sourceStatus(state.sourceHealth[source] ?? .notApplicable, state.language),
                                                               state.language))
             }
-            Text(Strings.monitoringLabel(state.monitoringStatus, state.language))
+            Text(Strings.monitoringLabel(state.monitoringStatus,
+                                         interval: state.monitoringPollInterval,
+                                         lastEvent: state.lastHotplugAt,
+                                         state.language))
                 .font(.caption).foregroundStyle(.secondary)
             Text(Strings.freshnessLabel(state.dataFreshness.rawValue,
                                         duration: state.lastReadDuration.map { String(format: "%.2fs", $0) } ?? "—",

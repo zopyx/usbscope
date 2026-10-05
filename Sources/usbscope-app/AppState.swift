@@ -150,6 +150,7 @@ final class AppState: ObservableObject {
     @Published private(set) var dataFreshness: DataFreshness = .unavailable
     @Published private(set) var lastReadDuration: TimeInterval?
     @Published private(set) var sourceTimings: [String: TimeInterval] = [:]
+    @Published private(set) var lastHotplugAt: Date?
 
     /// The aggregate status belongs in the persistent header; individual
     /// source rows remain available through `sourceHealthRows`.
@@ -211,6 +212,7 @@ final class AppState: ObservableObject {
     /// Whether the watcher got real IOKit notifications (vs. the polling fallback).
     var isHotplugEventDriven: Bool { watcher?.isEventDriven ?? false }
     var monitoringStatus: String { watcher?.status ?? "disabled" }
+    var monitoringPollInterval: TimeInterval? { watcher?.pollInterval }
 
     /// The charging watts over time, as far as the app has seen them.
     var powerTimeline: [PowerPoint] { history.powerTimeline() }
@@ -319,6 +321,7 @@ final class AppState: ObservableObject {
     /// already in flight and mutating presentation state out of order.
     private func handleHotplug(_ update: UsbHotplugWatcher.Update) {
         guard !shuttingDown else { return }
+        lastHotplugAt = update.at
         if let eventLog, !update.events.isEmpty {
             let events = update.events
             // The log is I/O; keep it off the main thread.

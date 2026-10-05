@@ -62,6 +62,9 @@ require_pattern "$APP/AppState.swift" "guard !shuttingDown else { return }" "App
 require_pattern "$APP/AppState.swift" "guard !self.shuttingDown else { return }" "AppState blocks asynchronous work after shutdown"
 require_pattern "$APP/UsbScopeApp.swift" "allowsUserCustomization = true" "native toolbar customization remains enabled"
 require_pattern "$APP/UsbScopeApp.swift" "autosavesConfiguration = true" "native toolbar configuration remains persistent"
+require_pattern "$APP/AppState.swift" "lastHotplugAt" "monitoring records the last hot-plug event"
+require_pattern "$APP/Views.swift" "monitoringPollInterval" "monitoring exposes its polling cadence"
+require_pattern "$APP/Strings.swift" "monitoringLastEvent" "monitoring details remain localized"
 
 forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"
