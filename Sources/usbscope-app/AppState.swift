@@ -41,6 +41,17 @@ final class UserDefaultsBackend: PreferencesBackend {
     func set(_ data: Data?, forKey key: String) { defaults.set(data, forKey: key) }
 }
 
+/// The source-level facts shown by the persistent status control.
+struct SourceHealthRow: Identifiable {
+    let source: String
+    let status: SourceHealth
+    let duration: TimeInterval?
+    let warning: String?
+    let lastSuccess: Date?
+
+    var id: String { source }
+}
+
 /// Observable app state: the current snapshot, the selected view, the search
 /// text, the auto-refresh cadence and the change set of the last refresh.
 ///
@@ -128,6 +139,8 @@ final class AppState: ObservableObject {
     @Published private(set) var storageWarnings: [String] = []
     @Published private(set) var readWarnings: [String] = []
     @Published private(set) var sourceHealth: [String: SourceHealth] = [:]
+    @Published private(set) var sourceWarningsBySource: [String: [String]] = [:]
+    @Published private(set) var sourceLastSuccessAt: [String: Date] = [:]
     @Published var showFirstRun = false
     @Published var showDiagnostics = false
     @Published var showCommandPalette = false
@@ -137,6 +150,33 @@ final class AppState: ObservableObject {
     @Published private(set) var dataFreshness: DataFreshness = .unavailable
     @Published private(set) var lastReadDuration: TimeInterval?
     @Published private(set) var sourceTimings: [String: TimeInterval] = [:]
+
+    /// The aggregate status belongs in the persistent header; individual
+    /// source rows remain available through `sourceHealthRows`.
+    var overallSourceHealth: SourceHealth {
+        if dataFreshness == .stale, lastSuccessfulSnapshot != nil { return .stale }
+        let statuses = Set(sourceHealth.values)
+        if statuses.isEmpty { return .notApplicable }
+        if statuses.contains(.failed) { return .failed }
+        if statuses.contains(.partial) { return .partial }
+        if statuses.contains(.unsupported) { return .unsupported }
+        if statuses.allSatisfy({ $0 == .notApplicable }) { return .notApplicable }
+        return .healthy
+    }
+
+    var sourceHealthRows: [SourceHealthRow] {
+        let names = Set(sourceHealth.keys)
+            .union(sourceTimings.keys)
+            .union(sourceWarningsBySource.keys)
+            .union(sourceLastSuccessAt.keys)
+        return names.sorted().map { source in
+            SourceHealthRow(source: source,
+                            status: sourceHealth[source] ?? .notApplicable,
+                            duration: sourceTimings[source],
+                            warning: sourceWarningsBySource[source]?.joined(separator: " · "),
+                            lastSuccess: sourceLastSuccessAt[source])
+        }
+    }
     /// Whether the main window is currently on screen. Menu-bar-only mode keeps
     /// event-driven monitoring alive but avoids the periodic and timeline work
     /// that is only useful while the dashboard is visible.
@@ -460,9 +500,10 @@ final class AppState: ObservableObject {
         if let generation, generation != refreshGeneration { return }
         if let appliedAt, fresh.seenAt < appliedAt { return }
         let sourceWarnings = fresh.warnings + storageWarnings
-        let currentHealth = health(for: fresh.warnings)
+        let currentHealth = health(for: sourceWarnings)
         qaMetrics.record(snapshot: fresh, sourceStatuses: currentHealth)
         readWarnings = sourceWarnings
+        updateSourceHealthMetadata(health: currentHealth, warnings: sourceWarnings, capturedAt: fresh.seenAt)
         let complete = sourceWarnings.isEmpty && storageStatus != .partial && storageStatus != .failed && storageStatus != .stale
         if !complete, lastSuccessfulSnapshot != nil {
             lastFailureAt = Date()
@@ -516,6 +557,19 @@ final class AppState: ObservableObject {
         }
         health["storage"] = storageStatus
         return health
+    }
+
+    private func updateSourceHealthMetadata(health: [String: SourceHealth], warnings: [String], capturedAt: Date) {
+        var bySource: [String: [String]] = [:]
+        for warning in warnings {
+            let source = warning.split(separator: ":", maxSplits: 1).first.map(String.init) ?? "unknown"
+            bySource[source, default: []].append(warning)
+        }
+        sourceWarningsBySource = bySource
+        sourceHealth = health
+        for (source, status) in health where status == .healthy {
+            sourceLastSuccessAt[source] = capturedAt
+        }
     }
 
     private func reconcileSelection() {

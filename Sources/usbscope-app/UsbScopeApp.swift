@@ -338,6 +338,7 @@ struct ContentView: View {
                         .foregroundStyle(.orange)
                 }
                 Spacer()
+                SourceHealthControl()
                 Text(Strings.freshnessStatus(state.dataFreshness, lang))
                     .font(.caption).foregroundStyle(state.dataFreshness == .current ? Color.secondary : Color.orange)
                 if let captured = state.snapshot?.seenAt {
@@ -350,7 +351,7 @@ struct ContentView: View {
             }
             .font(.caption)
             .padding(.horizontal, 12).padding(.vertical, 6)
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .contain)
             .help(state.dataFreshness == .stale ? (state.errorMessage ?? Strings.freshnessStatus(.stale, lang)) :
                   Strings.capturedLabel(state.snapshot?.seenAt ?? Date(), lang))
             Group {

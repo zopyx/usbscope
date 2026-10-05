@@ -101,6 +101,110 @@ struct FirstRunSheet: View {
     }
 }
 
+/// Compact, persistent source status control for the main dashboard header.
+struct SourceHealthControl: View {
+    @EnvironmentObject private var state: AppState
+    @State private var showingDetails = false
+
+    private var status: SourceHealth { state.overallSourceHealth }
+
+    private var statusColor: Color {
+        switch status {
+        case .healthy: .green
+        case .partial, .stale: .orange
+        case .failed: .red
+        case .unsupported, .notApplicable: .secondary
+        }
+    }
+
+    private var statusIcon: String {
+        switch status {
+        case .healthy: "checkmark.circle"
+        case .partial: "exclamationmark.circle"
+        case .failed: "xmark.circle"
+        case .stale: "clock.badge.exclamationmark"
+        case .unsupported: "questionmark.circle"
+        case .notApplicable: "minus.circle"
+        }
+    }
+
+    var body: some View {
+        Button {
+            showingDetails.toggle()
+        } label: {
+            Label(Strings.sourceStatus(status, state.language), systemImage: statusIcon)
+                .foregroundStyle(statusColor)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(L(.sourceHealth, state.language)): \(Strings.sourceStatus(status, state.language))")
+        .help(L(.sourceHealth, state.language))
+        .popover(isPresented: $showingDetails) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label(L(.sourceHealth, state.language), systemImage: statusIcon)
+                        .font(.headline)
+                        .foregroundStyle(statusColor)
+                    Spacer()
+                    Text(Strings.sourceStatus(status, state.language))
+                        .foregroundStyle(statusColor)
+                }
+                Divider()
+                if state.sourceHealthRows.isEmpty {
+                    Text(L(.refreshToEvaluate, state.language))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(state.sourceHealthRows) { row in
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                Text(row.source).font(.body.monospaced())
+                                Spacer()
+                                Text(Strings.sourceStatus(row.status, state.language))
+                                    .foregroundStyle(row.status == .healthy ? Color.secondary : Color.orange)
+                            }
+                            HStack(spacing: 12) {
+                                if let duration = row.duration {
+                                    Label(String(format: "%.3fs", duration), systemImage: "stopwatch")
+                                }
+                                if let lastSuccess = row.lastSuccess {
+                                    Label(lastSuccess.formatted(date: .abbreviated, time: .shortened),
+                                          systemImage: "checkmark.circle")
+                                } else {
+                                    Label(L(.sourceNoSuccessfulRead, state.language), systemImage: "minus.circle")
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            if let warning = row.warning {
+                                Label(warning, systemImage: "exclamationmark.triangle")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                    .lineLimit(3)
+                            } else {
+                                Text(L(.sourceWarning, state.language) + ": —")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(sourceRowAccessibilityLabel(row))
+                    }
+                }
+            }
+            .padding(16)
+            .frame(width: 430)
+        }
+    }
+
+    private func sourceRowAccessibilityLabel(_ row: SourceHealthRow) -> String {
+        let duration = row.duration.map { String(format: "%.3fs", $0) } ?? "—"
+        let lastSuccess = row.lastSuccess?.formatted(date: .abbreviated, time: .shortened)
+            ?? L(.sourceNoSuccessfulRead, state.language)
+        let warning = row.warning ?? "—"
+        return "\(row.source), \(Strings.sourceStatus(row.status, state.language)), \(L(.sourceDuration, state.language)): \(duration), \(L(.sourceWarning, state.language)): \(warning), \(L(.sourceLastSuccess, state.language)): \(lastSuccess)"
+    }
+}
+
 struct DiagnosticsSheet: View {
     @EnvironmentObject private var state: AppState
     @State private var scenario: DiagnosticScenario = .slowConnection
@@ -131,13 +235,13 @@ struct DiagnosticsSheet: View {
                     Image(systemName: state.sourceHealth[source] == .healthy ? "checkmark.circle" : "exclamationmark.circle")
                     Text(source).font(.caption.monospaced())
                     Spacer()
-                    Text(state.sourceHealth[source]?.rawValue ?? L(.unknown, state.language))
+                    Text(Strings.sourceStatus(state.sourceHealth[source] ?? .notApplicable, state.language))
                         .font(.caption)
                         .foregroundStyle(state.sourceHealth[source] == .healthy ? Color.secondary : Color.orange)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(Strings.sourceHealthLabel(source: source,
-                                                              status: state.sourceHealth[source]?.rawValue ?? L(.unknown, state.language),
+                                                              status: Strings.sourceStatus(state.sourceHealth[source] ?? .notApplicable, state.language),
                                                               state.language))
             }
             Text(Strings.monitoringLabel(state.monitoringStatus, state.language))

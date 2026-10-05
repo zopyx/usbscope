@@ -175,6 +175,10 @@ enum StringKey: String, CaseIterable {
     case profileLowPower
     case lowPowerNote
     case sourceTimings
+    case sourceDuration
+    case sourceWarning
+    case sourceLastSuccess
+    case sourceNoSuccessfulRead
     case scenario
     case evidence
     case noMeasuredValues
@@ -448,6 +452,10 @@ enum Strings {
         case .profileLowPower: "Low power"
         case .lowPowerNote: "Low-power monitoring skips Thunderbolt and charging reads; the status remains visibly partial."
         case .sourceTimings: "Source timings"
+        case .sourceDuration: "Duration"
+        case .sourceWarning: "Warning"
+        case .sourceLastSuccess: "Last success"
+        case .sourceNoSuccessfulRead: "No successful read yet"
         case .scenario: "Scenario"
         case .evidence: "Evidence"
         case .noMeasuredValues: "No measured values"
@@ -651,6 +659,10 @@ enum Strings {
         case .profileLowPower: "Energiesparmodus"
         case .lowPowerNote: "Die energiesparende Überwachung überspringt Thunderbolt- und Ladevorgänge; der Status bleibt sichtbar unvollständig."
         case .sourceTimings: "Quelllaufzeiten"
+        case .sourceDuration: "Dauer"
+        case .sourceWarning: "Warnung"
+        case .sourceLastSuccess: "Letzter Erfolg"
+        case .sourceNoSuccessfulRead: "Noch keine erfolgreiche Lesung"
         case .scenario: "Szenario"
         case .evidence: "Beleg"
         case .noMeasuredValues: "Keine Messwerte"
@@ -819,6 +831,17 @@ extension Strings {
 
     static func sourceHealthLabel(source: String, status: String, _ language: AppLanguage) -> String {
         "\(source): \(status)"
+    }
+
+    static func sourceStatus(_ status: SourceHealth, _ language: AppLanguage) -> String {
+        switch status {
+        case .healthy: return language == .de ? "gesund" : "healthy"
+        case .partial: return language == .de ? "teilweise" : "partial"
+        case .failed: return language == .de ? "fehlgeschlagen" : "failed"
+        case .stale: return language == .de ? "veraltet" : "stale"
+        case .unsupported: return language == .de ? "nicht unterstützt" : "unsupported"
+        case .notApplicable: return language == .de ? "nicht zutreffend" : "not applicable"
+        }
     }
 
     static func monitoringLabel(_ status: String, _ language: AppLanguage) -> String {
