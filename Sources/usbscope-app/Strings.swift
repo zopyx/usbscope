@@ -230,6 +230,7 @@ enum StringKey: String, CaseIterable {
     /// The key for an `AppView`.
     static func of(_ view: AppView) -> StringKey {
         switch view {
+        case .overview: .overview
         case .ports: .viewPorts
         case .cables: .viewCables
         case .devices: .viewDevices
@@ -768,6 +769,7 @@ extension Strings {
     static func emptyMessage(for view: AppView, _ language: AppLanguage) -> String {
         let key: StringKey
         switch view {
+        case .overview: key = .overview
         case .ports: key = .emptyPorts
         case .cables: key = .emptyCables
         case .devices: key = .emptyDevices

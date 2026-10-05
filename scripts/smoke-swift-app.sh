@@ -42,7 +42,7 @@ fi
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/usbscope-smoke.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
-for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do
+for view in overview ports cables devices thunderbolt power timeline security usb4 diff warnings; do
     png="$tmp/$view.png"
     if run_with_timeout "$SMOKE_TIMEOUT_SECONDS" "$EXE" --snapshot "$png" --view "$view" >/dev/null 2>&1 && [ -s "$png" ]; then
         echo "--snapshot $view: $(stat -f '%z bytes' "$png")"

@@ -30,7 +30,7 @@ enum SnapshotRenderer {
             return nil
         }
         let path = arguments[index + 1]
-        var view = AppView.ports
+        var view = AppView.overview
         if let viewIndex = arguments.firstIndex(of: "--view"), viewIndex + 1 < arguments.count,
            let parsed = AppView(rawValue: arguments[viewIndex + 1]) {
             view = parsed

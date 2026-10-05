@@ -105,7 +105,7 @@ swift run usbscope report --format html --out usbscope-report.html
 
 ## The macOS app
 
-The same data as a native SwiftUI window (`usbscope-app`) — ten views in a
+The same data as a native SwiftUI window (`usbscope-app`) — eleven views in a
 toolbar segmented switcher and via `⌘1`–`⌘9`, a live search field, filter presets,
 grouping and a per-view column chooser:
 
@@ -431,7 +431,7 @@ The whole project is this one Swift package (`Package.swift`,
 | Core library `UsbScopeCore` | `Sources/UsbScopeCore/` — model, OS adapters, `SnapshotCollectionService`/`CommandExecutionService`, snapshot coordination, JSON serialiser, formatting, the hotplug watcher, the event log and history |
 | Presentation library `UsbScopeUI` | `Sources/UsbScopeUI/` — table rows, cell styles, `Highlight`, detail pairs, TSV/CSV export, filter presets, grouping, diff presentation (no SwiftUI, so it is unit-testable headless) |
 | CLI executable `usbscope` | `Sources/usbscope/main.swift` |
-| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the ten views and state/preferences layer on top of `UsbScopeUI`; collection and subprocess access goes through Core services |
+| SwiftUI app `usbscope-app` | `Sources/usbscope-app/` — the eleven views and state/preferences layer on top of `UsbScopeUI`; collection and subprocess access goes through Core services |
 | Test suite | `SwiftTests/` |
 | Fixtures | `SwiftTests/Fixtures/` — 14 real and synthetic payloads |
 | Golden | `SwiftTests/Golden/snapshot.json` — a frozen regression reference (below) |
@@ -536,7 +536,7 @@ the system appearance, which is what the window shows anyway.
 
 For reproducible visual review, pass `--fixture SwiftTests/Golden/snapshot.json`
 to render from the checked-in normalized capture instead of live host data;
-`make swift-app-fixture-smoke` exercises all ten views from that stable input,
+`make swift-app-fixture-smoke` exercises all eleven views from that stable input,
 and `make swift-app-visual-check` compares them with the reviewed PNG baselines
 under `docs/screenshots/fixture-baselines/`.
 The same ten fixture renders can be checked at Dynamic Type accessibility size 3
@@ -544,7 +544,7 @@ with `make swift-app-accessibility-check`; reviewed images live under
 `docs/screenshots/fixture-baselines/accessibility3/`. This is a deterministic
 layout gate, not a substitute for VoiceOver on the signed app.
 
-The ten views also have a deterministic dark-appearance gate with
+The eleven views also have a deterministic dark-appearance gate with
 `make swift-app-dark-check`; reviewed images live under
 `docs/screenshots/fixture-baselines/dark/`. The light, dark, and accessibility
 renders are fixture-backed, so host hardware and current time do not change the

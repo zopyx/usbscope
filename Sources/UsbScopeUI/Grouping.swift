@@ -30,6 +30,7 @@ public enum GroupField: String, CaseIterable, Identifiable, Codable, Sendable {
     /// The fields a view offers; an empty array hides the toggle.
     public static func fields(for view: AppView) -> [GroupField] {
         switch view {
+        case .overview: []
         case .ports, .devices: [.none, .bus, .deviceClass, .speed]
         case .cables, .thunderbolt, .power, .timeline, .security, .usb4, .diff, .warnings: []
         }

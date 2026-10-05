@@ -71,7 +71,7 @@ final class AppState: ObservableObject {
     @Published private(set) var progress: SnapshotProgress?
     @Published private(set) var errorMessage: String?
 
-    @Published var view: AppView = .ports {
+    @Published var view: AppView = .overview {
         didSet {
             if view != oldValue {
                 saveViewPreferences(for: oldValue, searchValue: search,

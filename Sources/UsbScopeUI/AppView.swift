@@ -1,13 +1,14 @@
 import Foundation
 
-/// The views of the app — the Swift twin of `usbscope.macapp.viewmodel.VIEWS`
-/// plus the four tabs the Swift app adds on top of the port tables
-/// (`timeline`, `security`, `usb4`, `diff`).
+/// The views of the app — the Swift twin of `usbscope.macapp.viewmodel.VIEWS`,
+/// with a diagnostic Overview plus the port tables and additional history,
+/// security, USB4 and diff routes.
 ///
 /// `tableViews` is the original five, in the order the Python `VIEWS` uses: the
 /// headless `--print-rows` self test iterates exactly those, so its output did
 /// not change when the extra tabs were added.
 public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
+    case overview
     case ports
     case cables
     case devices
@@ -27,6 +28,7 @@ public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
     /// Toolbar label.
     public var title: String {
         switch self {
+        case .overview: "Overview"
         case .ports: "Ports"
         case .cables: "Cables"
         case .devices: "Devices"
@@ -43,6 +45,7 @@ public enum AppView: String, CaseIterable, Identifiable, Codable, Sendable {
     /// SF Symbol for the segmented control / menu.
     public var systemImage: String {
         switch self {
+        case .overview: "gauge.with.dots.needle.33percent"
         case .ports: "cable.connector"
         case .cables: "link"
         case .devices: "externaldrive.connected.to.line.below"
@@ -85,14 +88,17 @@ extension AppView {
     /// later views remain reachable through the menu and command palette because
     /// macOS has no single-key `⌘10` equivalent.
     public var shortcutNumber: Int {
-        (AppView.allCases.firstIndex(of: self) ?? 0) + 1
+        if self == .overview { return 0 }
+        let numbered = AppView.allCases.filter { $0 != .overview }
+        return (numbered.firstIndex(of: self) ?? 0) + 1
     }
 
-    /// `Security (⌘7)` — the view's own label plus its shortcut, for a tooltip.
+    /// The view's own label plus its shortcut, for a tooltip. Overview is the
+    /// landing page and intentionally has no single-key shortcut.
     ///
     /// The label is passed in because the app takes its strings from the typed table;
     /// this type stays language-free.
     public func helpText(_ label: String) -> String {
-        "\(label) (⌘\(shortcutNumber))"
+        shortcutNumber == 0 ? label : "\(label) (⌘\(shortcutNumber))"
     }
 }

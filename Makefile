@@ -131,7 +131,7 @@ watch: swift-build ## run the CLI with live refresh every 2 s (Ctrl-C to stop)
 ## ---------------------------------------------------------------------------
 
 snapshot: swift-build ## render the app window to docs/screenshots/app-<view>.png (offscreen)
-	@for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do \
+	@for view in overview ports cables devices thunderbolt power timeline security usb4 diff warnings; do \
 		./.build/$(CONFIG)/usbscope-app --snapshot docs/screenshots/app-$$view.png --view $$view >/dev/null; \
 		echo "docs/screenshots/app-$$view.png"; \
 	done

@@ -3,8 +3,8 @@ import SwiftUI
 import UsbScopeCore
 import UsbScopeUI
 
-/// usbscope-app — the SwiftUI twin of the Python/AppKit app: the same five
-/// views on top of `UsbScopeCore`, with a view switcher, live search, sortable
+/// usbscope-app — the SwiftUI twin of the Python/AppKit app: an Overview plus
+/// the ten diagnostic views on top of `UsbScopeCore`, with a view switcher, live search, sortable
 /// columns, a detail sheet, JSON/CSV export, a menu bar extra, a `⌘,`
 /// preferences window, DE/EN localisation and per-view column layouts.
 
@@ -318,10 +318,10 @@ struct ContentView: View {
             List(selection: $state.view) {
                 Section(L(.overview, lang)) {
                     Label(L(.overview, lang), systemImage: "gauge.with.dots.needle.33percent")
-                        .tag(AppView.ports)
+                        .tag(AppView.overview)
                 }
                 Section(L(.connections, lang)) {
-                    ForEach([AppView.cables, .devices, .thunderbolt, .usb4]) { item in
+                    ForEach([AppView.ports, .cables, .devices, .thunderbolt, .usb4]) { item in
                         Label(L(.of(item), lang), systemImage: item.systemImage).tag(item)
                     }
                 }
@@ -378,6 +378,7 @@ struct ContentView: View {
                   Strings.capturedLabel(state.snapshot?.seenAt ?? Date(), lang))
             Group {
                 switch state.view {
+                case .overview: OverviewView()
                 case .ports: PortsView()
                 case .cables: CablesView()
                 case .devices: DevicesView()
@@ -479,7 +480,8 @@ struct ContentView: View {
             // A row of buttons, not `Picker(.segmented)`: a segmented picker is a single
             // AppKit control, so one `.help` covers every segment and hovering an icon
             // reported the generic "View" instead of its own name. Each button carries
-            // its own tooltip — `Ports (⌘1)`, `Diff (⌘9)`.
+            // its own tooltip — `Ports (⌘1)`, `Diff (⌘9)`; Overview is the
+            // unnumbered landing page.
             HStack(spacing: 2) {
                 ForEach(AppView.allCases) { view in
                     let selected = state.view == view

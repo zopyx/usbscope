@@ -333,6 +333,7 @@ public enum Presentation {
     public static func details(_ snapshot: Snapshot, view: AppView, rowKey: String,
                                language: AppLanguage = .en) -> [(String, String)] {
         switch view {
+        case .overview: return []
         case .cables:
             let name = String(rowKey.dropFirst("port:".count))
             guard let port = snapshot.ports.first(where: { $0.name == name }) else { return [] }
@@ -361,6 +362,7 @@ public enum Presentation {
     /// Column titles of a view, matching the table columns.
     public static func headers(for view: AppView) -> [String] {
         switch view {
+        case .overview: []
         case .ports: ["Port", "Type", "State", "Mode", "Transports", "Cable", "Notes"]
         case .cables: ["Port", "Cable", "CC authentication", "Hash (CC / USB)", "PD spec", "Power in", "Contract", "Liquid", "Controller fw"]
         case .devices: ["Device", "Vendor", "VID:PID", "Mode", "Class", "Tier", "Port", "Transport", "Serial", "Restricted"]
@@ -378,6 +380,7 @@ public enum Presentation {
     public static func tableRows(for view: AppView, snapshot: Snapshot,
                                  language: AppLanguage = .en) -> [(id: String, cells: [String])] {
         switch view {
+        case .overview: return []
         case .ports:
             return portRows(snapshot, language: language).map { ($0.id, [$0.name.text, $0.kind.text, $0.state.text, $0.mode.text, $0.transports.text, $0.cable.text, $0.notes.text]) }
         case .cables:

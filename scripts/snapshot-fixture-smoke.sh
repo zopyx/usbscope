@@ -18,7 +18,7 @@ fi
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/usbscope-fixture-snapshots.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
 
-for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do
+for view in overview ports cables devices thunderbolt power timeline security usb4 diff warnings; do
     png="$tmp/$view.png"
     log="$tmp/$view.log"
     if ! run_with_timeout 120 "$EXE" --snapshot "$png" --view "$view" --fixture "$FIXTURE" >"$log" 2>&1; then

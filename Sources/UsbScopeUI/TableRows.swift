@@ -427,6 +427,7 @@ public func powerRows(_ snapshot: Snapshot, language: AppLanguage = .en) -> [Pow
 /// The empty-state message of a view (`viewmodel` `empty_message`).
 public func emptyMessage(for view: AppView) -> String {
     switch view {
+    case .overview: "Overview is ready when the first snapshot arrives."
     case .ports: "No ports reported by the port controller."
     case .cables: "No cable or port controller data."
     case .devices: "No USB device attached — plug one in, the table refreshes itself."

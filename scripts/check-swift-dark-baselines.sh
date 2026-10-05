@@ -19,7 +19,7 @@ fi
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/usbscope-dark-check.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
 
-for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do
+for view in overview ports cables devices thunderbolt power timeline security usb4 diff warnings; do
     actual="$tmp/$view.png"
     expected="$BASELINES/$view.png"
     [ -f "$expected" ] || { echo "missing dark baseline: $expected" >&2; exit 1; }

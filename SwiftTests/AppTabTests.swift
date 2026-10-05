@@ -297,13 +297,19 @@ private extension FilterPreset {
 /// in the View menu while the tooltip had no number at all — two places that could
 /// drift. Both now read `AppView.shortcutNumber`.
 final class ViewShortcutTests: XCTestCase {
+    func testOverviewIsTheUnnumberedLandingRoute() {
+        XCTAssertEqual(AppView.overview.shortcutNumber, 0)
+        XCTAssertEqual(AppView.overview.helpText("Overview"), "Overview")
+        XCTAssertFalse(AppView.tableViews.contains(.overview))
+    }
+
     func testEveryViewHasItsOwnNumberInOrder() {
         XCTAssertEqual(
-            AppView.allCases.map(\.shortcutNumber), Array(1...AppView.allCases.count),
-            "the numbers must be 1…n in the order of allCases"
+            AppView.allCases.map(\.shortcutNumber), [0] + Array(1..<AppView.allCases.count),
+            "Overview is unnumbered; the remaining views must be 1…n"
         )
         XCTAssertEqual(Set(AppView.allCases.map(\.shortcutNumber)).count, AppView.allCases.count)
-        XCTAssertEqual(AppView.allCases.count, 10, "⌘1–⌘10")
+        XCTAssertEqual(AppView.allCases.count, 11, "Overview plus ⌘1–⌘10")
     }
 
     /// The tooltip carries the view's label — not the word "View" — plus its shortcut.
@@ -320,7 +326,11 @@ final class ViewShortcutTests: XCTestCase {
         for view in AppView.allCases {
             let text = view.helpText(view.title)
             XCTAssertTrue(text.hasPrefix(view.title), text)
-            XCTAssertTrue(text.contains("⌘\(view.shortcutNumber)"), text)
+            if view.shortcutNumber > 0 {
+                XCTAssertTrue(text.contains("⌘\(view.shortcutNumber)"), text)
+            } else {
+                XCTAssertEqual(text, view.title)
+            }
         }
     }
 }

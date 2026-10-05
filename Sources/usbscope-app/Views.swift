@@ -421,7 +421,7 @@ struct CommandPalette: View {
 
     private var commands: [Command] {
         [
-            Command(id: "overview", title: L(.overview, state.language), symbol: "gauge") { state.view = .ports; state.showCommandPalette = false },
+            Command(id: "overview", title: L(.overview, state.language), symbol: "gauge") { state.view = .overview; state.showCommandPalette = false },
             Command(id: "ports", title: L(.of(.ports), state.language), symbol: "cable.connector") { state.view = .ports; state.showCommandPalette = false },
             Command(id: "cables", title: L(.of(.cables), state.language), symbol: "link") { state.view = .cables; state.showCommandPalette = false },
             Command(id: "devices", title: L(.of(.devices), state.language), symbol: "externaldrive.connected.to.line.below") { state.view = .devices; state.showCommandPalette = false },
@@ -520,7 +520,102 @@ struct GroupHeader: View {
     }
 }
 
-// MARK: - The five views
+// MARK: - Overview and data views
+
+private struct OverviewMetric: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let warning: Bool
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value).font(.headline).monospacedDigit()
+                Text(title).font(.caption).foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(warning ? Color.orange : Color.accentColor)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary, in: .rect(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct OverviewView: View {
+    @EnvironmentObject private var state: AppState
+
+    private var lang: AppLanguage { state.language }
+
+    var body: some View {
+        if let snapshot = state.snapshot {
+            let rows = state.filtered(portRows(snapshot, changes: state.changes, language: lang))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 10) {
+                        OverviewMetric(
+                            title: L(.connectedPorts, lang),
+                            value: "\(snapshot.connectedPorts.count)/\(snapshot.ports.count)",
+                            systemImage: "cable.connector",
+                            warning: false
+                        )
+                        OverviewMetric(
+                            title: L(.deviceCount, lang),
+                            value: String(snapshot.devices.count),
+                            systemImage: "externaldrive",
+                            warning: false
+                        )
+                        OverviewMetric(
+                            title: L(.warnings, lang),
+                            value: String(state.readWarnings.count),
+                            systemImage: "exclamationmark.triangle",
+                            warning: !state.readWarnings.isEmpty
+                        )
+                    }
+
+                    Text(L(.connectedPorts, lang)).font(.headline)
+                    if rows.isEmpty {
+                        EmptyState(message: Strings.emptyMessage(for: .ports, lang),
+                                   actionTitle: L(.refreshNow, lang), action: state.refresh)
+                            .frame(minHeight: 180)
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(rows) { row in
+                                Button {
+                                    state.view = .ports
+                                    state.selection = [row.id]
+                                    state.detailRowKey = row.id
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        CellText(text: row.name, highlight: row.highlight)
+                                            .frame(width: 130, alignment: .leading)
+                                        CellText(text: row.state)
+                                            .frame(width: 105, alignment: .leading)
+                                        CellText(text: row.mode)
+                                            .frame(width: 190, alignment: .leading)
+                                        CellText(text: row.notes)
+                                        Spacer(minLength: 0)
+                                    }
+                                    .padding(.vertical, 5)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityElement(children: .combine)
+                                .accessibilityHint(L(.showDetails, lang))
+                            }
+                        }
+                    }
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else {
+            LoadingView()
+        }
+    }
+}
 
 struct PortsView: View {
     @EnvironmentObject private var state: AppState

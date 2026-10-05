@@ -81,6 +81,6 @@ forbidden_pattern "$APP/Views.swift" "event.kind.rawValue.capitalized" "event ki
 forbidden_pattern "$APP/Views.swift" "dataFreshness.rawValue" "freshness status must use localized labels"
 forbidden_pattern "$APP/Views.swift" "Text(row.rule)" "security rules must use localized labels"
 
-require_pattern "$SMOKE" "for view in ports cables devices thunderbolt power timeline security usb4 diff warnings;" "installed smoke covers all ten views"
+require_pattern "$SMOKE" "for view in overview ports cables devices thunderbolt power timeline security usb4 diff warnings;" "installed smoke covers all eleven views"
 
-echo "UI contract passed: accessibility hooks, keyboard commands, navigation, and ten snapshot routes"
+echo "UI contract passed: accessibility hooks, keyboard commands, navigation, and eleven snapshot routes"
