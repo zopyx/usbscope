@@ -91,16 +91,24 @@ public final class EventLog: @unchecked Sendable {
         else { return }
         let directory = url.deletingLastPathComponent()
         let base = url.deletingPathExtension().lastPathComponent
+        // Work backwards so each older rotation is moved before its source is
+        // replaced. Remove an existing destination explicitly: `moveItem` does
+        // not replace files, and swallowing that error would freeze rotation
+        // after the first full set of archives.
         for index in stride(from: retainedRotations - 1, through: 1, by: -1) {
             let old = directory.appendingPathComponent("\(base).\(index).jsonl")
             let next = directory.appendingPathComponent("\(base).\(index + 1).jsonl")
             if fileManager.fileExists(atPath: old.path) {
-                if index + 1 > retainedRotations { try? fileManager.removeItem(at: next) }
-                else { try? fileManager.moveItem(at: old, to: next) }
+                if fileManager.fileExists(atPath: next.path) {
+                    try fileManager.removeItem(at: next)
+                }
+                try fileManager.moveItem(at: old, to: next)
             }
         }
         let first = directory.appendingPathComponent("\(base).1.jsonl")
-        try? fileManager.removeItem(at: first)
+        if fileManager.fileExists(atPath: first.path) {
+            try fileManager.removeItem(at: first)
+        }
         try fileManager.moveItem(at: url, to: first)
     }
 

@@ -258,6 +258,44 @@ final class HistoryTests: XCTestCase {
         XCTAssertEqual(try log.read().count, 0)
     }
 
+    func testEventLogRotationAdvancesExistingArchives() throws {
+        let log = try EventLog(url: logURL(), maximumBytes: 1_024, maximumAge: 0, retainedRotations: 2)
+        for index in 0..<40 {
+            let event = UsbEvent(
+                kind: .attached,
+                seenAt: Date(timeIntervalSince1970: TimeInterval(index + 1)),
+                key: "device:\(index)",
+                name: "Device \(index)",
+                vendorID: 0x1050,
+                productID: 0x0407,
+                locationID: index,
+                serial: String(repeating: "S", count: 48)
+            )
+            try log.append(event)
+        }
+
+        let current = try log.read()
+        let firstRotation = try EventLog(
+            url: directory.appendingPathComponent("events.1.jsonl"),
+            maximumBytes: 1_024,
+            maximumAge: 0,
+            retainedRotations: 2
+        ).read()
+        let secondRotation = try EventLog(
+            url: directory.appendingPathComponent("events.2.jsonl"),
+            maximumBytes: 1_024,
+            maximumAge: 0,
+            retainedRotations: 2
+        ).read()
+
+        XCTAssertFalse(current.isEmpty)
+        XCTAssertFalse(firstRotation.isEmpty)
+        XCTAssertFalse(secondRotation.isEmpty)
+        XCTAssertGreaterThan(current.map(\.seenAt).max()!, firstRotation.map(\.seenAt).max()!)
+        XCTAssertGreaterThan(firstRotation.map(\.seenAt).max()!, secondRotation.map(\.seenAt).max()!)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent("events.3.jsonl").path))
+    }
+
     func testDefaultLogLivesInApplicationSupport() {
         let url = EventLog.defaultURL()
         XCTAssertTrue(
