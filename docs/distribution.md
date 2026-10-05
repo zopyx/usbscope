@@ -249,6 +249,15 @@ staples and validates the app, then creates the final tarball and checksum from
 the stapled bundle. `--notarize` requires an explicit identity, profile, and
 archive output.
 
+For the credentialed repeatable path, tag a release (`v0.9.0`, for example) or
+dispatch `.github/workflows/release.yml` manually. Configure the protected
+`release` environment with `DEVELOPER_ID_CERTIFICATE_BASE64`,
+`DEVELOPER_ID_CERTIFICATE_PASSWORD`, `DEVELOPER_IDENTITY`, `APPLE_ID`,
+`APPLE_TEAM_ID`, and `APPLE_APP_PASSWORD`. The workflow imports the certificate
+into an ephemeral keychain, stores the notary profile, runs this exact build
+script, validates the stapled bundle with `spctl`, and publishes the tarball and
+checksum. It intentionally does not run for ordinary branch pushes.
+
 ```console
 xcrun notarytool submit dist/usbscope-swift.zip \
   --keychain-profile "AC_USBSCOPE" --wait
