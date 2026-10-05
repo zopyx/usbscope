@@ -66,6 +66,7 @@ require_pattern "$APP/AppState.swift" "lastHotplugAt" "monitoring records the la
 require_pattern "$APP/Views.swift" "monitoringPollInterval" "monitoring exposes its polling cadence"
 require_pattern "$APP/Strings.swift" "monitoringLastEvent" "monitoring details remain localized"
 require_pattern "$APP/AppState.swift" "Strings.progressText" "loading progress uses app localization"
+require_pattern "$APP/AppState.swift" "language: language" "app table/export paths pass the selected language"
 
 forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"

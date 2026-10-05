@@ -595,7 +595,7 @@ final class AppState: ObservableObject {
 
     private func reconcileSelection() {
         guard let snapshot else { selection.removeAll(); detailRowKey = nil; return }
-        let ids = Set(Presentation.tableRows(for: view, snapshot: snapshot).map(\.id))
+        let ids = Set(Presentation.tableRows(for: view, snapshot: snapshot, language: language).map(\.id))
         selection.formIntersection(ids)
         if let detailRowKey, !ids.contains(detailRowKey) { self.detailRowKey = nil }
     }
@@ -840,12 +840,16 @@ final class AppState: ObservableObject {
     /// Row ids currently visible (filtered) in the current view.
     private var visibleRows: [(id: String, cells: [String])] {
         guard let snapshot else { return [] }
-        return Presentation.tableRows(for: view, snapshot: snapshot)
+        return Presentation.tableRows(for: view, snapshot: snapshot, language: language)
     }
 
     private func tsv(_ rows: [(id: String, cells: [String])], header: Bool) -> String {
         var lines: [String] = []
-        if header { lines.append(Presentation.headers(for: view).joined(separator: "\t")) }
+        if header {
+            lines.append(Presentation.headers(for: view)
+                .map { Strings.columnLabel($0, language) }
+                .joined(separator: "\t"))
+        }
         lines.append(contentsOf: rows.map { $0.cells.joined(separator: "\t") })
         return lines.joined(separator: "\n")
     }
@@ -991,7 +995,7 @@ final class AppState: ObservableObject {
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let rawText = format == .csv
-            ? Presentation.csv(for: view, snapshot: snapshot)
+            ? Presentation.csv(for: view, snapshot: snapshot, language: language)
             : Serialize.json(snapshot)
         let text = RedactionPolicy().redactText(rawText, snapshot: snapshot, storage: storage)
         do {

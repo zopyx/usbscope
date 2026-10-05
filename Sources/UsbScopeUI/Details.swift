@@ -375,18 +375,19 @@ public enum Presentation {
     }
 
     /// Every row of a view as `(row id, cell texts)`.
-    public static func tableRows(for view: AppView, snapshot: Snapshot) -> [(id: String, cells: [String])] {
+    public static func tableRows(for view: AppView, snapshot: Snapshot,
+                                 language: AppLanguage = .en) -> [(id: String, cells: [String])] {
         switch view {
         case .ports:
-            return portRows(snapshot).map { ($0.id, [$0.name.text, $0.kind.text, $0.state.text, $0.mode.text, $0.transports.text, $0.cable.text, $0.notes.text]) }
+            return portRows(snapshot, language: language).map { ($0.id, [$0.name.text, $0.kind.text, $0.state.text, $0.mode.text, $0.transports.text, $0.cable.text, $0.notes.text]) }
         case .cables:
-            return cableRows(snapshot).map { ($0.id, [$0.port.text, $0.cable.text, $0.authentication.text, $0.hash.text, $0.spec.text, $0.powerIn.text, $0.contract.text, $0.liquid.text, $0.firmware.text]) }
+            return cableRows(snapshot, language: language).map { ($0.id, [$0.port.text, $0.cable.text, $0.authentication.text, $0.hash.text, $0.spec.text, $0.powerIn.text, $0.contract.text, $0.liquid.text, $0.firmware.text]) }
         case .devices:
-            return deviceRows(snapshot).map { ($0.id, [$0.name.text, $0.vendor.text, $0.idString.text, $0.mode.text, $0.deviceClass.text, $0.tier.text, $0.port.text, $0.transport.text, $0.serial.text, $0.restricted.text]) }
+            return deviceRows(snapshot, language: language).map { ($0.id, [$0.name.text, $0.vendor.text, $0.idString.text, $0.mode.text, $0.deviceClass.text, $0.tier.text, $0.port.text, $0.transport.text, $0.serial.text, $0.restricted.text]) }
         case .thunderbolt:
-            return thunderboltRows(snapshot).map { ($0.id, [$0.bus.text, $0.receptacle.text, $0.state.text, $0.link.text, $0.host.text]) }
+            return thunderboltRows(snapshot, language: language).map { ($0.id, [$0.bus.text, $0.receptacle.text, $0.state.text, $0.link.text, $0.host.text]) }
         case .power:
-            return powerRows(snapshot).map { ($0.id, [$0.metric.text, $0.value.text]) }
+            return powerRows(snapshot, language: language).map { ($0.id, [$0.metric.text, $0.value.text]) }
         case .security:
             return SecurityPresentation.findingRows(Security.analyse(snapshot)).map {
                 ($0.id, [$0.severity, $0.rule, $0.subject, $0.detail])
@@ -396,7 +397,7 @@ public enum Presentation {
                 ($0.id, [$0.kind.rawValue, String($0.depth), $0.title, [$0.detail, $0.rawLink].compactMap { $0 }.joined(separator: " · ")])
             }
         case .warnings:
-            return WarningPresentation.rows(snapshot.warnings).map {
+            return WarningPresentation.rows(snapshot.warnings, language: language).map {
                 ($0.id, [$0.source, $0.severity, $0.field, $0.message, $0.remediation])
             }
         case .timeline, .diff:
@@ -405,13 +406,15 @@ public enum Presentation {
     }
 
     /// Column titles and cell texts per view, matching the table columns.
-    public static func tableText(for view: AppView, snapshot: Snapshot) -> (headers: [String], rows: [[String]]) {
-        (headers(for: view), tableRows(for: view, snapshot: snapshot).map(\.cells))
+    public static func tableText(for view: AppView, snapshot: Snapshot,
+                                 language: AppLanguage = .en) -> (headers: [String], rows: [[String]]) {
+        (headers(for: view), tableRows(for: view, snapshot: snapshot, language: language).map(\.cells))
     }
 
     /// Tab separated text for the clipboard.
-    public static func tsv(for view: AppView, snapshot: Snapshot, header: Bool = true) -> String {
-        let table = tableText(for: view, snapshot: snapshot)
+    public static func tsv(for view: AppView, snapshot: Snapshot, header: Bool = true,
+                           language: AppLanguage = .en) -> String {
+        let table = tableText(for: view, snapshot: snapshot, language: language)
         var lines: [String] = []
         if header { lines.append(table.headers.joined(separator: "\t")) }
         lines.append(contentsOf: table.rows.map { $0.map(clean).joined(separator: "\t") })
@@ -419,8 +422,9 @@ public enum Presentation {
     }
 
     /// CSV (RFC 4180 quoting) for the export menu.
-    public static func csv(for view: AppView, snapshot: Snapshot, header: Bool = true) -> String {
-        let table = tableText(for: view, snapshot: snapshot)
+    public static func csv(for view: AppView, snapshot: Snapshot, header: Bool = true,
+                           language: AppLanguage = .en) -> String {
+        let table = tableText(for: view, snapshot: snapshot, language: language)
         var lines: [String] = []
         if header { lines.append(table.headers.map(quote).joined(separator: ",")) }
         lines.append(contentsOf: table.rows.map { $0.map { quote(clean($0)) }.joined(separator: ",") })

@@ -212,6 +212,14 @@ final class PresentationTests: XCTestCase {
         XCTAssertTrue(csv.contains("YubiKey OTP+FIDO+CCID"))
     }
 
+    func testLocalizedTableRowsAndExportsUseTheRequestedLanguage() {
+        let snapshot = snapshot()
+        let rows = Presentation.tableRows(for: .ports, snapshot: snapshot, language: .de)
+        XCTAssertTrue(rows.contains { $0.cells.contains("● verbunden") })
+        let tsv = Presentation.tsv(for: .ports, snapshot: snapshot, language: .de)
+        XCTAssertTrue(tsv.contains("● verbunden"))
+    }
+
     // MARK: - Diffing
 
     private func makePort(_ name: String, connected: Bool, devices: [UsbDevice]) -> UsbPort {
