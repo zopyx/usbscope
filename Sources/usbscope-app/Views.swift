@@ -1084,8 +1084,26 @@ struct SecurityView: View {
     private var storageBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(L(.securityStorageTitle, lang)).font(.headline)
+            if state.storageStatus != .healthy {
+                let status = state.storageStatus
+                Label(status == .failed ? L(.storageUnavailable, lang) : L(.storagePartial, lang),
+                      systemImage: status == .failed ? "xmark.circle" : "exclamationmark.circle")
+                    .foregroundStyle(status == .failed ? Color.red : Color.orange)
+                    .accessibilityValue(Strings.sourceStatus(status, lang))
+                ForEach(state.readWarnings.filter { $0.hasPrefix("storage:") }, id: \.self) { warning in
+                    Text(warning)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+            }
             if state.storageInventory.isEmpty {
-                Text(L(.securityEmptyStorage, lang)).foregroundStyle(.secondary)
+                if state.storageStatus == .healthy {
+                    Text(L(.securityEmptyStorage, lang)).foregroundStyle(.secondary)
+                } else {
+                    Button(L(.refreshNow, lang)) { state.refresh() }
+                        .keyboardShortcut(.defaultAction)
+                }
             } else {
                 ForEach(state.storageInventory) { row in storageView(row) }
             }

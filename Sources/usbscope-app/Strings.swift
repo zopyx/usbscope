@@ -68,6 +68,8 @@ enum StringKey: String, CaseIterable {
     case securityHonestLimits
     case securityEmptyFindings
     case securityEmptyStorage
+    case storageUnavailable
+    case storagePartial
     case severityWarning
     case severityAttention
     case severityInfo
@@ -345,6 +347,8 @@ enum Strings {
         case .securityHonestLimits: "The security view reports observations from macOS. It is not malware detection; missing data is not evidence of malicious behaviour."
         case .securityEmptyFindings: "Nothing stood out in what macOS reports."
         case .securityEmptyStorage: "No USB mass storage attached — a Mac without one is normal."
+        case .storageUnavailable: "Storage information could not be read."
+        case .storagePartial: "Storage information is incomplete."
         case .severityWarning: "Warning"
         case .severityAttention: "Attention"
         case .severityInfo: "Info"
@@ -552,6 +556,8 @@ enum Strings {
         case .securityHonestLimits: "Die Sicherheitsansicht zeigt Beobachtungen aus macOS. Sie ist keine Schadsoftware-Erkennung; fehlende Daten sind kein Hinweis auf bösartiges Verhalten."
         case .securityEmptyFindings: "In den von macOS gemeldeten Daten ist nichts Auffälliges enthalten."
         case .securityEmptyStorage: "Kein USB-Massenspeicher angeschlossen — auf einem Mac ohne solchen Speicher ist das normal."
+        case .storageUnavailable: "Die Speicherinformationen konnten nicht gelesen werden."
+        case .storagePartial: "Die Speicherinformationen sind unvollständig."
         case .severityWarning: "Warnung"
         case .severityAttention: "Achtung"
         case .severityInfo: "Info"

@@ -117,8 +117,9 @@ public struct StorageInventory: Sendable, Equatable {
 ///
 /// Absence is normal, not an error: a Mac with no USB storage reports no
 /// matching disk and the inventory is empty. A missing or failing `diskutil`
-/// degrades to the same empty inventory — and without a warning, because there
-/// is nothing to say about a machine that has no USB storage.
+/// also returns an empty device list, but preserves a failed/partial status and
+/// source warning so presentation layers never mistake an unreadable source for
+/// a healthy empty inventory.
 public struct StorageSource: Sendable {
     private let run: Runner
 
