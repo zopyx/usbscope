@@ -139,7 +139,7 @@ system load, battery).
 
 | Feature | Behaviour |
 | --- | --- |
-| Tabs | Nine views in the toolbar segmented switcher and via `⌘1`–`⌘9`: **Ports · Cables · Devices · Thunderbolt · Power · Timeline · Security · USB4 · Diff** |
+| Tabs | Ten views in the toolbar/sidebar and via `⌘1`–`⌘9` plus the command palette: **Ports · Cables · Devices · Thunderbolt · Power · Timeline · Security · USB4 · Diff · Warnings** |
 | Search | Toolbar field, live filter over every column (all terms must match) |
 | Presets | Quick filters next to the search field: all / HID only / storage only / connected only |
 | Sorting | Click a column header; a mode rank and a port number sort `USB 1.1` below `USB 3.2 Gen 2` and `@2` below `@10` |

@@ -28,11 +28,11 @@ restrictions.
 
 ## A native macOS app
 
-The same data in a real SwiftUI window (`usbscope-app`) with **nine tabs** —
+The same data in a real SwiftUI window (`usbscope-app`) with **ten tabs** —
 Ports · Cables · Devices · Thunderbolt · Power · Timeline · Security · USB4 ·
-Diff — plus search and filter presets, group-by, a column chooser, a details
-sheet, auto-refresh, a menu bar extra, notification banners, an About window and
-preferences.
+Diff · Warnings — plus search and filter presets, group-by, a column chooser, a
+details sheet, auto-refresh, a menu bar extra, notification banners, an About
+window and preferences.
 
 ![usbscope app](docs/screenshots/app-ports.png)
 

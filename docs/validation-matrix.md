@@ -12,6 +12,7 @@ Automated checks run on every change:
 | Visual baseline comparison | `scripts/check-swift-visual-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines` | Exact fixture-driven PNG output matches the reviewed baseline for every view |
 | Localization | `scripts/check-localization.sh` | No user-visible SwiftUI/AppKit literals bypass the string table |
 | UI contract | `scripts/check-ui-contract.sh` | Keyboard commands, accessibility hooks, all ten view routes, and actionable empty/source-health controls remain wired |
+| Keyboard workflow plan | `docs/keyboard-test-plan.md` | Signed-app release checklist covers focus order, filtering, details, refresh, baselines, exports, cancellation, security, and eject safety |
 | Large-data performance | `swift test --filter PerformanceTests` | 500-device report and 1,000-entry history stay within budgets |
 | Parser robustness | `swift test --filter ParserFuzzTests` | Malformed and deeply nested source trees do not crash adapters |
 | Concurrency and export safety | `swift test --filter FixSpecTests` | Refresh bursts are serialized, stderr remains bounded, and atomic exports leave no temporary files |
