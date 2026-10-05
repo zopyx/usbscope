@@ -91,29 +91,33 @@ public func grouped<Row: Identifiable>(
 }
 
 /// Human bucket name for a `UsbMode` rank (`0` means no link).
-public func speedGroupLabel(_ rank: Int) -> String {
+public func speedGroupLabel(_ rank: Int, language: AppLanguage = .en) -> String {
     guard rank > 0, let mode = UsbMode.allCases.first(where: { $0.rank == rank }) else {
-        return "no link"
+        return language == .de ? "keine Verbindung" : "no link"
     }
     return mode.label
 }
 
 /// The group a port row belongs to.
-public func groupSpec(for row: PortRow, by field: GroupField) -> GroupSpec {
+public func groupSpec(for row: PortRow, by field: GroupField,
+                      language: AppLanguage = .en) -> GroupSpec {
     switch field {
     case .none:
         GroupSpec(title: "")
     case .bus:
         GroupSpec(title: row.kind.text)
     case .deviceClass:
-        GroupSpec(title: row.attachedClass.isEmpty ? "no device" : row.attachedClass)
+        GroupSpec(title: row.attachedClass.isEmpty
+                  ? (language == .de ? "kein Gerät" : "no device")
+                  : row.attachedClass)
     case .speed:
-        GroupSpec(title: speedGroupLabel(row.modeSort), order: -row.modeSort)
+        GroupSpec(title: speedGroupLabel(row.modeSort, language: language), order: -row.modeSort)
     }
 }
 
 /// The group a device row belongs to.
-public func groupSpec(for row: DeviceRow, by field: GroupField) -> GroupSpec {
+public func groupSpec(for row: DeviceRow, by field: GroupField,
+                      language: AppLanguage = .en) -> GroupSpec {
     switch field {
     case .none:
         GroupSpec(title: "")
@@ -122,14 +126,16 @@ public func groupSpec(for row: DeviceRow, by field: GroupField) -> GroupSpec {
     case .deviceClass:
         GroupSpec(title: row.deviceClass.text)
     case .speed:
-        GroupSpec(title: speedGroupLabel(row.modeSort), order: -row.modeSort)
+        GroupSpec(title: speedGroupLabel(row.modeSort, language: language), order: -row.modeSort)
     }
 }
 
-public func groups(for rows: [PortRow], by field: GroupField) -> [RowGroup<PortRow>] {
-    grouped(rows, by: { groupSpec(for: $0, by: field) })
+public func groups(for rows: [PortRow], by field: GroupField,
+                   language: AppLanguage = .en) -> [RowGroup<PortRow>] {
+    grouped(rows, by: { groupSpec(for: $0, by: field, language: language) })
 }
 
-public func groups(for rows: [DeviceRow], by field: GroupField) -> [RowGroup<DeviceRow>] {
-    grouped(rows, by: { groupSpec(for: $0, by: field) })
+public func groups(for rows: [DeviceRow], by field: GroupField,
+                   language: AppLanguage = .en) -> [RowGroup<DeviceRow>] {
+    grouped(rows, by: { groupSpec(for: $0, by: field, language: language) })
 }

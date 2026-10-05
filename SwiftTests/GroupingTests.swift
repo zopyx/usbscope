@@ -25,6 +25,7 @@ final class GroupingTests: XCTestCase {
         XCTAssertEqual(speedGroupLabel(2), UsbMode.fullSpeed.label)
         XCTAssertEqual(speedGroupLabel(4), UsbMode.superSpeed.label)
         XCTAssertEqual(speedGroupLabel(8), UsbMode.usb4_80.label)
+        XCTAssertEqual(speedGroupLabel(0, language: .de), "keine Verbindung")
     }
 
     // MARK: - none keeps every row in one unnamed group
@@ -59,6 +60,12 @@ final class GroupingTests: XCTestCase {
         let withDevice = grouped.first { $0.title != "no device" }
         XCTAssertEqual(withDevice?.rows.count, 1)
         XCTAssertEqual(withDevice?.rows.first?.id, "port:USB-C@3")
+    }
+
+    func testEmptyGroupLabelsCanBeLocalized() {
+        let rows = portRows(snapshot(), language: .de)
+        let grouped = groups(for: rows, by: .deviceClass, language: .de)
+        XCTAssertTrue(grouped.contains { $0.title == "kein Gerät" })
     }
 
     func testGroupOrderIsFastestSpeedFirst() {

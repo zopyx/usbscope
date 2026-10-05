@@ -472,7 +472,7 @@ struct PortsView: View {
     }
 
     private func grouped(_ rows: [PortRow]) -> some View {
-        let sections = groups(for: rows, by: state.groupField)
+        let sections = groups(for: rows, by: state.groupField, language: state.language)
         return List(selection: $state.selection) {
             ForEach(sections) { section in
                 Section {
@@ -650,7 +650,7 @@ struct DevicesView: View {
     }
 
     private func grouped(_ rows: [DeviceRow]) -> some View {
-        let sections = groups(for: rows, by: state.groupField)
+        let sections = groups(for: rows, by: state.groupField, language: state.language)
         return List(selection: $state.selection) {
             ForEach(sections) { section in
                 Section {
