@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IORegistryEntryChildren</key>
+	<array>
+		<dict>
+			<key>IOObjectClass</key>
+			<string>AppleT8122USBXHCI</string>
+			<key>IORegistryEntryName</key>
+			<string>AppleT8122USBXHCI</string>
+			<key>IOClass</key>
+			<string>AppleT8122USBXHCI</string>
+			<key>IOMatchCategory</key>
+			<string>usb-host</string>
+			<key>UsbHostControllerProtocolRevision</key>
+			<string>3.1</string>
+			<key>UsbHostControllerTierLimit</key>
+			<integer>6</integer>
+			<key>locationID</key>
+			<integer>17825792</integer>
+			<key>IORegistryEntryLocation</key>
+			<string>01100000</string>
+			<key>IORegistryEntryChildren</key>
+			<array>
+				<dict>
+					<key>IOObjectClass</key>
+					<string>IOUSBHostDevice</string>
+					<key>IORegistryEntryName</key>
+					<string>USB3.0 Hub</string>
+					<key>USB Product Name</key>
+					<string>USB3.0 Hub</string>
+					<key>USB Vendor Name</key>
+					<string>Acme</string>
+					<key>bDeviceClass</key>
+					<integer>9</integer>
+					<key>bDeviceSubClass</key>
+					<integer>0</integer>
+					<key>bDeviceProtocol</key>
+					<integer>1</integer>
+					<key>bcdUSB</key>
+					<integer>512</integer>
+					<key>bcdDevice</key>
+					<integer>256</integer>
+					<key>bMaxPacketSize0</key>
+					<integer>64</integer>
+					<key>bNumConfigurations</key>
+					<integer>1</integer>
+					<key>Device Speed</key>
+					<integer>3</integer>
+					<key>USBSpeed</key>
+					<integer>3</integer>
+					<key>UsbLinkSpeed</key>
+					<integer>5000000000</integer>
+					<key>idVendor</key>
+					<integer>1507</integer>
+					<key>idProduct</key>
+					<integer>1552</integer>
+					<key>locationID</key>
+					<integer>17891328</integer>
+					<key>IORegistryEntryLocation</key>
+					<string>01110000</string>
+					<key>kUSBAddress</key>
+					<integer>2</integer>
+					<key>USB Address</key>
+					<integer>2</integer>
+					<key>iManufacturer</key>
+					<integer>1</integer>
+					<key>iProduct</key>
+					<integer>2</integer>
+					<key>iSerialNumber</key>
+					<integer>0</integer>
+					<key>UserInstallable</key>
+					<true/>
+					<key>IORegistryEntryChildren</key>
+					<array>
+						<dict>
+							<key>IOObjectClass</key>
+							<string>IOUSBHostDevice</string>
+							<key>IORegistryEntryName</key>
+							<string>USB Keyboard</string>
+							<key>USB Product Name</key>
+							<string>USB Keyboard</string>
+							<key>USB Vendor Name</key>
+							<string>Acme</string>
+							<key>bDeviceClass</key>
+							<integer>3</integer>
+							<key>bDeviceSubClass</key>
+							<integer>1</integer>
+							<key>bDeviceProtocol</key>
+							<integer>1</integer>
+							<key>bcdUSB</key>
+							<integer>512</integer>
+							<key>bcdDevice</key>
+							<integer>256</integer>
+							<key>bMaxPacketSize0</key>
+							<integer>64</integer>
+							<key>bNumConfigurations</key>
+							<integer>1</integer>
+							<key>Device Speed</key>
+							<integer>1</integer>
+							<key>USBSpeed</key>
+							<integer>1</integer>
+							<key>UsbLinkSpeed</key>
+							<integer>1500000</integer>
+							<key>idVendor</key>
+							<integer>1507</integer>
+							<key>idProduct</key>
+							<integer>4609</integer>
+							<key>locationID</key>
+							<integer>17895424</integer>
+							<key>IORegistryEntryLocation</key>
+							<string>01111000</string>
+							<key>kUSBAddress</key>
+							<integer>3</integer>
+							<key>USB Address</key>
+							<integer>3</integer>
+							<key>iManufacturer</key>
+							<integer>1</integer>
+							<key>iProduct</key>
+							<integer>2</integer>
+							<key>iSerialNumber</key>
+							<integer>0</integer>
+							<key>UserInstallable</key>
+							<true/>
+						</dict>
+						<dict>
+							<key>IOObjectClass</key>
+							<string>IOUSBHostDevice</string>
+							<key>IORegistryEntryName</key>
+							<string>USB Flash Drive</string>
+							<key>USB Product Name</key>
+							<string>USB Flash Drive</string>
+							<key>USB Vendor Name</key>
+							<string>Acme</string>
+							<key>bDeviceClass</key>
+							<integer>8</integer>
+							<key>bDeviceSubClass</key>
+							<integer>6</integer>
+							<key>bDeviceProtocol</key>
+							<integer>80</integer>
+							<key>bcdUSB</key>
+							<integer>512</integer>
+							<key>bcdDevice</key>
+							<integer>256</integer>
+							<key>bMaxPacketSize0</key>
+							<integer>64</integer>
+							<key>bNumConfigurations</key>
+							<integer>1</integer>
+							<key>Device Speed</key>
+							<integer>3</integer>
+							<key>USBSpeed</key>
+							<integer>3</integer>
+							<key>UsbLinkSpeed</key>
+							<integer>5000000000</integer>
+							<key>idVendor</key>
+							<integer>8053</integer>
+							<key>idProduct</key>
+							<integer>2327</integer>
+							<key>locationID</key>
+							<integer>17899520</integer>
+							<key>IORegistryEntryLocation</key>
+							<string>01112000</string>
+							<key>kUSBAddress</key>
+							<integer>4</integer>
+							<key>USB Address</key>
+							<integer>4</integer>
+							<key>iManufacturer</key>
+							<integer>1</integer>
+							<key>iProduct</key>
+							<integer>2</integer>
+							<key>iSerialNumber</key>
+							<integer>0</integer>
+							<key>UserInstallable</key>
+							<true/>
+						</dict>
+					</array>
+				</dict>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

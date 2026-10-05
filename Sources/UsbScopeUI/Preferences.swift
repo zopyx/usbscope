@@ -1,0 +1,286 @@
+import Foundation
+import UsbScopeCore
+
+/// Everything the app remembers between launches.
+///
+/// The value type, its validation and the JSON codec live here (no AppKit) so
+/// they are unit-testable; the app target only wraps a `UserDefaults` suite in
+/// a `PreferencesBackend`. Everything read from disk is treated as untrusted
+/// and passed through `sanitized()`.
+
+/// The window appearance the user picked.
+public enum Appearance: String, CaseIterable, Identifiable, Codable, Sendable {
+    case system
+    case light
+    case dark
+
+    public var id: String { rawValue }
+
+    /// English label; the app localises it.
+    public var label: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+}
+
+/// The UI language. Codes and comments stay English; the labels are localised
+/// by the app's typed strings table.
+public enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
+    case en
+    case de
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .en: "English"
+        case .de: "Deutsch"
+        }
+    }
+}
+
+public enum NotificationDetail: String, CaseIterable, Identifiable, Codable, Sendable {
+    case full, generic, disabled
+    public var id: String { rawValue }
+}
+
+/// Collection policy for automatic monitoring. Manual refreshes use the same
+/// selected policy so the status never hides which sources were reduced.
+public enum MonitoringProfile: String, CaseIterable, Identifiable, Codable, Sendable {
+    case balanced
+    case lowPower
+
+    public var id: String { rawValue }
+}
+
+/// The refresh cadences the app offers.
+public let PREFERENCE_INTERVALS: [Double] = [1, 2, 5, 10, 30]
+
+/// Configuration that belongs to one view rather than to the whole window.
+/// Keeping it keyed by the stable `AppView` raw value prevents a filter or
+/// grouping choice from leaking into an unrelated table.
+public struct ViewPreferences: Codable, Equatable, Sendable {
+    public var search: String = ""
+    public var filterPreset: FilterPreset = .all
+    public var grouping: GroupField = .none
+    public var preserveSelection: Bool = true
+    public var selection: [String] = []
+    public var sortKey: String?
+    public var sortAscending: Bool = true
+
+    public init(search: String = "", filterPreset: FilterPreset = .all,
+                grouping: GroupField = .none, preserveSelection: Bool = true,
+                selection: [String] = [], sortKey: String? = nil,
+                sortAscending: Bool = true) {
+        self.search = search
+        self.filterPreset = filterPreset
+        self.grouping = grouping
+        self.preserveSelection = preserveSelection
+        self.selection = selection
+        self.sortKey = sortKey
+        self.sortAscending = sortAscending
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case search, filterPreset, grouping, preserveSelection, selection, sortKey, sortAscending
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        search = try values.decodeIfPresent(String.self, forKey: .search) ?? ""
+        filterPreset = try values.decodeIfPresent(FilterPreset.self, forKey: .filterPreset) ?? .all
+        grouping = try values.decodeIfPresent(GroupField.self, forKey: .grouping) ?? .none
+        preserveSelection = try values.decodeIfPresent(Bool.self, forKey: .preserveSelection) ?? true
+        selection = try values.decodeIfPresent([String].self, forKey: .selection) ?? []
+        sortKey = try values.decodeIfPresent(String.self, forKey: .sortKey)
+        sortAscending = try values.decodeIfPresent(Bool.self, forKey: .sortAscending) ?? true
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(search, forKey: .search)
+        try values.encode(filterPreset, forKey: .filterPreset)
+        try values.encode(grouping, forKey: .grouping)
+        try values.encode(preserveSelection, forKey: .preserveSelection)
+        try values.encode(selection, forKey: .selection)
+        try values.encodeIfPresent(sortKey, forKey: .sortKey)
+        try values.encode(sortAscending, forKey: .sortAscending)
+    }
+}
+
+public struct AppPreferences: Codable, Equatable, Sendable {
+    public var defaultView: AppView = .ports
+    public var interval: Double = 5
+    public var autoRefresh: Bool = false
+    public var notifications: Bool = true
+    public var notificationDetail: NotificationDetail = .generic
+    public var appearance: Appearance = .system
+    public var language: AppLanguage = .en
+    public var grouping: GroupField = .none
+    public var monitoringProfile: MonitoringProfile = .balanced
+    /// Hidden column titles per view raw value.
+    public var hiddenColumns: [String: [String]] = [:]
+    /// Optional presentation severity overrides keyed by stable security rule ID.
+    public var securitySeverityOverrides: [String: String] = [:]
+    /// Search/filter/grouping/selection policy keyed by `AppView.rawValue`.
+    public var viewPreferences: [String: ViewPreferences] = [:]
+
+    public init() {}
+
+    public init(
+        defaultView: AppView = .ports,
+        interval: Double = 5,
+        autoRefresh: Bool = false,
+        notifications: Bool = true,
+        notificationDetail: NotificationDetail = .generic,
+        appearance: Appearance = .system,
+        language: AppLanguage = .en,
+        grouping: GroupField = .none,
+        monitoringProfile: MonitoringProfile = .balanced,
+        hiddenColumns: [String: [String]] = [:],
+        securitySeverityOverrides: [String: String] = [:],
+        viewPreferences: [String: ViewPreferences] = [:]
+    ) {
+        self.defaultView = defaultView
+        self.interval = interval
+        self.autoRefresh = autoRefresh
+        self.notifications = notifications
+        self.notificationDetail = notificationDetail
+        self.appearance = appearance
+        self.language = language
+        self.grouping = grouping
+        self.monitoringProfile = monitoringProfile
+        self.hiddenColumns = hiddenColumns
+        self.securitySeverityOverrides = securitySeverityOverrides
+        self.viewPreferences = viewPreferences
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case defaultView, interval, autoRefresh, notifications, notificationDetail
+        case appearance, language, grouping, monitoringProfile, hiddenColumns
+        case securitySeverityOverrides, viewPreferences
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        defaultView = try values.decodeIfPresent(AppView.self, forKey: .defaultView) ?? .ports
+        interval = try values.decodeIfPresent(Double.self, forKey: .interval) ?? 5
+        autoRefresh = try values.decodeIfPresent(Bool.self, forKey: .autoRefresh) ?? false
+        notifications = try values.decodeIfPresent(Bool.self, forKey: .notifications) ?? true
+        notificationDetail = try values.decodeIfPresent(NotificationDetail.self, forKey: .notificationDetail) ?? .generic
+        appearance = try values.decodeIfPresent(Appearance.self, forKey: .appearance) ?? .system
+        language = try values.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .en
+        grouping = try values.decodeIfPresent(GroupField.self, forKey: .grouping) ?? .none
+        monitoringProfile = try values.decodeIfPresent(MonitoringProfile.self, forKey: .monitoringProfile) ?? .balanced
+        hiddenColumns = try values.decodeIfPresent([String: [String]].self, forKey: .hiddenColumns) ?? [:]
+        securitySeverityOverrides = try values.decodeIfPresent([String: String].self, forKey: .securitySeverityOverrides) ?? [:]
+        viewPreferences = try values.decodeIfPresent([String: ViewPreferences].self, forKey: .viewPreferences) ?? [:]
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(defaultView, forKey: .defaultView)
+        try values.encode(interval, forKey: .interval)
+        try values.encode(autoRefresh, forKey: .autoRefresh)
+        try values.encode(notifications, forKey: .notifications)
+        try values.encode(notificationDetail, forKey: .notificationDetail)
+        try values.encode(appearance, forKey: .appearance)
+        try values.encode(language, forKey: .language)
+        try values.encode(grouping, forKey: .grouping)
+        try values.encode(monitoringProfile, forKey: .monitoringProfile)
+        try values.encode(hiddenColumns, forKey: .hiddenColumns)
+        try values.encode(securitySeverityOverrides, forKey: .securitySeverityOverrides)
+        try values.encode(viewPreferences, forKey: .viewPreferences)
+    }
+
+    /// A copy with every invalid value replaced by a default.
+    public func sanitized() -> AppPreferences {
+        var copy = AppPreferences()
+        copy.defaultView = defaultView
+        copy.interval = PREFERENCE_INTERVALS.contains(interval) ? interval : 5
+        copy.autoRefresh = autoRefresh
+        copy.notifications = notifications
+        copy.notificationDetail = NotificationDetail(rawValue: notificationDetail.rawValue) ?? .generic
+        copy.appearance = Appearance(rawValue: appearance.rawValue) ?? .system
+        copy.language = AppLanguage(rawValue: language.rawValue) ?? .en
+        copy.grouping = GroupField.fields(for: defaultView).contains(grouping) ? grouping : .none
+        copy.monitoringProfile = MonitoringProfile(rawValue: monitoringProfile.rawValue) ?? .balanced
+        copy.securitySeverityOverrides = securitySeverityOverrides.reduce(into: [:]) { result, entry in
+            guard Security.ruleIDs.contains(entry.key), FindingSeverity(rawValue: entry.value) != nil else { return }
+            result[entry.key] = entry.value
+        }
+        copy.viewPreferences = viewPreferences.reduce(into: [:]) { result, entry in
+            guard let view = AppView(rawValue: entry.key) else { return }
+            var value = entry.value
+            value.grouping = GroupField.fields(for: view).contains(value.grouping) ? value.grouping : .none
+            result[view.rawValue] = value
+        }
+        copy.hiddenColumns = hiddenColumns.reduce(into: [:]) { result, entry in
+            guard let view = AppView(rawValue: entry.key) else { return }
+            let headers = Set(Presentation.headers(for: view))
+            let hidden = entry.value.filter { headers.contains($0) }
+            if !hidden.isEmpty { result[view.rawValue] = hidden }
+        }
+        return copy
+    }
+
+    /// Whether a column is visible in a view (unknown titles default to visible).
+    public func isColumnVisible(_ view: AppView, title: String) -> Bool {
+        !(hiddenColumns[view.rawValue]?.contains(title) ?? false)
+    }
+
+    /// Decode stored data; anything unusable falls back to the defaults.
+    public static func decode(_ data: Data?) -> AppPreferences {
+        guard let data, let decoded = try? JSONDecoder().decode(AppPreferences.self, from: data) else {
+            return AppPreferences()
+        }
+        return decoded.sanitized()
+    }
+
+    public func encoded() -> Data {
+        (try? JSONEncoder().encode(sanitized())) ?? Data()
+    }
+}
+
+/// The slice of storage the preferences need; `UserDefaults` conforms in the
+/// app target, a dictionary-backed store backs the tests.
+public protocol PreferencesBackend: AnyObject {
+    func data(forKey key: String) -> Data?
+    func set(_ data: Data?, forKey key: String)
+}
+
+/// Loads and saves `AppPreferences` through a backend.
+public final class PreferencesStore {
+    public static let defaultKey = "usbscope.swiftPreferences"
+
+    private let backend: PreferencesBackend
+    private let key: String
+
+    public init(backend: PreferencesBackend, key: String = PreferencesStore.defaultKey) {
+        self.backend = backend
+        self.key = key
+    }
+
+    public func load() -> AppPreferences {
+        AppPreferences.decode(backend.data(forKey: key))
+    }
+
+    public func save(_ preferences: AppPreferences) {
+        backend.set(preferences.encoded(), forKey: key)
+    }
+}
+
+/// In-memory backend, used by the tests (and a fallback when no defaults exist).
+public final class MemoryPreferencesBackend: PreferencesBackend {
+    private var storage: [String: Data] = [:]
+
+    public init() {}
+
+    public func data(forKey key: String) -> Data? { storage[key] }
+    public func set(_ data: Data?, forKey key: String) {
+        if let data { storage[key] = data } else { storage[key] = nil }
+    }
+}

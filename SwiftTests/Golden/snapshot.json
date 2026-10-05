@@ -1,0 +1,1446 @@
+{
+  "buses" : [
+    {
+      "connection" : "Built-in",
+      "devices" : [
+
+      ],
+      "driver" : "AppleT8122USBXHCI",
+      "location_id" : 33554432,
+      "name" : "USB 3.1 Bus",
+      "protocol" : null
+    },
+    {
+      "connection" : "Built-in",
+      "devices" : [
+
+      ],
+      "driver" : "AppleT8122USBXHCI",
+      "location_id" : 0,
+      "name" : "USB 3.1 Bus",
+      "protocol" : null
+    },
+    {
+      "connection" : "Built-in",
+      "devices" : [
+        {
+          "address" : 1,
+          "bcd_usb" : "2.00",
+          "bus" : "USB 3.1 Bus",
+          "class_name" : "per-interface",
+          "class_text" : "per-interface",
+          "connection" : "Removable",
+          "device_class" : 0,
+          "device_protocol" : 0,
+          "device_subclass" : 0,
+          "generation" : "USB 2.0",
+          "id" : "0x1050:0x0407",
+          "interfaces" : [
+            {
+              "alternate_setting" : 0,
+              "class_code" : 3,
+              "class_text" : "HID (3\/1\/1)",
+              "configuration" : 1,
+              "endpoints" : 1,
+              "name" : "IOUSBHostInterface",
+              "number" : 0,
+              "protocol" : 1,
+              "subclass" : 1
+            },
+            {
+              "alternate_setting" : 0,
+              "class_code" : 3,
+              "class_text" : "HID (3\/0\/0)",
+              "configuration" : 1,
+              "endpoints" : 2,
+              "name" : "IOUSBHostInterface",
+              "number" : 1,
+              "protocol" : 0,
+              "subclass" : 0
+            },
+            {
+              "alternate_setting" : 0,
+              "class_code" : 11,
+              "class_text" : "smart card (11\/0\/0)",
+              "configuration" : 1,
+              "endpoints" : 3,
+              "name" : "IOUSBHostInterface",
+              "number" : 2,
+              "protocol" : 0,
+              "subclass" : 0
+            }
+          ],
+          "location_id" : 17825792,
+          "max_packet_size0" : 64,
+          "mode" : "full_speed",
+          "mode_label" : "USB 1.1 Full-Speed · 12 Mbit\/s",
+          "name" : "YubiKey OTP+FIDO+CCID",
+          "num_configurations" : 1,
+          "parent" : null,
+          "port" : "USB-C@3",
+          "port_type" : "USB-C",
+          "product_id" : 1031,
+          "restricted" : false,
+          "serial" : null,
+          "source" : "system_profiler",
+          "speed_code" : 1,
+          "speed_mbps" : 12,
+          "tier" : 1,
+          "transport" : "USB2",
+          "vendor" : "Yubico",
+          "vendor_id" : 4176,
+          "version" : "0x0543"
+        }
+      ],
+      "driver" : "AppleT8122USBXHCI",
+      "location_id" : 16777216,
+      "name" : "USB 3.1 Bus",
+      "protocol" : null
+    }
+  ],
+  "charging" : {
+    "adapter_current_ma" : 3500,
+    "adapter_efficiency_loss_mw" : 679,
+    "adapter_power_mw" : 70000,
+    "adapter_voltage_mv" : 20000,
+    "battery_current_ma" : 887,
+    "battery_power_mw" : 11491,
+    "battery_voltage_mv" : 12955,
+    "charging" : true,
+    "connected" : true,
+    "fully_charged" : true,
+    "not_charging_reason" : 0,
+    "slow_charging_reason" : 0,
+    "state_of_charge" : 100,
+    "system_current_in_ma" : 1417,
+    "system_load_mw" : 16084,
+    "system_power_in_mw" : 27575,
+    "system_voltage_in_mv" : 19478,
+    "thermally_limited_seconds" : 0,
+    "time_remaining_minutes" : 14
+  },
+  "chip" : "Apple M3 Pro",
+  "host" : "mac",
+  "model" : "MacBook Pro",
+  "os_version" : "27.0.1",
+  "ports" : [
+    {
+      "accessory_mode" : null,
+      "active_power_mode" : null,
+      "active_transports" : [
+
+      ],
+      "advertised_modes" : [
+
+      ],
+      "authorization" : "Not Required",
+      "cable" : {
+        "active" : false,
+        "attached" : false,
+        "authentication" : null,
+        "emarker" : false,
+        "hash_status" : null,
+        "kind" : "–",
+        "optical" : false,
+        "pd_spec_revision" : null
+      },
+      "connect_type" : null,
+      "connected" : false,
+      "description" : "Port-HDMI@1",
+      "devices" : [
+
+      ],
+      "displayport_pin_assignment" : null,
+      "firmware" : null,
+      "kind" : "HDMI",
+      "liquid_detected" : null,
+      "liquid_measurement" : null,
+      "liquid_mitigations" : null,
+      "liquid_override" : null,
+      "liquid_pin" : null,
+      "liquid_state" : null,
+      "maximum_observed_rate_mbps" : null,
+      "mode" : "unknown",
+      "mode_label" : "unknown",
+      "name" : "HDMI@1",
+      "negotiated_mode" : "unknown",
+      "number" : 1,
+      "pin_configuration" : {
+
+      },
+      "plug_orientation" : null,
+      "power_current_limits" : [
+
+      ],
+      "power_in" : [
+
+      ],
+      "power_mode" : null,
+      "power_sources" : [
+
+      ],
+      "super_speed_active" : null,
+      "supported_power_modes" : [
+
+      ],
+      "transports" : [
+        {
+          "active" : false,
+          "data_role" : "Source",
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "DisplayPort",
+          "lanes" : 0,
+          "mode" : "unknown",
+          "rate" : "No Link",
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        }
+      ],
+      "usb_mode_type" : null
+    },
+    {
+      "accessory_mode" : 0,
+      "active_power_mode" : 1,
+      "active_transports" : [
+
+      ],
+      "advertised_modes" : [
+
+      ],
+      "authorization" : "Not Required",
+      "cable" : {
+        "active" : false,
+        "attached" : false,
+        "authentication" : "Idle",
+        "emarker" : false,
+        "hash_status" : "Not Set",
+        "kind" : "–",
+        "optical" : false,
+        "pd_spec_revision" : null
+      },
+      "connect_type" : "0",
+      "connected" : false,
+      "description" : "Port-MagSafe 3@1",
+      "devices" : [
+
+      ],
+      "displayport_pin_assignment" : 0,
+      "firmware" : "0x00872000",
+      "kind" : "MagSafe 3",
+      "liquid_detected" : null,
+      "liquid_measurement" : null,
+      "liquid_mitigations" : null,
+      "liquid_override" : null,
+      "liquid_pin" : null,
+      "liquid_state" : null,
+      "maximum_observed_rate_mbps" : null,
+      "mode" : "unknown",
+      "mode_label" : "unknown",
+      "name" : "MagSafe 3@1",
+      "negotiated_mode" : "unknown",
+      "number" : 1,
+      "pin_configuration" : {
+        "rx1" : 0,
+        "rx2" : 0,
+        "sbu1" : 0,
+        "sbu2" : 0,
+        "tx1" : 0,
+        "tx2" : 0
+      },
+      "plug_orientation" : 0,
+      "power_current_limits" : [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "power_in" : [
+
+      ],
+      "power_mode" : 1,
+      "power_sources" : [
+
+      ],
+      "super_speed_active" : null,
+      "supported_power_modes" : [
+        1,
+        3
+      ],
+      "transports" : [
+        {
+          "active" : false,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "CC",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        }
+      ],
+      "usb_mode_type" : 4
+    },
+    {
+      "accessory_mode" : null,
+      "active_power_mode" : null,
+      "active_transports" : [
+
+      ],
+      "advertised_modes" : [
+
+      ],
+      "authorization" : "No Action",
+      "cable" : {
+        "active" : false,
+        "attached" : false,
+        "authentication" : null,
+        "emarker" : false,
+        "hash_status" : null,
+        "kind" : "–",
+        "optical" : false,
+        "pd_spec_revision" : null
+      },
+      "connect_type" : null,
+      "connected" : false,
+      "description" : "Port-SD Card@1",
+      "devices" : [
+
+      ],
+      "displayport_pin_assignment" : null,
+      "firmware" : null,
+      "kind" : "SD Card",
+      "liquid_detected" : null,
+      "liquid_measurement" : null,
+      "liquid_mitigations" : null,
+      "liquid_override" : null,
+      "liquid_pin" : null,
+      "liquid_state" : null,
+      "maximum_observed_rate_mbps" : null,
+      "mode" : "unknown",
+      "mode_label" : "unknown",
+      "name" : "SD Card@1",
+      "negotiated_mode" : "unknown",
+      "number" : 1,
+      "pin_configuration" : {
+
+      },
+      "plug_orientation" : null,
+      "power_current_limits" : [
+
+      ],
+      "power_in" : [
+
+      ],
+      "power_mode" : null,
+      "power_sources" : [
+
+      ],
+      "super_speed_active" : null,
+      "supported_power_modes" : [
+
+      ],
+      "transports" : [
+        {
+          "active" : false,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "SD",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : true,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : "Ask for New Accessories",
+          "trm_state" : "Limited"
+        }
+      ],
+      "usb_mode_type" : null
+    },
+    {
+      "accessory_mode" : 0,
+      "active_power_mode" : 1,
+      "active_transports" : [
+        {
+          "active" : true,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "CC",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        }
+      ],
+      "advertised_modes" : [
+
+      ],
+      "authorization" : "Not Required",
+      "cable" : {
+        "active" : false,
+        "attached" : true,
+        "authentication" : "Idle",
+        "emarker" : false,
+        "hash_status" : "Not Set",
+        "kind" : "unknown",
+        "optical" : false,
+        "pd_spec_revision" : 3
+      },
+      "connect_type" : "0",
+      "connected" : true,
+      "description" : "Port-USB-C@1",
+      "devices" : [
+
+      ],
+      "displayport_pin_assignment" : 0,
+      "firmware" : "0x00872000",
+      "kind" : "USB-C",
+      "liquid_detected" : false,
+      "liquid_measurement" : "No Error",
+      "liquid_mitigations" : false,
+      "liquid_override" : false,
+      "liquid_pin" : "Reference",
+      "liquid_state" : "Idle",
+      "maximum_observed_rate_mbps" : null,
+      "mode" : "unknown",
+      "mode_label" : "unknown",
+      "name" : "USB-C@1",
+      "negotiated_mode" : "unknown",
+      "number" : 1,
+      "pin_configuration" : {
+        "rx1" : 0,
+        "rx2" : 4,
+        "sbu1" : 0,
+        "sbu2" : 0,
+        "tx1" : 0,
+        "tx2" : 3
+      },
+      "plug_orientation" : 2,
+      "power_current_limits" : [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "power_in" : [
+        "USB-PD",
+        "Brick ID",
+        "TypeC"
+      ],
+      "power_mode" : 1,
+      "power_sources" : [
+        {
+          "name" : "USB-PD",
+          "options" : [
+            {
+              "kind" : "fixed",
+              "kind_label" : "fixed",
+              "max_current_ma" : 3000,
+              "max_power_mw" : 45000,
+              "uuid" : "4BBCE139-FEFD-4018-9A3F-676207EAA744",
+              "voltage_mv" : 15000,
+              "watts" : 45
+            },
+            {
+              "kind" : "fixed",
+              "kind_label" : "fixed",
+              "max_current_ma" : 5000,
+              "max_power_mw" : 100000,
+              "uuid" : "BAC8D9DA-DC62-4A85-8590-D9037ACB133B",
+              "voltage_mv" : 20000,
+              "watts" : 100
+            },
+            {
+              "kind" : "fixed",
+              "kind_label" : "fixed",
+              "max_current_ma" : 3000,
+              "max_power_mw" : 15000,
+              "uuid" : "B5338D12-261F-44B8-920A-45A1C98590F6",
+              "voltage_mv" : 5000,
+              "watts" : 15
+            },
+            {
+              "kind" : "fixed",
+              "kind_label" : "fixed",
+              "max_current_ma" : 3000,
+              "max_power_mw" : 27000,
+              "uuid" : "CB8FB49F-39D6-48E1-9B0A-2B316A7C9196",
+              "voltage_mv" : 9000,
+              "watts" : 27
+            }
+          ],
+          "priority" : 1000,
+          "selected" : true,
+          "type" : 2,
+          "winning" : {
+            "kind" : "fixed",
+            "kind_label" : "fixed",
+            "max_current_ma" : 5000,
+            "max_power_mw" : 100000,
+            "uuid" : "BAC8D9DA-DC62-4A85-8590-D9037ACB133B",
+            "voltage_mv" : 20000,
+            "watts" : 100
+          }
+        },
+        {
+          "name" : "Brick ID",
+          "options" : [
+            {
+              "kind" : "fixed",
+              "kind_label" : "fixed",
+              "max_current_ma" : 1500,
+              "max_power_mw" : 7500,
+              "uuid" : "0320E470-A145-4B72-8E4A-678C898E6E01",
+              "voltage_mv" : 5000,
+              "watts" : 7.5
+            }
+          ],
+          "priority" : -500,
+          "selected" : false,
+          "type" : 0,
+          "winning" : null
+        },
+        {
+          "name" : "TypeC",
+          "options" : [
+            {
+              "kind" : "fixed",
+              "kind_label" : "fixed",
+              "max_current_ma" : 3000,
+              "max_power_mw" : 15000,
+              "uuid" : "9523BF23-C5A2-48F2-BBF4-4AA7E0704ABC",
+              "voltage_mv" : 5000,
+              "watts" : 15
+            }
+          ],
+          "priority" : 0,
+          "selected" : false,
+          "type" : 0,
+          "winning" : null
+        }
+      ],
+      "super_speed_active" : false,
+      "supported_power_modes" : [
+        1,
+        3
+      ],
+      "transports" : [
+        {
+          "active" : true,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "CC",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        }
+      ],
+      "usb_mode_type" : 4
+    },
+    {
+      "accessory_mode" : 0,
+      "active_power_mode" : 1,
+      "active_transports" : [
+
+      ],
+      "advertised_modes" : [
+
+      ],
+      "authorization" : "Not Required",
+      "cable" : {
+        "active" : false,
+        "attached" : false,
+        "authentication" : "Idle",
+        "emarker" : false,
+        "hash_status" : "Not Set",
+        "kind" : "–",
+        "optical" : false,
+        "pd_spec_revision" : null
+      },
+      "connect_type" : "0",
+      "connected" : false,
+      "description" : "Port-USB-C@2",
+      "devices" : [
+
+      ],
+      "displayport_pin_assignment" : 0,
+      "firmware" : "0x00872000",
+      "kind" : "USB-C",
+      "liquid_detected" : false,
+      "liquid_measurement" : "No Error",
+      "liquid_mitigations" : false,
+      "liquid_override" : false,
+      "liquid_pin" : "Reference",
+      "liquid_state" : "Idle",
+      "maximum_observed_rate_mbps" : null,
+      "mode" : "unknown",
+      "mode_label" : "unknown",
+      "name" : "USB-C@2",
+      "negotiated_mode" : "unknown",
+      "number" : 2,
+      "pin_configuration" : {
+        "rx1" : 2,
+        "rx2" : 0,
+        "sbu1" : 0,
+        "sbu2" : 0,
+        "tx1" : 1,
+        "tx2" : 0
+      },
+      "plug_orientation" : 0,
+      "power_current_limits" : [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "power_in" : [
+
+      ],
+      "power_mode" : 1,
+      "power_sources" : [
+
+      ],
+      "super_speed_active" : false,
+      "supported_power_modes" : [
+        1,
+        3
+      ],
+      "transports" : [
+        {
+          "active" : false,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "CC",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        }
+      ],
+      "usb_mode_type" : 4
+    },
+    {
+      "accessory_mode" : 0,
+      "active_power_mode" : 1,
+      "active_transports" : [
+        {
+          "active" : true,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "CC",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        },
+        {
+          "active" : true,
+          "data_role" : "Host",
+          "generation" : "USB 2.0",
+          "hash_status" : "Cached",
+          "kind" : "USB2",
+          "lanes" : null,
+          "mode" : "full_speed",
+          "rate" : "12 Mbps (Full Speed)",
+          "restricted" : false,
+          "signaling" : null,
+          "speed_mbps" : 12,
+          "trm_profile" : "Ask for New Accessories",
+          "trm_state" : "Limited"
+        }
+      ],
+      "advertised_modes" : [
+        "full_speed"
+      ],
+      "authorization" : "No Action",
+      "cable" : {
+        "active" : false,
+        "attached" : true,
+        "authentication" : "Idle",
+        "emarker" : false,
+        "hash_status" : "Not Set",
+        "kind" : "unknown",
+        "optical" : false,
+        "pd_spec_revision" : null
+      },
+      "connect_type" : "Device",
+      "connected" : true,
+      "description" : "Port-USB-C@3",
+      "devices" : [
+        {
+          "address" : 1,
+          "bcd_usb" : "2.00",
+          "bus" : "USB 3.1 Bus",
+          "class_name" : "per-interface",
+          "class_text" : "per-interface",
+          "connection" : "Removable",
+          "device_class" : 0,
+          "device_protocol" : 0,
+          "device_subclass" : 0,
+          "generation" : "USB 2.0",
+          "id" : "0x1050:0x0407",
+          "interfaces" : [
+            {
+              "alternate_setting" : 0,
+              "class_code" : 3,
+              "class_text" : "HID (3\/1\/1)",
+              "configuration" : 1,
+              "endpoints" : 1,
+              "name" : "IOUSBHostInterface",
+              "number" : 0,
+              "protocol" : 1,
+              "subclass" : 1
+            },
+            {
+              "alternate_setting" : 0,
+              "class_code" : 3,
+              "class_text" : "HID (3\/0\/0)",
+              "configuration" : 1,
+              "endpoints" : 2,
+              "name" : "IOUSBHostInterface",
+              "number" : 1,
+              "protocol" : 0,
+              "subclass" : 0
+            },
+            {
+              "alternate_setting" : 0,
+              "class_code" : 11,
+              "class_text" : "smart card (11\/0\/0)",
+              "configuration" : 1,
+              "endpoints" : 3,
+              "name" : "IOUSBHostInterface",
+              "number" : 2,
+              "protocol" : 0,
+              "subclass" : 0
+            }
+          ],
+          "location_id" : 17825792,
+          "max_packet_size0" : 64,
+          "mode" : "full_speed",
+          "mode_label" : "USB 1.1 Full-Speed · 12 Mbit\/s",
+          "name" : "YubiKey OTP+FIDO+CCID",
+          "num_configurations" : 1,
+          "parent" : null,
+          "port" : "USB-C@3",
+          "port_type" : "USB-C",
+          "product_id" : 1031,
+          "restricted" : false,
+          "serial" : null,
+          "source" : "ioreg",
+          "speed_code" : 1,
+          "speed_mbps" : 12,
+          "tier" : 1,
+          "transport" : "USB2",
+          "vendor" : "Yubico",
+          "vendor_id" : 4176,
+          "version" : "0x0543"
+        }
+      ],
+      "displayport_pin_assignment" : 0,
+      "firmware" : "0x00872000",
+      "kind" : "USB-C",
+      "liquid_detected" : false,
+      "liquid_measurement" : "No Error",
+      "liquid_mitigations" : false,
+      "liquid_override" : false,
+      "liquid_pin" : "Reference",
+      "liquid_state" : "Idle",
+      "maximum_observed_rate_mbps" : 12,
+      "mode" : "full_speed",
+      "mode_label" : "USB 1.1 Full-Speed · 12 Mbit\/s",
+      "name" : "USB-C@3",
+      "negotiated_mode" : "full_speed",
+      "number" : 3,
+      "pin_configuration" : {
+        "rx1" : 0,
+        "rx2" : 4,
+        "sbu1" : 0,
+        "sbu2" : 0,
+        "tx1" : 0,
+        "tx2" : 3
+      },
+      "plug_orientation" : 2,
+      "power_current_limits" : [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "power_in" : [
+
+      ],
+      "power_mode" : 1,
+      "power_sources" : [
+
+      ],
+      "super_speed_active" : true,
+      "supported_power_modes" : [
+        1,
+        3
+      ],
+      "transports" : [
+        {
+          "active" : true,
+          "data_role" : null,
+          "generation" : null,
+          "hash_status" : "Not Set",
+          "kind" : "CC",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : null,
+          "signaling" : null,
+          "speed_mbps" : null,
+          "trm_profile" : null,
+          "trm_state" : null
+        },
+        {
+          "active" : false,
+          "data_role" : "Host",
+          "generation" : "USB 3.x",
+          "hash_status" : "Not Set",
+          "kind" : "USB3",
+          "lanes" : null,
+          "mode" : "unknown",
+          "rate" : null,
+          "restricted" : true,
+          "signaling" : "Gen 2",
+          "speed_mbps" : null,
+          "trm_profile" : "Ask for New Accessories",
+          "trm_state" : "Limited"
+        },
+        {
+          "active" : true,
+          "data_role" : "Host",
+          "generation" : "USB 2.0",
+          "hash_status" : "Cached",
+          "kind" : "USB2",
+          "lanes" : null,
+          "mode" : "full_speed",
+          "rate" : "12 Mbps (Full Speed)",
+          "restricted" : false,
+          "signaling" : null,
+          "speed_mbps" : 12,
+          "trm_profile" : "Ask for New Accessories",
+          "trm_state" : "Limited"
+        }
+      ],
+      "usb_mode_type" : 2
+    }
+  ],
+  "schema_version" : 1,
+  "summary" : {
+    "connected_ports" : 2,
+    "devices" : 1,
+    "emarked_cables" : 0,
+    "ports" : 6
+  },
+  "thunderbolt" : [
+    {
+      "bus" : "thunderboltusb4_bus_2",
+      "connected" : false,
+      "device" : "MacBook Pro",
+      "receptacle" : 3,
+      "speed" : "Up to 40 Gb\/s",
+      "status" : "receptacle_no_devices_connected",
+      "vendor" : "Apple Inc."
+    },
+    {
+      "bus" : "thunderboltusb4_bus_1",
+      "connected" : false,
+      "device" : "MacBook Pro",
+      "receptacle" : 2,
+      "speed" : "Up to 40 Gb\/s",
+      "status" : "receptacle_no_devices_connected",
+      "vendor" : "Apple Inc."
+    },
+    {
+      "bus" : "thunderboltusb4_bus_0",
+      "connected" : false,
+      "device" : "MacBook Pro",
+      "receptacle" : 1,
+      "speed" : "Up to 40 Gb\/s",
+      "status" : "receptacle_no_devices_connected",
+      "vendor" : "Apple Inc."
+    }
+  ],
+  "thunderbolt_fabric" : {
+    "routers" : [
+      {
+        "depth" : 0,
+        "device_model_id" : 15,
+        "device_model_name" : "iOS",
+        "device_model_revision" : 1,
+        "max_port_number" : 7,
+        "ports" : [
+          {
+            "adapter_type" : 1,
+            "current_link_speed" : 8,
+            "current_link_width" : 1,
+            "dual_link_port" : 2,
+            "label" : "Thunderbolt Port",
+            "lane" : 1,
+            "link_bandwidth" : 100,
+            "max_credits" : 174,
+            "max_in_hop_id" : 22,
+            "max_out_hop_id" : 22,
+            "number" : 1,
+            "protocol" : "thunderbolt",
+            "restricted" : false,
+            "socket_id" : "1",
+            "supported_link_speed" : 12,
+            "supported_link_width" : 2,
+            "target_link_speed" : 12,
+            "target_link_width" : 1,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 1,
+            "current_link_speed" : 8,
+            "current_link_width" : 1,
+            "dual_link_port" : 1,
+            "label" : "Thunderbolt Port",
+            "lane" : 2,
+            "link_bandwidth" : 100,
+            "max_credits" : 174,
+            "max_in_hop_id" : 22,
+            "max_out_hop_id" : 22,
+            "number" : 2,
+            "protocol" : "thunderbolt",
+            "restricted" : null,
+            "socket_id" : "1",
+            "supported_link_speed" : 12,
+            "supported_link_width" : 2,
+            "target_link_speed" : 12,
+            "target_link_width" : 1,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 1048833,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "PCIe Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 8,
+            "max_out_hop_id" : 8,
+            "number" : 3,
+            "protocol" : "pcie",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 2097409,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "USB Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 8,
+            "max_out_hop_id" : 8,
+            "number" : 4,
+            "protocol" : "usb",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 917761,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "DP or HDMI Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 9,
+            "max_out_hop_id" : 9,
+            "number" : 5,
+            "protocol" : "displayport",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 917761,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "DP or HDMI Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 9,
+            "max_out_hop_id" : 9,
+            "number" : 6,
+            "protocol" : "displayport",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          }
+        ],
+        "route_string" : 0,
+        "router_id" : 0,
+        "thunderbolt_version" : 32,
+        "tunnels" : [
+          {
+            "adapter_type" : 1048833,
+            "device_id" : "0x00002000&0x0000ff00",
+            "driver" : "com.apple.driver.AppleThunderboltPCIDownAdapter",
+            "driver_class" : "AppleThunderboltPCIDownAdapterType5",
+            "label" : "PCIe Adapter",
+            "port_number" : 3,
+            "protocol" : "pcie"
+          },
+          {
+            "adapter_type" : 2097409,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltUSBDownAdapter",
+            "driver_class" : "AppleThunderboltUSBDownAdapter",
+            "label" : "USB Adapter",
+            "port_number" : 4,
+            "protocol" : "usb"
+          },
+          {
+            "adapter_type" : 917761,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltDPInAdapter",
+            "driver_class" : "AppleThunderboltDPInAdapterOS",
+            "label" : "DP or HDMI Adapter",
+            "port_number" : 5,
+            "protocol" : "displayport"
+          },
+          {
+            "adapter_type" : 917761,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltDPInAdapter",
+            "driver_class" : "AppleThunderboltDPInAdapterOS",
+            "label" : "DP or HDMI Adapter",
+            "port_number" : 6,
+            "protocol" : "displayport"
+          }
+        ],
+        "uid" : 408840496304102592,
+        "vendor_id" : 1452,
+        "vendor_name" : "Apple Inc."
+      },
+      {
+        "depth" : 0,
+        "device_model_id" : 15,
+        "device_model_name" : "iOS",
+        "device_model_revision" : 1,
+        "max_port_number" : 7,
+        "ports" : [
+          {
+            "adapter_type" : 1,
+            "current_link_speed" : 8,
+            "current_link_width" : 1,
+            "dual_link_port" : 2,
+            "label" : "Thunderbolt Port",
+            "lane" : 1,
+            "link_bandwidth" : 100,
+            "max_credits" : 174,
+            "max_in_hop_id" : 22,
+            "max_out_hop_id" : 22,
+            "number" : 1,
+            "protocol" : "thunderbolt",
+            "restricted" : false,
+            "socket_id" : "2",
+            "supported_link_speed" : 12,
+            "supported_link_width" : 2,
+            "target_link_speed" : 12,
+            "target_link_width" : 1,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 1,
+            "current_link_speed" : 8,
+            "current_link_width" : 1,
+            "dual_link_port" : 1,
+            "label" : "Thunderbolt Port",
+            "lane" : 2,
+            "link_bandwidth" : 100,
+            "max_credits" : 174,
+            "max_in_hop_id" : 22,
+            "max_out_hop_id" : 22,
+            "number" : 2,
+            "protocol" : "thunderbolt",
+            "restricted" : null,
+            "socket_id" : "2",
+            "supported_link_speed" : 12,
+            "supported_link_width" : 2,
+            "target_link_speed" : 12,
+            "target_link_width" : 1,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 1048833,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "PCIe Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 8,
+            "max_out_hop_id" : 8,
+            "number" : 3,
+            "protocol" : "pcie",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 2097409,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "USB Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 8,
+            "max_out_hop_id" : 8,
+            "number" : 4,
+            "protocol" : "usb",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 917761,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "DP or HDMI Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 9,
+            "max_out_hop_id" : 9,
+            "number" : 5,
+            "protocol" : "displayport",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 917761,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "DP or HDMI Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 9,
+            "max_out_hop_id" : 9,
+            "number" : 6,
+            "protocol" : "displayport",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          }
+        ],
+        "route_string" : 0,
+        "router_id" : 1,
+        "thunderbolt_version" : 32,
+        "tunnels" : [
+          {
+            "adapter_type" : 1048833,
+            "device_id" : "0x00002000&0x0000ff00",
+            "driver" : "com.apple.driver.AppleThunderboltPCIDownAdapter",
+            "driver_class" : "AppleThunderboltPCIDownAdapterType5",
+            "label" : "PCIe Adapter",
+            "port_number" : 3,
+            "protocol" : "pcie"
+          },
+          {
+            "adapter_type" : 2097409,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltUSBDownAdapter",
+            "driver_class" : "AppleThunderboltUSBDownAdapter",
+            "label" : "USB Adapter",
+            "port_number" : 4,
+            "protocol" : "usb"
+          },
+          {
+            "adapter_type" : 917761,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltDPInAdapter",
+            "driver_class" : "AppleThunderboltDPInAdapterOS",
+            "label" : "DP or HDMI Adapter",
+            "port_number" : 5,
+            "protocol" : "displayport"
+          },
+          {
+            "adapter_type" : 917761,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltDPInAdapter",
+            "driver_class" : "AppleThunderboltDPInAdapterOS",
+            "label" : "DP or HDMI Adapter",
+            "port_number" : 6,
+            "protocol" : "displayport"
+          }
+        ],
+        "uid" : 408840496304102593,
+        "vendor_id" : 1452,
+        "vendor_name" : "Apple Inc."
+      },
+      {
+        "depth" : 0,
+        "device_model_id" : 15,
+        "device_model_name" : "iOS",
+        "device_model_revision" : 1,
+        "max_port_number" : 7,
+        "ports" : [
+          {
+            "adapter_type" : 1,
+            "current_link_speed" : 8,
+            "current_link_width" : 1,
+            "dual_link_port" : 2,
+            "label" : "Thunderbolt Port",
+            "lane" : 1,
+            "link_bandwidth" : 100,
+            "max_credits" : 174,
+            "max_in_hop_id" : 22,
+            "max_out_hop_id" : 22,
+            "number" : 1,
+            "protocol" : "thunderbolt",
+            "restricted" : false,
+            "socket_id" : "3",
+            "supported_link_speed" : 12,
+            "supported_link_width" : 2,
+            "target_link_speed" : 12,
+            "target_link_width" : 1,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 1,
+            "current_link_speed" : 8,
+            "current_link_width" : 1,
+            "dual_link_port" : 1,
+            "label" : "Thunderbolt Port",
+            "lane" : 2,
+            "link_bandwidth" : 100,
+            "max_credits" : 174,
+            "max_in_hop_id" : 22,
+            "max_out_hop_id" : 22,
+            "number" : 2,
+            "protocol" : "thunderbolt",
+            "restricted" : null,
+            "socket_id" : "3",
+            "supported_link_speed" : 12,
+            "supported_link_width" : 2,
+            "target_link_speed" : 12,
+            "target_link_width" : 1,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 1048833,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "PCIe Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 8,
+            "max_out_hop_id" : 8,
+            "number" : 3,
+            "protocol" : "pcie",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 2097409,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "USB Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 8,
+            "max_out_hop_id" : 8,
+            "number" : 4,
+            "protocol" : "usb",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 917761,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "DP or HDMI Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 9,
+            "max_out_hop_id" : 9,
+            "number" : 5,
+            "protocol" : "displayport",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          },
+          {
+            "adapter_type" : 917761,
+            "current_link_speed" : null,
+            "current_link_width" : null,
+            "dual_link_port" : null,
+            "label" : "DP or HDMI Adapter",
+            "lane" : null,
+            "link_bandwidth" : null,
+            "max_credits" : 174,
+            "max_in_hop_id" : 9,
+            "max_out_hop_id" : 9,
+            "number" : 6,
+            "protocol" : "displayport",
+            "restricted" : null,
+            "socket_id" : null,
+            "supported_link_speed" : null,
+            "supported_link_width" : null,
+            "target_link_speed" : null,
+            "target_link_width" : null,
+            "upstream_port_number" : null
+          }
+        ],
+        "route_string" : 0,
+        "router_id" : 2,
+        "thunderbolt_version" : 32,
+        "tunnels" : [
+          {
+            "adapter_type" : 1048833,
+            "device_id" : "0x00002000&0x0000ff00",
+            "driver" : "com.apple.driver.AppleThunderboltPCIDownAdapter",
+            "driver_class" : "AppleThunderboltPCIDownAdapterType5",
+            "label" : "PCIe Adapter",
+            "port_number" : 3,
+            "protocol" : "pcie"
+          },
+          {
+            "adapter_type" : 2097409,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltUSBDownAdapter",
+            "driver_class" : "AppleThunderboltUSBDownAdapter",
+            "label" : "USB Adapter",
+            "port_number" : 4,
+            "protocol" : "usb"
+          },
+          {
+            "adapter_type" : 917761,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltDPInAdapter",
+            "driver_class" : "AppleThunderboltDPInAdapterOS",
+            "label" : "DP or HDMI Adapter",
+            "port_number" : 5,
+            "protocol" : "displayport"
+          },
+          {
+            "adapter_type" : 917761,
+            "device_id" : null,
+            "driver" : "com.apple.driver.AppleThunderboltDPInAdapter",
+            "driver_class" : "AppleThunderboltDPInAdapterOS",
+            "label" : "DP or HDMI Adapter",
+            "port_number" : 6,
+            "protocol" : "displayport"
+          }
+        ],
+        "uid" : 408840496304102594,
+        "vendor_id" : 1452,
+        "vendor_name" : "Apple Inc."
+      }
+    ]
+  },
+  "warnings" : [
+
+  ]
+}

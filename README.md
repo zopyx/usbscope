@@ -1,10 +1,13 @@
 # usbscope
 
-Pretty macOS CLI that shows the USB subsystem of your Mac: every receptacle and
-its negotiated link mode, the attached devices and what the port controller
+macOS CLI and native app that show the USB subsystem of a Mac: every receptacle
+and its negotiated link mode, the attached devices and what the port controller
 knows about the cable (e-marker/SOP, CC authentication, liquid detection).
 
 ![usbscope overview](docs/screenshots/overview.png)
+
+Swift only — `swift build` and `swift test` are the whole toolchain. The
+authoritative documentation is [docs/index.md](docs/index.md).
 
 ## Ports & cables
 
@@ -25,66 +28,105 @@ restrictions.
 
 ## A native macOS app
 
-The same data in a real Cocoa window (`usbscope-app`): unified toolbar with a view
-switcher and a live search field, sortable column headers, `⌘1`–`⌘4`, `⌘C`/`⇧⌘C`
-for TSV, double click for a detail popover, JSON/CSV export, a refresh that keeps
-your selection and scroll position, green/red row marks when a device appears or
-disappears, a menu bar extra (`2/6` with connect/disconnect banners) and everything
-remembered across launches.
+The same data in a real SwiftUI window (`usbscope-app`) with **ten tabs** —
+Ports · Cables · Devices · Thunderbolt · Power · Timeline · Security · USB4 ·
+Diff · Warnings — plus search and filter presets, group-by, a column chooser, a
+details sheet, auto-refresh, a menu bar extra, notification banners, an About
+window and preferences.
 
 ![usbscope app](docs/screenshots/app-ports.png)
 
 ```console
-$ uv run --extra macapp usbscope-app      # run from the checkout
-$ make icon                               # regenerate the app icon
-$ make app-bundle                         # usbscope.app + styled DMG into dist/
-$ open ~/src/usbscope/dist/usbscope.app   # or drag it out of the DMG into /Applications
+$ make swift-run-app              # run the app from the checkout
+$ make snapshot                   # render the app window to docs/screenshots/
+$ make swift-app-bundle           # → dist/usbscope-swift.app (ad-hoc signed)
+$ open dist/usbscope-swift.app
 ```
 
-Connect/disconnect banners only appear from the installed bundle — macOS aborts a
-notification request from a plain interpreter run (see
+Connect/disconnect banners only appear from the bundled app — macOS refuses the
+notification request from a non-bundled process (see
 [docs/index.md](docs/index.md)).
+
+## Install & run
+
+Requires macOS 14.4+ and Swift 6 (Xcode or the command line tools).
+
+```console
+$ swift build                     # build the CLI and the app
+$ swift run usbscope              # overview
+$ swift run usbscope ports -v     # port table with per-transport detail
+$ swift run usbscope cables       # e-marker, CC authentication, liquid detection
+$ swift run usbscope --json       # machine-readable snapshot
+$ swift test                      # the suite (fixtures + frozen golden JSON)
+```
+
+Four scriptable commands turn the inspector into something a test rig can use:
+`check --expect …`, `watch --events`, `baseline save|check <file>` and
+`report [--format md|html] [--out file]`. `make` (or `make help`) lists every
+developer task.
 
 ## Build & verify
 
 ```console
-$ make                # list the tasks (self documenting)
-$ make doctor         # uv, PyObjC, librsvg, codesign, hdiutil available?
-$ make check          # gates: ruff format --check, ruff check, ty, pytest
-$ make binary         # standalone CLI binary        → dist/
-$ make app-bundle     # usbscope.app + styled DMG    → dist/
-$ make artifacts      # gates + both builds (release build)
-$ make checksums      # verify the SHA-256 files in dist/
+$ make                            # list the tasks (self documenting)
+$ make doctor                     # swift, codesign, plutil, hdiutil, icon?
+$ make check                      # the gates: swift build + swift test
+$ make swift-app-bundle           # dist/usbscope-swift.app (release, ad-hoc signed, verified)
+$ make swift-app-dmg              # → dist/usbscope-swift-<version>-macos-<arch>-adhoc.dmg (hdiutil, unsigned)
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same four gates on every push and pull
-request on an arm64 macOS runner, plus the two builds on `main`. Signing,
-notarisation and the Homebrew cask — and what is still missing there — are in
-[docs/distribution.md](docs/distribution.md).
+CI (`.github/workflows/ci.yml`) runs `swift build` + `swift test` on every push
+and pull request on a `macos-14` runner, and builds/uploads the app bundle on
+`main`. Signing and notarisation — and what is still missing — are in
+[docs/distribution.md](docs/distribution.md); the Mac App Store path in
+[docs/app-store.md](docs/app-store.md).
 
-## Usage
+macOS only. No sudo, no private frameworks, no entitlements. The data comes from
+`system_profiler` and the IORegistry: `ioreg -p IOPort` is read **in-process**
+through IOKit by default, with the `/usr/sbin/ioreg` subprocess kept as a
+fallback.
 
-```console
-$ uvx --from . usbscope          # run straight from the checkout
-$ usbscope                       # overview  (after `uv tool install .`)
-$ usbscope --watch 2             # live refresh (alternate screen, no flicker)
-$ usbscope ports -v              # port detail
-$ usbscope cables                # e-marker, CC authentication, liquid detection
-$ usbscope --json                # machine readable
-```
+There is **no prebuilt binary** — no signed or notarised release is published
+yet, so build from source with `swift build`. What a real release still needs is
+listed in [docs/distribution.md](docs/distribution.md).
+# Product and support contract
 
-Or take the prebuilt binary from the
-[latest release](https://github.com/zopyx/usbscope/releases) (macOS arm64, no
-Python needed):
+usbscope is a local-only diagnostic tool for four audiences: people
+troubleshooting a cable or charge/data issue, developers inspecting negotiated
+USB state, IT administrators collecting repeatable machine snapshots, and
+privacy-conscious users who need to see exactly what is exported. The Overview
+answers the first three questions—what is connected, where it is connected, and
+what mode is negotiated—before specialist views.
 
-```console
-gh release download --repo zopyx/usbscope --pattern 'usbscope-*-macos-arm64.tar.gz'
-tar xzf usbscope-*-macos-arm64.tar.gz && ./usbscope
-```
+Security findings are observations and heuristics, not malware detection or a
+security verdict. Missing identifiers mean that macOS did not report them; they
+do not prove a device is malicious.
 
-macOS only. No sudo, no private frameworks, no entitlements — `system_profiler`
-and `ioreg -p IOPort` are the only data sources.
+## Compatibility matrix
 
-Documentation: [docs/index.md](docs/index.md). The screenshots above are
-generated with `uv run python scripts/screenshots.py --png --host mac`, the
-standalone binary with `uv run python scripts/build_binary.py`.
+| Configuration | Status | Notes |
+| --- | --- | --- |
+| macOS 14.4+ | supported | Minimum package target |
+| Current macOS on Apple Silicon | tested | In-process IOKit reader preferred |
+| Current macOS on Intel | supported | Subprocess fallback retained |
+| Sandboxed bundle | supported where APIs are available | Unsupported sources are reported as partial/failed |
+| Direct bundle / CLI | supported | Uses absolute system-tool paths and bounded subprocess reads |
+
+Source availability varies by Mac model and OS release. Unknown fields are
+non-fatal and remain unavailable rather than being guessed. Snapshot JSON keeps
+schema version 1 for compatibility; loaders reject unsupported versions with a
+useful error. Diagnostic bundles use a separate format version and redact
+serials, host names, location IDs, paths, and event identities by default.
+
+The app records no network telemetry. Local diagnostics can include total read
+duration, per-source status, warnings, subprocess timings, collection attempts,
+time-to-first-snapshot, failed-source rate, and time-to-identify-device. These
+QA metrics are held in memory until the user explicitly copies or exports
+diagnostics.
+The optional low-power monitoring profile skips Thunderbolt and charging reads
+and reports that reduction as a visible source warning.
+
+Further contracts are documented in [the product brief](docs/product-brief.md),
+[the failure matrix](docs/failure-matrix.md), [the privacy inventory](docs/privacy-inventory.md),
+and [the hardware capture matrix](docs/capture-matrix.md). Performance and
+refresh caching policy is documented in [docs/performance.md](docs/performance.md).
