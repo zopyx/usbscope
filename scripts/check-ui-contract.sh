@@ -57,6 +57,7 @@ forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state mus
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"
 forbidden_pattern "$APP/AppState.swift" "StorageSource()" "app state must use SnapshotCollectionService for storage"
 forbidden_pattern "$APP/AppState.swift" "Shell.run" "app state must use CommandExecutionService"
+forbidden_pattern "$APP/Views.swift" ".onTapGesture" "interactive rows must use keyboard-accessible buttons"
 
 require_pattern "$SMOKE" "for view in ports cables devices thunderbolt power timeline security usb4 diff warnings;" "installed smoke covers all ten views"
 

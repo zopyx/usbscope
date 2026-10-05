@@ -988,18 +988,21 @@ struct TimelineView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 3) {
                         ForEach(rows) { row in
-                            HStack(spacing: 10) {
-                                Text(row.time).monospacedDigit().foregroundStyle(.secondary)
-                                    .frame(width: 70, alignment: .leading)
-                                Text(row.kind)
-                                    .foregroundStyle(row.isAttach ? Color.green : Color.red)
-                                    .frame(width: 72, alignment: .leading)
-                                Text(row.name).fontWeight(.semibold)
-                                Text(row.detail).foregroundStyle(.secondary).lineLimit(1)
-                                Spacer(minLength: 0)
+                            Button {
+                                state.openEvent(row)
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Text(row.time).monospacedDigit().foregroundStyle(.secondary)
+                                        .frame(width: 70, alignment: .leading)
+                                    Text(row.kind)
+                                        .foregroundStyle(row.isAttach ? Color.green : Color.red)
+                                        .frame(width: 72, alignment: .leading)
+                                    Text(row.name).fontWeight(.semibold)
+                                    Text(row.detail).foregroundStyle(.secondary).lineLimit(1)
+                                    Spacer(minLength: 0)
+                                }
                             }
-                            .contentShape(Rectangle())
-                            .onTapGesture { state.openEvent(row) }
+                            .buttonStyle(.plain)
                             .accessibilityElement(children: .combine)
                             .accessibilityHint(L(.showDevice, lang))
                             .contextMenu {
