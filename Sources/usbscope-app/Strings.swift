@@ -98,6 +98,15 @@ enum StringKey: String, CaseIterable {
     case loading
     case collecting
     case aboutMenuTitle
+    case aboutTagline
+    case aboutDataNote
+    case aboutFactMachine
+    case aboutFactMacOS
+    case aboutFactPorts
+    case aboutFactDevices
+    case aboutFactCables
+    case aboutFactUsb4
+    case aboutFactDataSources
     case aboutDocs
     case aboutSource
     case aboutCopy
@@ -377,6 +386,15 @@ enum Strings {
         case .loading: "reading the USB subsystem…"
         case .collecting: "collecting"
         case .aboutMenuTitle: "About usbscope"
+        case .aboutTagline: "See what macOS knows about your USB ports, cables and link modes."
+        case .aboutDataNote: "Everything is read locally. Nothing leaves this Mac."
+        case .aboutFactMachine: "Machine"
+        case .aboutFactMacOS: "macOS"
+        case .aboutFactPorts: "Ports"
+        case .aboutFactDevices: "Devices"
+        case .aboutFactCables: "Cables"
+        case .aboutFactUsb4: "USB4 / Thunderbolt"
+        case .aboutFactDataSources: "Data sources"
         case .aboutDocs: "Documentation"
         case .aboutSource: "Source code"
         case .aboutCopy: "Copy diagnostics"
@@ -586,6 +604,15 @@ enum Strings {
         case .loading: "USB-Subsystem wird gelesen…"
         case .collecting: "sammle"
         case .aboutMenuTitle: "Über usbscope"
+        case .aboutTagline: "Sehen Sie, was macOS über USB-Anschlüsse, Kabel und Verbindungsmodi weiß."
+        case .aboutDataNote: "Alles wird lokal gelesen. Nichts verlässt diesen Mac."
+        case .aboutFactMachine: "Rechner"
+        case .aboutFactMacOS: "macOS"
+        case .aboutFactPorts: "Anschlüsse"
+        case .aboutFactDevices: "Geräte"
+        case .aboutFactCables: "Kabel"
+        case .aboutFactUsb4: "USB4 / Thunderbolt"
+        case .aboutFactDataSources: "Datenquellen"
         case .aboutDocs: "Dokumentation"
         case .aboutSource: "Quellcode"
         case .aboutCopy: "Diagnose kopieren"
@@ -710,6 +737,19 @@ func L(_ key: StringKey, _ language: AppLanguage) -> String {
 }
 
 extension Strings {
+    static func aboutFactLabel(_ label: String, _ language: AppLanguage) -> String {
+        switch label {
+        case "Machine": return L(.aboutFactMachine, language)
+        case "macOS": return L(.aboutFactMacOS, language)
+        case "Ports": return L(.aboutFactPorts, language)
+        case "Devices": return L(.aboutFactDevices, language)
+        case "Cables": return L(.aboutFactCables, language)
+        case "USB4 / Thunderbolt": return L(.aboutFactUsb4, language)
+        case "Data sources": return L(.aboutFactDataSources, language)
+        default: return label
+        }
+    }
+
     static func emptyMessage(for view: AppView, _ language: AppLanguage) -> String {
         let key: StringKey
         switch view {

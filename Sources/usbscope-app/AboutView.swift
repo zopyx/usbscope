@@ -20,7 +20,7 @@ struct AboutView: View {
             VStack(spacing: 18) {
                 iconPlate
                 title
-                Text(AboutInfo.tagline)
+                Text(L(.aboutTagline, lang))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -29,7 +29,7 @@ struct AboutView: View {
                 Divider().opacity(0.35)
 
                 facts
-                Text(AboutInfo.dataNote)
+                Text(L(.aboutDataNote, lang))
                     .font(.caption)
                     .italic()
                     .foregroundStyle(.tertiary)
@@ -113,7 +113,9 @@ struct AboutView: View {
 
     @ViewBuilder
     private var facts: some View {
-        let items = AboutInfo.facts(state.snapshot)
+        let items = AboutInfo.facts(state.snapshot).map { fact in
+            AboutFact(Strings.aboutFactLabel(fact.label, lang), fact.value)
+        }
         if items.isEmpty {
             Text(L(.aboutWaiting, lang))
                 .font(.caption)
@@ -188,7 +190,7 @@ enum AboutPanel {
         }
         let host = NSHostingController(rootView: AboutView().environmentObject(state))
         let panel = NSWindow(contentViewController: host)
-        panel.title = "About usbscope"
+        panel.title = L(.aboutMenuTitle, state.language)
         panel.styleMask = [.titled, .closable, .fullSizeContentView]
         panel.titlebarAppearsTransparent = true
         panel.titleVisibility = .hidden
