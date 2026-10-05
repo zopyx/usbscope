@@ -137,7 +137,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // exits — the same mode the Python app has (and the build script uses).
         if let request = SnapshotRenderer.requested() {
             MainActor.assumeIsolated {
-                SnapshotRenderer.run(path: request.path, view: request.view, baseline: request.baseline)
+                SnapshotRenderer.run(path: request.path, view: request.view,
+                                     baseline: request.baseline, fixture: request.fixture)
             }
         }
     }

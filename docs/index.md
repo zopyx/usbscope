@@ -534,6 +534,10 @@ limitation remains, and it only affects captures: forcing an appearance
 (`NSAppearance`) makes the layer-backed labels come out blank, so captures follow
 the system appearance, which is what the window shows anyway.
 
+For reproducible visual review, pass `--fixture SwiftTests/Golden/snapshot.json`
+to render from the checked-in normalized capture instead of live host data;
+`make swift-app-fixture-smoke` exercises all ten views from that stable input.
+
 ## Prebuilt binary (CLI)
 
 **No prebuilt binary is published.** There is no signed or notarised release, and

@@ -15,12 +15,12 @@ import UsbScopeUI
 /// `--view` accepts any `AppView` raw value (`ports`, `cables`, `devices`,
 /// `thunderbolt`, `power`, `timeline`, `security`, `usb4`, `diff`, `warnings`).
 enum SnapshotRenderer {
-    /// Parse `--snapshot` / `--view` / `--baseline` from the command line; `nil`
+    /// Parse `--snapshot` / `--view` / `--baseline` / `--fixture` from the command line; `nil`
     /// when no screenshot was asked for.
     ///
     /// `--view` without `--snapshot` is ignored (the app just opens that view);
     /// `--baseline` loads a snapshot JSON into the Diff tab before the render.
-    static func requested() -> (path: String, view: AppView, baseline: String?)? {
+    static func requested() -> (path: String, view: AppView, baseline: String?, fixture: String?)? {
         let arguments = CommandLine.arguments
         guard let index = arguments.firstIndex(of: "--snapshot"), index + 1 < arguments.count else {
             return nil
@@ -35,19 +35,33 @@ enum SnapshotRenderer {
         if let baselineIndex = arguments.firstIndex(of: "--baseline"), baselineIndex + 1 < arguments.count {
             baseline = arguments[baselineIndex + 1]
         }
-        return (path, view, baseline)
+        var fixture: String?
+        if let fixtureIndex = arguments.firstIndex(of: "--fixture"), fixtureIndex + 1 < arguments.count {
+            fixture = arguments[fixtureIndex + 1]
+        }
+        return (path, view, baseline, fixture)
     }
 
     /// Build the window offscreen, write the PNG and exit.
     @MainActor
-    static func run(path: String, view: AppView, baseline: String? = nil) -> Never {
+    static func run(path: String, view: AppView, baseline: String? = nil, fixture: String? = nil) -> Never {
         let state = AppState(
             store: PreferencesStore(backend: MemoryPreferencesBackend()),
             notifier: nil,
             monitoring: false
         )
         state.view = view
-        state.loadSynchronously()
+        if let fixture {
+            do {
+                let snapshot = try SnapshotLoading.snapshot(from: URL(fileURLWithPath: fixture))
+                state.loadSnapshotForRendering(snapshot)
+            } catch {
+                FileHandle.standardError.write(Data("usbscope-app: could not load fixture \(fixture): \(error)\n".utf8))
+                exit(1)
+            }
+        } else {
+            state.loadSynchronously()
+        }
         if let baseline {
             state.loadBaseline(URL(fileURLWithPath: baseline))
             FileHandle.standardError.write(

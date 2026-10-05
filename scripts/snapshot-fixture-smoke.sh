@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Render every SwiftUI view from a fixed JSON fixture. This is the stable input
+# for reviewed visual captures; the ordinary bundle smoke remains live-machine.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP="${1:-$ROOT/dist/usbscope-swift.app}"
+FIXTURE="${2:-$ROOT/SwiftTests/Golden/snapshot.json}"
+EXE="$APP/Contents/MacOS/usbscope-app"
+[ -x "$EXE" ] || { echo "app executable not found: $EXE" >&2; exit 1; }
+[ -f "$FIXTURE" ] || { echo "fixture not found: $FIXTURE" >&2; exit 1; }
+
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/usbscope-fixture-snapshots.XXXXXX")"
+trap 'rm -rf "$tmp"' EXIT
+
+for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do
+    png="$tmp/$view.png"
+    timeout 120 "$EXE" --snapshot "$png" --view "$view" --fixture "$FIXTURE" >/dev/null 2>&1
+    [ -s "$png" ] || { echo "fixture snapshot is empty: $view" >&2; exit 1; }
+    echo "fixture snapshot $view: $(stat -f '%z bytes' "$png")"
+done
+
+echo "fixture snapshot smoke passed: $FIXTURE"

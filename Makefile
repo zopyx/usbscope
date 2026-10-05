@@ -17,7 +17,7 @@ VERSION := $(shell sed -n 's/^let version = "\([^"]*\)".*/\1/p' Sources/usbscope
 
 .PHONY: help doctor env build test check clean distclean version \
         swift swift-build swift-test swift-golden swift-run-app swift-app-check swift-app-bundle \
-        swift-app-dmg swift-app-smoke \
+        swift-app-dmg swift-app-smoke swift-app-fixture-smoke \
         ui-contract run watch snapshot checksums man completions
 
 ## ---------------------------------------------------------------------------
@@ -97,6 +97,9 @@ swift-app-dmg: ## pack the app into a compressed DMG (hdiutil, unsigned) + SHA25
 
 swift-app-smoke: swift-app-bundle ## exercise the installed app bundle, offscreen where supported
 	scripts/smoke-swift-app.sh dist/usbscope-swift.app
+
+swift-app-fixture-smoke: swift-app-bundle ## render every view from the frozen JSON fixture
+	scripts/snapshot-fixture-smoke.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json
 
 ui-contract: ## verify keyboard, accessibility, navigation and snapshot hooks
 	scripts/check-ui-contract.sh

@@ -496,6 +496,19 @@ final class AppState: ObservableObject {
                                       profile: profile), generation: nil)
     }
 
+    /// Apply a decoded fixture for deterministic offscreen rendering. This is
+    /// intentionally separate from live collection so screenshot checks never
+    /// shell out to the host or persist fixture data as a user snapshot.
+    func loadSnapshotForRendering(_ fresh: Snapshot) {
+        isLoading = true
+        storage = []
+        storageStatus = .notApplicable
+        storageWarnings = []
+        storageErrors = []
+        sourceTimings = [:]
+        apply(fresh, generation: nil)
+    }
+
     private func apply(_ fresh: Snapshot, generation: UInt64?) {
         if let generation, generation != refreshGeneration { return }
         if let appliedAt, fresh.seenAt < appliedAt { return }
