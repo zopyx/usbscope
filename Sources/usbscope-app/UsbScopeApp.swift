@@ -225,9 +225,18 @@ enum SelfTest {
                                        snapshot: snapshot, warnings: snapshot.warnings,
                                        storage: [])
 
+            // Notification-center delivery requires user authorization, but the
+            // exact user-visible wording is deterministic and must remain part
+            // of the installed-bundle smoke contract.
+            guard DeviceChangeText.describe(ChangeSet()) == "No device changes." else {
+                throw CocoaError(.validationMissingMandatoryProperty)
+            }
+
             let watcher = UsbHotplugWatcher(mode: .polling, pollInterval: 0.1, collect: { snapshot })
             watcher.start { _ in }
+            guard watcher.isRunning else { throw CocoaError(.validationMissingMandatoryProperty) }
             watcher.stop()
+            guard !watcher.isRunning else { throw CocoaError(.validationMissingMandatoryProperty) }
 
             let files = try FileManager.default.contentsOfDirectory(atPath: root.path)
             guard files.contains("snapshot.json"), files.contains("ports.csv"),
