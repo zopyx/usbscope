@@ -102,6 +102,7 @@ case "$signing_mode" in
     [ "$signing_identity" = "-" ] || { echo "adhoc signing mode cannot use an Apple identity" >&2; exit 2; }
     ;;
   developer-id)
+    [ "$sign" -eq 1 ] || { echo "developer-id signing mode cannot use --no-sign" >&2; exit 2; }
     [ "$signing_identity" != "-" ] || { echo "developer-id signing mode requires --identity or CODESIGN_IDENTITY" >&2; exit 2; }
     ;;
   mas)
@@ -338,6 +339,7 @@ if [ "$archive" -eq 1 ]; then
     xcrun notarytool submit "$notarization_zip" --keychain-profile "$notary_profile" --wait
     xcrun stapler staple "$bundle"
     xcrun stapler validate "$bundle"
+    spctl --assess --type execute --verbose=4 "$bundle"
     rm -f "$notarization_zip"
   fi
   echo "\$ tar -czf ${tarball#"$ROOT"/} -C dist $name.app"
