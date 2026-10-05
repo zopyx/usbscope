@@ -83,6 +83,7 @@ jobs:
             exit 2
           }
           scripts/build-swift-app.sh \
+            --universal \
             --signing-mode developer-id \
             --identity "$DEVELOPER_IDENTITY" \
             --notarize --notary-profile USBSCOPE_NOTARY

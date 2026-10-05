@@ -370,14 +370,12 @@ an operational prerequisite before publication.
       build; credentials and an Apple-issued certificate remain prerequisites.
 - [x] A release pipeline (tag → build → sign → notarise → staple → upload):
       `.github/workflows/release.yml` (protected credentials required).
-- [ ] CI that signs/notarises — `.github/workflows/ci.yml` only runs
-      `swift build` + `swift test` and, on `main`, builds/uploads the *unsigned*
-      ad-hoc bundle with **no** signing secrets. Distribution signing does not
-      happen in CI at all.
-- [ ] universal2 in a *shipped* artifact — `scripts/build-swift-app.sh --universal`
-      builds a fat arm64 + x86_64 bundle (verified with `lipo`/`file`, section (c)),
-      but the default output stays arm64-only (verified with `file`) and no
-      universal artifact is published.
+- [x] Credentialed CI that signs/notarises — `.github/workflows/release.yml`
+      runs the release build with protected signing/notary secrets; ordinary CI
+      remains credential-free.
+- [x] universal2 release artifact path — the credentialed workflow passes
+      `scripts/build-swift-app.sh --universal`, producing the fat arm64 + x86_64
+      archive. The default developer build remains arm64-only.
 - [ ] A published release of any kind — nothing is tagged or uploaded; the tarball
       and the DMG exist only under `dist/`.
 - [x] `SHA256SUMS` for the release artifacts: `scripts/build-swift-app.sh` packs the
