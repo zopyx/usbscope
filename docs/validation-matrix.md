@@ -6,7 +6,7 @@ Automated checks run on every change:
 | --- | --- | --- |
 | Core and UI support | `swift test` | All tests pass; skips are explained |
 | App build | `swift build -c debug --product usbscope-app` | Build succeeds |
-| Bundle shape | `scripts/build-swift-app.sh --debug --no-archive --no-verify` | Bundle is signed and validated |
+| Bundle shape | `scripts/build-swift-app.sh --debug --no-archive --no-verify` | Bundle package type, identifier, versions, architecture, signing mode/certificate, entitlements, nested-code absence, signature, and executable are validated |
 | Installed-bundle smoke | `scripts/smoke-swift-app.sh dist/usbscope-swift.app` | Exact bundle executable reports version, first-read rows, atomic JSON/CSV exports, a diagnostic bundle, watcher start/stop, all ten offscreen views, and signature |
 | Fixture snapshot smoke | `scripts/snapshot-fixture-smoke.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json` | All ten offscreen views render from a stable, checked-in input rather than live host/time data |
 | Visual baseline comparison | `scripts/check-swift-visual-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines` | Exact fixture-driven PNG output matches the reviewed baseline for every view |
