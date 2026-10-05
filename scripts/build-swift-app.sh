@@ -40,6 +40,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/run-with-timeout.sh"
 DIST="$ROOT/dist"
 BUNDLE_ID="com.zopyx.usbscope"
 EXECUTABLE="usbscope-app"
@@ -297,7 +298,7 @@ if [ "$verify" -eq 1 ]; then
 
   # --print-rows is the app's headless data path; it needs a window server, so its
   # absence is reported instead of failing the build on a headless machine.
-  rows="$(timeout 120 "$exe" --print-rows 2>/dev/null || true)"
+  rows="$(run_with_timeout 120 "$exe" --print-rows 2>/dev/null || true)"
   if [ -n "$rows" ]; then
     echo "  --print-rows → $(printf '%s\n' "$rows" | wc -l | tr -d ' ') lines (live data path OK)"
   else

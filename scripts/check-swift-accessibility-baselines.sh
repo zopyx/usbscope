@@ -4,6 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/run-with-timeout.sh"
 APP="${1:-$ROOT/dist/usbscope-swift.app}"
 FIXTURE="${2:-$ROOT/SwiftTests/Golden/snapshot.json}"
 BASELINES="${3:-$ROOT/docs/screenshots/fixture-baselines/accessibility3}"
@@ -19,7 +20,7 @@ for view in ports cables devices thunderbolt power timeline security usb4 diff w
     actual="$tmp/$view.png"
     expected="$BASELINES/$view.png"
     [ -f "$expected" ] || { echo "missing accessibility baseline: $expected" >&2; exit 1; }
-    timeout 120 "$EXE" --snapshot "$actual" --view "$view" --fixture "$FIXTURE" \
+    run_with_timeout 120 "$EXE" --snapshot "$actual" --view "$view" --fixture "$FIXTURE" \
         --accessibility-size >/dev/null 2>&1
     if ! cmp -s "$actual" "$expected"; then
         echo "accessibility visual baseline mismatch: $view" >&2

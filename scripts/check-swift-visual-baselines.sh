@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/run-with-timeout.sh"
 APP="${1:-$ROOT/dist/usbscope-swift.app}"
 FIXTURE="${2:-$ROOT/SwiftTests/Golden/snapshot.json}"
 BASELINES="${3:-$ROOT/docs/screenshots/fixture-baselines}"
@@ -18,7 +19,7 @@ for view in ports cables devices thunderbolt power timeline security usb4 diff w
     actual="$tmp/$view.png"
     expected="$BASELINES/$view.png"
     [ -f "$expected" ] || { echo "missing visual baseline: $expected" >&2; exit 1; }
-    timeout 120 "$EXE" --snapshot "$actual" --view "$view" --fixture "$FIXTURE" >/dev/null 2>&1
+    run_with_timeout 120 "$EXE" --snapshot "$actual" --view "$view" --fixture "$FIXTURE" >/dev/null 2>&1
     if ! cmp -s "$actual" "$expected"; then
         echo "visual baseline mismatch: $view" >&2
         exit 1

@@ -4,6 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/run-with-timeout.sh"
 APP="${1:-$ROOT/dist/usbscope-swift.app}"
 FIXTURE="${2:-$ROOT/SwiftTests/Golden/snapshot.json}"
 EXE="$APP/Contents/MacOS/usbscope-app"
@@ -15,7 +16,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 for view in ports cables devices thunderbolt power timeline security usb4 diff warnings; do
     png="$tmp/$view.png"
-    timeout 120 "$EXE" --snapshot "$png" --view "$view" --fixture "$FIXTURE" >/dev/null 2>&1
+    run_with_timeout 120 "$EXE" --snapshot "$png" --view "$view" --fixture "$FIXTURE" >/dev/null 2>&1
     [ -s "$png" ] || { echo "fixture snapshot is empty: $view" >&2; exit 1; }
     echo "fixture snapshot $view: $(stat -f '%z bytes' "$png")"
 done
