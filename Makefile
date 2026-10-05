@@ -18,7 +18,7 @@ VERSION := $(shell sed -n 's/^let version = "\([^"]*\)".*/\1/p' Sources/usbscope
 .PHONY: help doctor env build test check clean distclean version \
         swift swift-build swift-test swift-golden swift-run-app swift-app-check swift-app-bundle \
         swift-app-dmg swift-app-smoke \
-        run watch snapshot checksums man completions
+        ui-contract run watch snapshot checksums man completions
 
 ## ---------------------------------------------------------------------------
 ## Setup & quality
@@ -48,8 +48,8 @@ build: ## build every product (swift build)
 test: ## run the Swift suite (swift test)
 	$(SWIFT) test
 
-check: ## all gates (build + tests) — the CI equivalent
-	$(MAKE) swift-test
+check: ## all gates (build + tests + UI contract) — the CI equivalent
+	$(MAKE) swift-test ui-contract
 
 check-all: check ## alias for check (kept for the CI muscle memory)
 	@true
@@ -97,6 +97,9 @@ swift-app-dmg: ## pack the app into a compressed DMG (hdiutil, unsigned) + SHA25
 
 swift-app-smoke: swift-app-bundle ## exercise the installed app bundle, offscreen where supported
 	scripts/smoke-swift-app.sh dist/usbscope-swift.app
+
+ui-contract: ## verify keyboard, accessibility, navigation and snapshot hooks
+	scripts/check-ui-contract.sh
 
 run: swift-build ## run the CLI (overview)
 	./.build/$(CONFIG)/usbscope

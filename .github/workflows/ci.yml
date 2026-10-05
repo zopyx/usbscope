@@ -66,6 +66,9 @@ jobs:
       - name: Localization static check
         run: scripts/check-localization.sh
 
+      - name: UI contract check
+        run: scripts/check-ui-contract.sh
+
       - name: Test
         run: swift test
 

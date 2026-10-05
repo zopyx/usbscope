@@ -9,6 +9,7 @@ Automated checks run on every change:
 | Bundle shape | `scripts/build-swift-app.sh --debug --no-archive --no-verify` | Bundle is signed and validated |
 | Installed-bundle smoke | `scripts/smoke-swift-app.sh dist/usbscope-swift.app` | Exact bundle executable reports version, first-read rows, atomic JSON/CSV exports, a diagnostic bundle, watcher start/stop, all ten offscreen views, and signature |
 | Localization | `scripts/check-localization.sh` | No user-visible SwiftUI/AppKit literals bypass the string table |
+| UI contract | `scripts/check-ui-contract.sh` | Keyboard commands, accessibility hooks, all ten view routes, and actionable empty/source-health controls remain wired |
 | Large-data performance | `swift test --filter PerformanceTests` | 500-device report and 1,000-entry history stay within budgets |
 | Parser robustness | `swift test --filter ParserFuzzTests` | Malformed and deeply nested source trees do not crash adapters |
 | Concurrency and export safety | `swift test --filter FixSpecTests` | Refresh bursts are serialized, stderr remains bounded, and atomic exports leave no temporary files |
