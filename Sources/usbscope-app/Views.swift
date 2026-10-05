@@ -1131,7 +1131,8 @@ struct SecurityView: View {
                     .padding(.horizontal, 6).padding(.vertical, 1)
                     .background(styleColor(row.severityStyle).opacity(0.18), in: Capsule())
                     .foregroundStyle(styleColor(row.severityStyle))
-                Text(row.rule).font(.system(.body, design: .monospaced))
+                Text(Strings.securityRuleLabel(row.rule, lang))
+                    .font(.system(.body, design: .monospaced))
                 Spacer()
                 Text(row.subject).foregroundStyle(.secondary)
             }
@@ -1157,7 +1158,9 @@ struct SecurityView: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Strings.findingAccessibilityLabel(severity: row.severity, rule: row.rule,
+        .accessibilityLabel(Strings.findingAccessibilityLabel(
+            severity: Strings.securitySeverity(row.severity, lang),
+            rule: Strings.securityRuleLabel(row.rule, lang),
                                                               subject: row.subject, detail: row.detail, lang))
         .contextMenu {
             Button(L(.openSourceRow, lang)) { state.openFinding(row) }
