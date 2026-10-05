@@ -204,6 +204,7 @@ final class AppState: ObservableObject {
     private var refreshGeneration: UInt64 = 0
     private var appliedAt: Date?
     private var qaMetrics = LocalQAMetrics()
+    private var shuttingDown = false
 
     var isIdle: Bool { snapshot == nil && !isLoading }
 
@@ -298,6 +299,7 @@ final class AppState: ObservableObject {
 
     /// Idempotent lifecycle stop used by the app delegate and tests.
     func shutdown() {
+        shuttingDown = true
         refreshGeneration &+= 1
         refreshTask?.cancel()
         Task { await coordinator.stop() }
@@ -315,6 +317,7 @@ final class AppState: ObservableObject {
     /// result through the coordinator is what prevents it from racing a read
     /// already in flight and mutating presentation state out of order.
     private func handleHotplug(_ update: UsbHotplugWatcher.Update) {
+        guard !shuttingDown else { return }
         if let eventLog, !update.events.isEmpty {
             let events = update.events
             // The log is I/O; keep it off the main thread.
@@ -325,8 +328,10 @@ final class AppState: ObservableObject {
         let candidate = update.snapshot
         Task { @MainActor [weak self] in
             guard let self else { return }
+            guard !self.shuttingDown else { return }
             let result = await coordinator.request(.hotplug, collector: { _ in candidate })
             guard let result else { return }
+            guard !self.shuttingDown else { return }
             apply(result.snapshot, generation: nil)
         }
     }
@@ -436,7 +441,7 @@ final class AppState: ObservableObject {
     // MARK: - Refresh
 
     func refresh() {
-        guard !isLoading else { return }
+        guard !shuttingDown, !isLoading else { return }
         lastAttemptAt = Date()
         dataFreshness = snapshot == nil ? .loading : .stale
         refreshGeneration &+= 1
@@ -447,19 +452,25 @@ final class AppState: ObservableObject {
         let profile = monitoringProfile == .lowPower ? SnapshotCollectionProfile.lowPower : .full
         refreshTask = Task { [weak self] in
             guard let appState = self else { return }
+            guard !appState.shuttingDown else { return }
             let collector: SnapshotCoordinator.Collector = { progress in
                 await appState.collectionService.collect(profile: profile, progress: progress)
             }
             let result = await appState.coordinator.request(.manual, collector: collector, progress: { [weak appState] stage, index, total in
                 let value = SnapshotProgress(stage: stage, index: index, total: total)
                 Task { @MainActor [weak appState] in
-                    guard let appState, appState.refreshGeneration == generation else { return }
+                    guard let appState,
+                          !appState.shuttingDown,
+                          appState.refreshGeneration == generation else { return }
                     appState.progress = value
                 }
             })
             let inventory = await appState.collectionService.inventory()
             guard let result else { return }
-            guard let self, self.refreshGeneration == generation, !Task.isCancelled else { return }
+            guard let self,
+                  !self.shuttingDown,
+                  self.refreshGeneration == generation,
+                  !Task.isCancelled else { return }
             self.storage = inventory.devices
             self.storageStatus = inventory.status
             self.storageWarnings = inventory.warnings
@@ -501,6 +512,7 @@ final class AppState: ObservableObject {
     }
 
     private func apply(_ fresh: Snapshot, generation: UInt64?) {
+        guard !shuttingDown else { return }
         if let generation, generation != refreshGeneration { return }
         if let appliedAt, fresh.seenAt < appliedAt { return }
         let sourceWarnings = fresh.warnings + storageWarnings
