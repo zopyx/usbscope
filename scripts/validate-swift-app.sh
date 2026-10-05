@@ -78,6 +78,14 @@ case "$signing_mode" in
     ;;
   mas)
     [ "$SANDBOX" -eq 1 ] || { echo "mas mode requires --sandbox validation" >&2; exit 1; }
+    [ -f "$APP/Contents/embedded.provisionprofile" ] || {
+      echo "mas mode requires Contents/embedded.provisionprofile" >&2
+      exit 1
+    }
+    echo "$signature_details" | grep -q 'Authority=Apple Distribution:' || {
+      echo "mas mode requires an Apple Distribution signature" >&2
+      exit 1
+    }
     ;;
 esac
 archs="$(lipo -archs "$EXEC" 2>/dev/null || true)"
@@ -89,6 +97,10 @@ has_sandbox=0
 if echo "$entitlements" | grep -q 'com.apple.security.app-sandbox'; then has_sandbox=1; fi
 if [ "$SANDBOX" -eq 1 ] && [ "$has_sandbox" -ne 1 ]; then
   echo "sandbox validation requested but com.apple.security.app-sandbox is absent" >&2
+  exit 1
+fi
+if [ "$SANDBOX" -eq 1 ] && echo "$entitlements" | grep -q 'com.apple.security.network.client'; then
+  echo "sandbox validation found unexpected network client entitlement" >&2
   exit 1
 fi
 if [ "$signing_mode" = "mas" ] && [ "$has_sandbox" -ne 1 ]; then

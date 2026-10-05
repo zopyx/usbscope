@@ -52,7 +52,10 @@ scripts/build-swift-mas-pkg.sh \
 ```
 
 The script rejects missing profiles, missing signing tools, missing sandbox
-entitlements, and the network-client entitlement before creating the package.
+entitlements, ad-hoc/non-Apple-Distribution signatures, and the network-client
+entitlement before creating the package. The shared bundle validator also
+requires `Contents/embedded.provisionprofile` whenever MAS/sandbox validation
+is requested.
 
 ## Upload
 
