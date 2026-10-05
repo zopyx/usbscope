@@ -34,6 +34,8 @@ require_pattern "$APP/UsbScopeApp.swift" ".keyboardShortcut(\"d\", modifiers: .c
 require_pattern "$APP/UsbScopeApp.swift" ".keyboardShortcut(\"s\", modifiers: .command)" "JSON export has a command shortcut"
 require_pattern "$APP/UsbScopeApp.swift" ".keyboardShortcut(\"k\", modifiers: [.command])" "command palette has a command shortcut"
 require_pattern "$APP/UsbScopeApp.swift" "ForEach(AppView.allCases)" "every view remains reachable from the command menus"
+require_pattern "$APP/SnapshotRenderer.swift" "root.dynamicTypeSize(.accessibility3)" "snapshot renderer covers accessibility text size"
+require_pattern "$ROOT/scripts/check-swift-accessibility-baselines.sh" "--accessibility-size" "accessibility-size baseline gate remains wired"
 
 require_pattern "$SMOKE" "for view in ports cables devices thunderbolt power timeline security usb4 diff warnings;" "installed smoke covers all ten views"
 

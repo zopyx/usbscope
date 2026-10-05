@@ -136,10 +136,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // `--snapshot out.png [--view security]` renders the window offscreen and
         // exits — the same mode the Python app has (and the build script uses).
         if let request = SnapshotRenderer.requested() {
-            MainActor.assumeIsolated {
-                SnapshotRenderer.run(path: request.path, view: request.view,
-                                     baseline: request.baseline, fixture: request.fixture)
-            }
+                MainActor.assumeIsolated {
+                    SnapshotRenderer.run(path: request.path, view: request.view,
+                                     baseline: request.baseline, fixture: request.fixture,
+                                     accessibilitySize: request.accessibilitySize)
+                }
         }
     }
 

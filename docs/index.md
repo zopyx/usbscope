@@ -539,6 +539,10 @@ to render from the checked-in normalized capture instead of live host data;
 `make swift-app-fixture-smoke` exercises all ten views from that stable input,
 and `make swift-app-visual-check` compares them with the reviewed PNG baselines
 under `docs/screenshots/fixture-baselines/`.
+The same ten fixture renders can be checked at Dynamic Type accessibility size 3
+with `make swift-app-accessibility-check`; reviewed images live under
+`docs/screenshots/fixture-baselines/accessibility3/`. This is a deterministic
+layout gate, not a substitute for VoiceOver on the signed app.
 
 ## Prebuilt binary (CLI)
 

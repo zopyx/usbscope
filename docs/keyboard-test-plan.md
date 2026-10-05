@@ -5,6 +5,11 @@ pointing device. Run it against the signed app bundle with a fixture-backed
 snapshot available, then repeat the refresh and failure cases on a live Mac.
 Record the build number, macOS version, keyboard layout, and pass/fail result.
 
+The headless accessibility-size render gate is complementary to this plan:
+`make swift-app-accessibility-check` exercises every view with a large system
+text size. It does not replace the signed-app keyboard and VoiceOver checks
+below.
+
 ## Navigation and filtering
 
 1. Focus the sidebar with Tab and move between sections with Up/Down. Use

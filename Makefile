@@ -18,6 +18,7 @@ VERSION := $(shell sed -n 's/^let version = "\([^"]*\)".*/\1/p' Sources/usbscope
 .PHONY: help doctor env build test check clean distclean version \
         swift swift-build swift-test swift-golden swift-run-app swift-app-check swift-app-bundle \
         swift-app-dmg swift-app-smoke swift-app-fixture-smoke swift-app-visual-check \
+        swift-app-accessibility-check \
         ui-contract run watch snapshot checksums man completions
 
 ## ---------------------------------------------------------------------------
@@ -103,6 +104,9 @@ swift-app-fixture-smoke: swift-app-bundle ## render every view from the frozen J
 
 swift-app-visual-check: swift-app-bundle ## compare fixture renders with reviewed PNG baselines
 	scripts/check-swift-visual-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines
+
+swift-app-accessibility-check: swift-app-bundle ## compare fixture renders at accessibility text size
+	scripts/check-swift-accessibility-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines/accessibility3
 
 ui-contract: ## verify keyboard, accessibility, navigation and snapshot hooks
 	scripts/check-ui-contract.sh
