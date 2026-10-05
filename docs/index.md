@@ -536,7 +536,9 @@ the system appearance, which is what the window shows anyway.
 
 For reproducible visual review, pass `--fixture SwiftTests/Golden/snapshot.json`
 to render from the checked-in normalized capture instead of live host data;
-`make swift-app-fixture-smoke` exercises all ten views from that stable input.
+`make swift-app-fixture-smoke` exercises all ten views from that stable input,
+and `make swift-app-visual-check` compares them with the reviewed PNG baselines
+under `docs/screenshots/fixture-baselines/`.
 
 ## Prebuilt binary (CLI)
 

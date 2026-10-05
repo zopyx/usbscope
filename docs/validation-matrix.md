@@ -9,6 +9,7 @@ Automated checks run on every change:
 | Bundle shape | `scripts/build-swift-app.sh --debug --no-archive --no-verify` | Bundle is signed and validated |
 | Installed-bundle smoke | `scripts/smoke-swift-app.sh dist/usbscope-swift.app` | Exact bundle executable reports version, first-read rows, atomic JSON/CSV exports, a diagnostic bundle, watcher start/stop, all ten offscreen views, and signature |
 | Fixture snapshot smoke | `scripts/snapshot-fixture-smoke.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json` | All ten offscreen views render from a stable, checked-in input rather than live host/time data |
+| Visual baseline comparison | `scripts/check-swift-visual-baselines.sh dist/usbscope-swift.app SwiftTests/Golden/snapshot.json docs/screenshots/fixture-baselines` | Exact fixture-driven PNG output matches the reviewed baseline for every view |
 | Localization | `scripts/check-localization.sh` | No user-visible SwiftUI/AppKit literals bypass the string table |
 | UI contract | `scripts/check-ui-contract.sh` | Keyboard commands, accessibility hooks, all ten view routes, and actionable empty/source-health controls remain wired |
 | Large-data performance | `swift test --filter PerformanceTests` | 500-device report and 1,000-entry history stay within budgets |
