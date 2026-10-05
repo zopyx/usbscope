@@ -55,6 +55,7 @@ private extension View {
 
 /// Centered empty state for a view without rows.
 struct EmptyState: View {
+    @EnvironmentObject private var state: AppState
     let message: String
     var actionTitle: String?
     var action: (() -> Void)?
@@ -69,6 +70,12 @@ struct EmptyState: View {
         VStack(spacing: 6) {
             Image(systemName: "tray").font(.largeTitle).foregroundStyle(.tertiary)
             Text(message).foregroundStyle(.secondary)
+            Label(Strings.sourceHealthLabel(source: L(.sourceHealth, state.language),
+                                            status: Strings.sourceStatus(state.overallSourceHealth, state.language),
+                                            state.language),
+                  systemImage: "waveform.path.ecg")
+                .font(.caption)
+                .foregroundStyle(state.overallSourceHealth == .healthy ? Color.secondary : Color.orange)
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
                     .keyboardShortcut(.defaultAction)
