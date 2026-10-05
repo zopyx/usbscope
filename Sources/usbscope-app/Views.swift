@@ -1333,7 +1333,8 @@ struct DiffView: View {
                                         .foregroundStyle(highlightColor(highlightFor(row.kind)))
                                         .frame(width: 92, alignment: .leading)
                                     Text(row.item).fontWeight(.semibold)
-                                    Text(row.detail).foregroundStyle(.secondary).lineLimit(1)
+                                    Text(Strings.diffDetail(row.detail, lang))
+                                        .foregroundStyle(.secondary).lineLimit(1)
                                     Spacer(minLength: 0)
                                 }
                             }

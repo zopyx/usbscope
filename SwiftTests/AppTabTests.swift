@@ -274,6 +274,15 @@ final class AppTabTests: XCTestCase {
         XCTAssertTrue(DiffPresentation.rows(ChangeSet()).isEmpty)
         XCTAssertEqual(DiffPresentation.summary(ChangeSet()), "0 appeared · 0 disappeared · 0 changed")
     }
+
+    func testDiffPresentationKeepsStableEnglishDetails() {
+        var changes = ChangeSet()
+        changes.changedPorts = ["port:USB-C@3"]
+        XCTAssertEqual(
+            DiffPresentation.rows(changes).first?.detail,
+            "port state differs from the baseline"
+        )
+    }
 }
 
 /// `filter` as a free helper so the tests read like production.

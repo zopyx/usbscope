@@ -69,6 +69,7 @@ require_pattern "$APP/AppState.swift" "Strings.progressText" "loading progress u
 require_pattern "$APP/AppState.swift" "language: language" "app table/export paths pass the selected language"
 require_pattern "$APP/AppState.swift" "FabricPresentation.rows(snapshot?.thunderboltFabric ?? ThunderboltFabric(), language: language)" "USB4 rows use the selected language"
 require_pattern "$APP/Views.swift" "FabricPresentation.rawLinkNote(lang)" "USB4 explanatory text remains localized"
+require_pattern "$APP/Views.swift" "Strings.diffDetail(row.detail, lang)" "diff details remain localized"
 
 forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"

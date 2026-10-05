@@ -898,6 +898,17 @@ extension Strings {
         }
     }
 
+    static func diffDetail(_ detail: String, _ language: AppLanguage) -> String {
+        guard language == .de else { return detail }
+        if detail == "port state differs from the baseline" {
+            return "Portstatus weicht von der Vergleichsbasis ab"
+        }
+        if detail.hasPrefix("serial ") {
+            return "Seriennummer " + detail.dropFirst("serial ".count)
+        }
+        return detail
+    }
+
     static func sourceHealthLabel(source: String, status: String, _ language: AppLanguage) -> String {
         "\(source): \(status)"
     }
