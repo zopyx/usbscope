@@ -33,16 +33,22 @@ public enum FabricPresentation {
         + "macOS does not document their encoding, so they are shown verbatim instead of "
         + "being converted to Gbit/s."
 
+    public static func rawLinkNote(_ language: AppLanguage) -> String {
+        language == .de
+            ? "Verbindungsrate und Breite sind die Roh-Aufzählungen des USB4-Switches; macOS dokumentiert ihre Codierung nicht, daher werden sie unverändert statt als Gbit/s angezeigt."
+            : rawLinkNote
+    }
+
     /// `speed cur/tgt/sup 2/2/2 · width cur/tgt/sup 1/1/1` for what is known.
-    public static func linkText(_ port: ThunderboltFabricPort) -> String {
+    public static func linkText(_ port: ThunderboltFabricPort, language: AppLanguage = .en) -> String {
         var parts: [String] = []
-        if let text = triplet("speed", port.currentLinkSpeed, port.targetLinkSpeed, port.supportedLinkSpeed) {
+        if let text = triplet(language == .de ? "Rate" : "speed", port.currentLinkSpeed, port.targetLinkSpeed, port.supportedLinkSpeed) {
             parts.append(text)
         }
-        if let text = triplet("width", port.currentLinkWidth, port.targetLinkWidth, port.supportedLinkWidth) {
+        if let text = triplet(language == .de ? "Breite" : "width", port.currentLinkWidth, port.targetLinkWidth, port.supportedLinkWidth) {
             parts.append(text)
         }
-        if let bandwidth = port.linkBandwidth { parts.append("bandwidth \(bandwidth)") }
+        if let bandwidth = port.linkBandwidth { parts.append(language == .de ? "Bandbreite \(bandwidth)" : "bandwidth \(bandwidth)") }
         return parts.isEmpty ? "–" : parts.joined(separator: " · ")
     }
 
@@ -53,7 +59,8 @@ public enum FabricPresentation {
     }
 
     /// A short identity for a router: model/vendor, or its IDs.
-    public static func routerTitle(_ router: ThunderboltRouter, index: Int) -> String {
+    public static func routerTitle(_ router: ThunderboltRouter, index: Int,
+                                   language: AppLanguage = .en) -> String {
         let name = [router.vendorName, router.deviceModelName]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
@@ -63,36 +70,37 @@ public enum FabricPresentation {
     }
 
     /// The router's identity facts: depth, version, port/tunnel counts.
-    public static func routerDetail(_ router: ThunderboltRouter) -> String {
+    public static func routerDetail(_ router: ThunderboltRouter, language: AppLanguage = .en) -> String {
         var parts: [String] = []
-        if let depth = router.depth { parts.append("depth \(depth)") }
-        if let version = router.thunderboltVersion { parts.append("TB version \(version)") }
+        if let depth = router.depth { parts.append(language == .de ? "Tiefe \(depth)" : "depth \(depth)") }
+        if let version = router.thunderboltVersion { parts.append(language == .de ? "TB-Version \(version)" : "TB version \(version)") }
         if let uid = router.uid { parts.append("UID \(uid)") }
-        parts.append("\(router.ports.count) port(s)")
-        parts.append("\(router.tunnels.count) tunnel(s)")
+        parts.append(language == .de ? "\(router.ports.count) Anschlüsse" : "\(router.ports.count) port(s)")
+        parts.append(language == .de ? "\(router.tunnels.count) Tunnel" : "\(router.tunnels.count) tunnel(s)")
         return parts.joined(separator: " · ")
     }
 
-    public static func portTitle(_ port: ThunderboltFabricPort) -> String {
-        let number = port.number.map { "Port \($0)" } ?? "Port"
+    public static func portTitle(_ port: ThunderboltFabricPort, language: AppLanguage = .en) -> String {
+        let number = port.number.map { language == .de ? "Anschluss \($0)" : "Port \($0)" }
+            ?? (language == .de ? "Anschluss" : "Port")
         return "\(number) · \(port.label) · \(port.protocolName)"
     }
 
-    public static func portDetail(_ port: ThunderboltFabricPort) -> String {
+    public static func portDetail(_ port: ThunderboltFabricPort, language: AppLanguage = .en) -> String {
         var parts: [String] = []
-        if let socket = port.socketID, !socket.isEmpty { parts.append("socket \(socket)") }
-        if let lane = port.lane { parts.append("lane \(lane)") }
-        if let adapter = port.adapterType { parts.append("adapter \(adapter)") }
-        if let upstream = port.upstreamPortNumber { parts.append("upstream \(upstream)") }
-        if port.restricted == true { parts.append("restricted") }
+        if let socket = port.socketID, !socket.isEmpty { parts.append(language == .de ? "Buchse \(socket)" : "socket \(socket)") }
+        if let lane = port.lane { parts.append(language == .de ? "Spur \(lane)" : "lane \(lane)") }
+        if let adapter = port.adapterType { parts.append(language == .de ? "Adapter \(adapter)" : "adapter \(adapter)") }
+        if let upstream = port.upstreamPortNumber { parts.append(language == .de ? "Upstream \(upstream)" : "upstream \(upstream)") }
+        if port.restricted == true { parts.append(language == .de ? "eingeschränkt" : "restricted") }
         return parts.joined(separator: " · ")
     }
 
-    public static func tunnelDetail(_ tunnel: ThunderboltTunnel) -> String {
+    public static func tunnelDetail(_ tunnel: ThunderboltTunnel, language: AppLanguage = .en) -> String {
         var parts: [String] = []
         if let driver = tunnel.driver, !driver.isEmpty { parts.append(driver) }
         if let driverClass = tunnel.driverClass, !driverClass.isEmpty { parts.append(driverClass) }
-        if let deviceID = tunnel.deviceID, !deviceID.isEmpty { parts.append("device \(deviceID)") }
+        if let deviceID = tunnel.deviceID, !deviceID.isEmpty { parts.append(language == .de ? "Gerät \(deviceID)" : "device \(deviceID)") }
         return parts.joined(separator: " · ")
     }
 
@@ -101,7 +109,7 @@ public enum FabricPresentation {
     /// A tunnel is nested under the port it names (`portNumber`); a tunnel whose
     /// port is not among the router's ports is listed once directly below the
     /// router, so nothing the switch reported is dropped.
-    public static func rows(_ fabric: ThunderboltFabric) -> [FabricRow] {
+    public static func rows(_ fabric: ThunderboltFabric, language: AppLanguage = .en) -> [FabricRow] {
         var rows: [FabricRow] = []
         for (index, router) in fabric.routers.enumerated() {
             rows.append(
@@ -109,8 +117,8 @@ public enum FabricPresentation {
                     id: "router:\(index)",
                     kind: .router,
                     depth: 0,
-                    title: routerTitle(router, index: index),
-                    detail: routerDetail(router),
+                    title: routerTitle(router, index: index, language: language),
+                    detail: routerDetail(router, language: language),
                     rawLink: nil
                 )
             )
@@ -121,39 +129,43 @@ public enum FabricPresentation {
                         id: "router:\(index):port:\(portIndex)",
                         kind: .port,
                         depth: 1,
-                        title: portTitle(port),
-                        detail: portDetail(port),
-                        rawLink: linkText(port)
+                        title: portTitle(port, language: language),
+                        detail: portDetail(port, language: language),
+                        rawLink: linkText(port, language: language)
                     )
                 )
                 for (tunnelIndex, tunnel) in router.tunnels.enumerated()
                     where tunnel.portNumber != nil && tunnel.portNumber == port.number {
                     nested.insert(tunnelIndex)
-                    rows.append(tunnelRow(tunnel, router: index, index: tunnelIndex, depth: 2))
+                    rows.append(tunnelRow(tunnel, router: index, index: tunnelIndex, depth: 2, language: language))
                 }
             }
             for (tunnelIndex, tunnel) in router.tunnels.enumerated() where !nested.contains(tunnelIndex) {
-                rows.append(tunnelRow(tunnel, router: index, index: tunnelIndex, depth: 1))
+                rows.append(tunnelRow(tunnel, router: index, index: tunnelIndex, depth: 1, language: language))
             }
         }
         return rows
     }
 
     private static func tunnelRow(
-        _ tunnel: ThunderboltTunnel, router: Int, index: Int, depth: Int
+        _ tunnel: ThunderboltTunnel, router: Int, index: Int, depth: Int,
+        language: AppLanguage = .en
     ) -> FabricRow {
         FabricRow(
             id: "router:\(router):tunnel:\(index)",
             kind: .tunnel,
             depth: depth,
             title: "→ \(tunnel.protocolName): \(tunnel.label)",
-            detail: tunnelDetail(tunnel),
+            detail: tunnelDetail(tunnel, language: language),
             rawLink: nil
         )
     }
 
     /// `2 router(s) · 8 port(s) · 3 tunnel(s)`.
-    public static func summary(_ fabric: ThunderboltFabric) -> String {
-        "\(fabric.routers.count) router(s) · \(fabric.ports.count) port(s) · \(fabric.tunnels.count) tunnel(s)"
+    public static func summary(_ fabric: ThunderboltFabric, language: AppLanguage = .en) -> String {
+        if language == .de {
+            return "\(fabric.routers.count) Router · \(fabric.ports.count) Anschlüsse · \(fabric.tunnels.count) Tunnel"
+        }
+        return "\(fabric.routers.count) router(s) · \(fabric.ports.count) port(s) · \(fabric.tunnels.count) tunnel(s)"
     }
 }

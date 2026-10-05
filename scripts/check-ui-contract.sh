@@ -67,6 +67,8 @@ require_pattern "$APP/Views.swift" "monitoringPollInterval" "monitoring exposes 
 require_pattern "$APP/Strings.swift" "monitoringLastEvent" "monitoring details remain localized"
 require_pattern "$APP/AppState.swift" "Strings.progressText" "loading progress uses app localization"
 require_pattern "$APP/AppState.swift" "language: language" "app table/export paths pass the selected language"
+require_pattern "$APP/AppState.swift" "FabricPresentation.rows(snapshot?.thunderboltFabric ?? ThunderboltFabric(), language: language)" "USB4 rows use the selected language"
+require_pattern "$APP/Views.swift" "FabricPresentation.rawLinkNote(lang)" "USB4 explanatory text remains localized"
 
 forbidden_pattern "$APP/AppState.swift" "SnapshotBuilder.collect" "app state must use SnapshotCollectionService"
 forbidden_pattern "$APP/UsbScopeApp.swift" "SnapshotBuilder.collect" "app self-tests must use SnapshotCollectionService"

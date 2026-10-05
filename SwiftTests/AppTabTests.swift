@@ -235,6 +235,10 @@ final class AppTabTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(row.depth, 1)
         }
         XCTAssertEqual(FabricPresentation.summary(fabric), "\(fabric.routers.count) router(s) · \(fabric.ports.count) port(s) · \(fabric.tunnels.count) tunnel(s)")
+        let germanRows = FabricPresentation.rows(fabric, language: .de)
+        XCTAssertTrue(germanRows.contains { $0.title.contains("Anschluss") })
+        XCTAssertTrue(FabricPresentation.summary(fabric, language: .de).contains("Anschlüsse"))
+        XCTAssertTrue(FabricPresentation.rawLinkNote(.de).contains("Roh-Aufzählungen"))
     }
 
     func testLinkTextKeepsTheRawLinkValuesVerbatim() {

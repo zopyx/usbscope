@@ -715,7 +715,7 @@ final class AppState: ObservableObject {
 
     /// The USB4/Thunderbolt fabric of the current snapshot as tree rows.
     var fabricRows: [FabricRow] {
-        FabricPresentation.rows(snapshot?.thunderboltFabric ?? ThunderboltFabric())
+        FabricPresentation.rows(snapshot?.thunderboltFabric ?? ThunderboltFabric(), language: language)
     }
 
     /// The power sparkline geometry of the recorded history.

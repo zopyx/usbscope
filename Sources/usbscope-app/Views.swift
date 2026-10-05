@@ -1213,7 +1213,7 @@ struct Usb4View: View {
             HStack {
                 Text(L(.usb4Title, lang)).font(.headline)
                 Spacer()
-                Text(FabricPresentation.summary(fabric)).foregroundStyle(.secondary)
+                Text(FabricPresentation.summary(fabric, language: lang)).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 4)
             if rows.isEmpty {
@@ -1250,7 +1250,7 @@ struct Usb4View: View {
                     .padding(.horizontal, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Text(FabricPresentation.rawLinkNote)
+                Text(FabricPresentation.rawLinkNote(lang))
                     .font(.caption).foregroundStyle(.secondary).padding(12)
             }
         }
