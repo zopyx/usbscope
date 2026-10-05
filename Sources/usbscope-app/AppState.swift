@@ -255,10 +255,11 @@ final class AppState: ObservableObject {
     /// makes `self` task-isolated, and capturing it in a main-actor closure is a
     /// data-race error on Swift 6.1.2.
     private func loadEventHistory() {
-        guard let eventLog else { return }
+        guard !shuttingDown, let eventLog else { return }
         Task { @MainActor [weak self] in
             let loaded = await Task.detached(priority: .utility) { (try? eventLog.read()) ?? [] }.value
-            self?.events = Array(loaded.suffix(Self.eventLimit).reversed())
+            guard let self, !self.shuttingDown else { return }
+            self.events = Array(loaded.suffix(Self.eventLimit).reversed())
         }
     }
 
@@ -266,7 +267,7 @@ final class AppState: ObservableObject {
 
     /// Start the hotplug watcher. Safe to call more than once.
     func startMonitoring() {
-        guard watcher == nil else { return }
+        guard !shuttingDown, watcher == nil else { return }
         let profile = monitoringProfile == .lowPower ? SnapshotCollectionProfile.lowPower : .full
         let watcher = UsbHotplugWatcher(collect: {
             self.collectionService.collectSynchronously(profile: profile)
@@ -288,7 +289,7 @@ final class AppState: ObservableObject {
     /// the compact status item stay current. The timer and power timeline are
     /// dashboard work, so they pause while the main window is closed.
     func setMainWindowVisible(_ visible: Bool) {
-        guard mainWindowVisible != visible else { return }
+        guard !shuttingDown, mainWindowVisible != visible else { return }
         mainWindowVisible = visible
         timer?.invalidate()
         timer = nil
@@ -390,6 +391,7 @@ final class AppState: ObservableObject {
     func setNotifications(_ enabled: Bool) { notificationsEnabled = enabled }
     func setNotificationDetail(_ detail: NotificationDetail) { notificationDetail = detail }
     func setMonitoringProfile(_ profile: MonitoringProfile) {
+        guard !shuttingDown else { return }
         monitoringProfile = profile
         stopMonitoring()
         startMonitoring()
@@ -598,6 +600,7 @@ final class AppState: ObservableObject {
     // MARK: - Auto refresh
 
     func setAutoRefresh(_ enabled: Bool) {
+        guard !shuttingDown else { return }
         autoRefresh = enabled
         timer?.invalidate()
         timer = nil
@@ -808,7 +811,7 @@ final class AppState: ObservableObject {
     }
 
     func eject(_ row: StorageRow) {
-        guard let argv = row.ejectCommand, ejecting == nil else { return }
+        guard !shuttingDown, let argv = row.ejectCommand, ejecting == nil else { return }
         ejecting = row.id
         ejectMessage = nil
         let failed = L(.ejectFailed, language)
@@ -819,6 +822,7 @@ final class AppState: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let result = await self.commandService.run(argv)
+            guard !self.shuttingDown else { return }
             let message = result.ok
                 ? "\(identifier) \(L(.ejected, language))"
                 : "\(failed): \(identifier) (\(result.error ?? "exit \(result.returncode)"))"
