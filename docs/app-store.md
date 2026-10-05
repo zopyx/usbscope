@@ -57,6 +57,14 @@ entitlement before creating the package. The shared bundle validator also
 requires `Contents/embedded.provisionprofile` whenever MAS/sandbox validation
 is requested.
 
+For a repeatable credentialed package build, dispatch
+`.github/workflows/mas-package.yml` with an existing version tag from the
+protected `app-store` environment. It imports the Apple Distribution and Mac
+Installer Distribution certificates into an ephemeral keychain, materializes
+the provisioning profile, runs this package script, and uploads the validated
+`.pkg` as a workflow artifact. App Store Connect submission remains a deliberate
+human step after reviewing the package and store metadata.
+
 ## Upload
 
 ```console
@@ -128,6 +136,7 @@ from steps 1–4. See `docs/distribution.md`.
 
 - [ ] Developer Program membership, both certificates, App ID + provisioning profile
 - [x] A packaging script: `scripts/build-swift-mas-pkg.sh`
+- [x] A protected package workflow: `.github/workflows/mas-package.yml`
 - [x] Wire `assets/entitlements/usbscope.entitlements` into the MAS signing step
 - [ ] Verify the sandboxed build actually reads data (the question above)
 - [ ] If it does not: keep the in-process reader as the whole data path for the

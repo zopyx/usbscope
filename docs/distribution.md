@@ -368,8 +368,8 @@ an operational prerequisite before publication.
       but both wrap the ad-hoc bundle, so neither is notarisation-ready.
 - [x] `xcrun notarytool submit` and `xcrun stapler staple` are wired into the
       build; credentials and an Apple-issued certificate remain prerequisites.
-- [ ] A release pipeline (tag → build → sign → notarise → staple → upload);
-      artifacts are currently produced by hand.
+- [x] A release pipeline (tag → build → sign → notarise → staple → upload):
+      `.github/workflows/release.yml` (protected credentials required).
 - [ ] CI that signs/notarises — `.github/workflows/ci.yml` only runs
       `swift build` + `swift test` and, on `main`, builds/uploads the *unsigned*
       ad-hoc bundle with **no** signing secrets. Distribution signing does not
